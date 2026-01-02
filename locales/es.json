@@ -1,0 +1,294 @@
+{
+    "navigation": {
+        "ledger": "📊 Ledger",
+        "cierre": "🔒 Cierre de Mes",
+        "historico": "📅 Histórico",
+        "utilidades": "🔧 Utilidades"
+    },
+    "common": {
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "close": "Cerrar",
+        "next": "Siguiente",
+        "previous": "Anterior",
+        "confirm": "Confirmar",
+        "back": "Volver",
+        "select": "Seleccionar",
+        "add": "Añadir",
+        "update": "Actualizar",
+        "export": "Exportar",
+        "import": "Importar",
+        "search": "Buscar",
+        "filter": "Filtrar",
+        "loading": "Cargando...",
+        "error": "Error",
+        "success": "Éxito",
+        "warning": "Advertencia",
+        "info": "Información"
+    },
+    "sidebar": {
+        "quick_add": {
+            "title": "➕ Añadir entrada",
+            "type_label": "Tipo de Movimiento",
+            "category_label": "Categoría",
+            "concept_label": "Concepto",
+            "date_label": "Fecha",
+            "amount_label": "Importe (€)",
+            "relevance_label": "Relevancia",
+            "liquidity_flag": "Falta de liquidez",
+            "submit_button": "💾 Guardar Movimiento",
+            "success_message": "✅ Movimiento guardado correctamente"
+        },
+        "types": {
+            "expense": "🔴 Gasto",
+            "income": "🟢 Ingreso",
+            "investment": "🟣 Inversión",
+            "transfer_in": "🔵 Traspaso Entrada",
+            "transfer_out": "🟠 Traspaso Salida"
+        }
+    },
+    "analisis": {
+        "title": "💰 PersAcc - Ledger",
+        "month_selector": "📆 Mes Fiscal ({year})",
+        "kpis": {
+            "initial_balance": "🏦 Inic. Mes",
+            "income": "🟢 Ingresos",
+            "expenses": "🔴 Gastos",
+            "balance": "📊 Balance",
+            "investment": "💎 Inversión",
+            "current_balance": "💰 Saldo Actual"
+        },
+        "initial_balance_config": {
+            "title": "⚙️ Configurar Saldo Inicial del Mes",
+            "info": "Este es el primer mes sin historial previo. Ingresa el saldo actual de tu cuenta.",
+            "input_label": "💰 Saldo inicial de la cuenta (€)",
+            "save_button": "💾 Guardar Saldo Inicial",
+            "success_message": "✅ Saldo inicial de {month} guardado: {amount:,.2f} €"
+        },
+        "movements": {
+            "title": "📋 Movimientos del Mes",
+            "month_closed_warning": "🔒 Mes cerrado - No se pueden modificar entradas",
+            "no_movements": "No hay movimientos en este mes",
+            "delete_selected": "🗑️ Eliminar {count} seleccionados",
+            "save_changes": "💾 Guardar Cambios",
+            "delete_success": "🗑️ {count} movimientos eliminados",
+            "update_success": "✅ {count} movimientos actualizados",
+            "columns": {
+                "delete": "Eliminar",
+                "date": "Fecha",
+                "category": "Categoría",
+                "concept": "Concepto",
+                "amount": "Importe (€)",
+                "type": "Tipo",
+                "relevance": "Rel."
+            }
+        },
+        "spending_quality": {
+            "title": "🎯 Calidad del Gasto",
+            "no_data": "No hay gastos para analizar",
+            "labels": {
+                "necessary": "Necesario",
+                "like": "Me gusta",
+                "superfluous": "Superfluo",
+                "nonsense": "Tontería"
+            }
+        }
+    },
+    "cierre": {
+        "title": "🔒 Cierre de Mes",
+        "header_close_month": "🔒 Cerrar mes: **{month}**",
+        "last_closed": "🔒 Último mes cerrado: **{month}**",
+        "month_to_close": "📅 Mes a Cerrar: **{month}**",
+        "select_first_month": "📅 Seleccionar Primer Mes a Cerrar",
+        "already_closed": "🔒 El mes **{month}** ya está cerrado.",
+        "already_closed_info": "Si necesitas modificar datos, contacta con soporte o revisa el historial.",
+        "wizard": {
+            "step1": {
+                "title": "Paso 1: Saldo Real del Banco",
+                "description": "¿Cuánto dinero hay en tu cuenta **AHORA** (antes de cobrar la nueva nómina)?",
+                "expected_balance_info": "💡 Saldo inicial esperado según cierre anterior: **{amount:,.2f} €**",
+                "input_label": "Saldo real (€)",
+                "next_button": "Siguiente →"
+            },
+            "step2": {
+                "title": "Paso 2: Nueva Nómina",
+                "description": "Importe de tu **próxima nómina** (para el mes siguiente):",
+                "input_label": "Nómina (€)",
+                "back_button": "← Anterior",
+                "next_button": "Siguiente →"
+            },
+            "step3": {
+                "title": "Paso 3: Retenciones",
+                "surplus_label": "% Retener del Remanente",
+                "salary_label": "% Retener de la Nómina",
+                "back_button": "← Anterior",
+                "next_button": "Calcular →"
+            },
+            "step4": {
+                "title": "Paso 4: Confirmación",
+                "summary_title": "📋 Resumen del Cierre",
+                "back_button": "← Anterior",
+                "execute_button": "✅ CONFIRMAR CIERRE",
+                "success": "✅ ¡Mes anterior cerrado correctamente!",
+                "error": "❌ Error al ejecutar cierre: {error}"
+            }
+        }
+    },
+    "historico": {
+        "title": "📅 Análisis Anual",
+        "year_selector": "📆 Seleccionar Año",
+        "no_data": "No hay datos registrados aún.",
+        "no_entries": "No hay entradas registradas para {year}.",
+        "year_summary": "📊 Resumen del Año",
+        "kpis": {
+            "income": "🟢 Ingresos",
+            "expenses": "🔴 Gastos",
+            "balance": "📊 Balance",
+            "investment": "💎 Inversión Ejecutada",
+            "savings_percent": "📈 % Ahorro"
+        },
+        "tabs": {
+            "overview": "📈 Visión Global",
+            "analysis": "🔬 Análisis Profundo",
+            "data": "📋 Datos Detallados"
+        },
+        "overview": {
+            "monthly_evolution": "📅 Evolución Mensual",
+            "no_monthly_data": "Sin datos mensuales.",
+            "expenses_by_category": "💸 Gastos por Categoría",
+            "spending_quality": "🎯 Calidad del Gasto",
+            "no_expenses": "No hay gastos registrados",
+            "no_quality_data": "Sin datos de relevancia suficientes",
+            "best_month": "🏆 **Mejor mes:** {month}",
+            "worst_month": "📉 **Peor mes:** {month}"
+        },
+        "analysis": {
+            "select_type": "Selecciona qué quieres analizar:",
+            "types": {
+                "expenses": "🔴 Gastos",
+                "income": "🟢 Ingresos",
+                "investments": "🟣 Inversiones"
+            },
+            "tabs": {
+                "word_frequency": "📝 Palabras Frecuentes",
+                "top_entries": "💰 Top {label}",
+                "curiosities": "💡 Curiosidades"
+            },
+            "word_frequency_title": "🗣️ Palabras más comunes en {type}",
+            "word_frequency_caption": "Conteo de palabras ignorando preposiciones",
+            "no_text_data": "No hay suficientes datos de texto.",
+            "top_entries_title": "💸 Top 10 {label}",
+            "no_records": "No hay registros.",
+            "curiosities_title": "🕵️ Datos Curiosos de {type}",
+            "curiosities_metrics": {
+                "top_day": "📅 Día con más movimiento",
+                "top_day_amount": "💸 Importe ese día",
+                "daily_average": "📊 Promedio diario (días activos)",
+                "active_days": "🗓️ Días registrados"
+            },
+            "no_curiosities": "Faltan datos para calcular curiosidades."
+        },
+        "data": {
+            "title": "📋 Listado Completo de Movimientos",
+            "columns": {
+                "date": "Fecha",
+                "type": "Tipo",
+                "category": "Categoría",
+                "concept": "Concepto",
+                "amount": "Importe"
+            }
+        }
+    },
+    "utilidades": {
+        "title": "🔧 Utilidades",
+        "tabs": {
+            "manual": "📙 Manual de Uso",
+            "export": "📤 Exportar CSV",
+            "import": "📥 Importar Legacy",
+            "cleanup": "🗑️ Limpiar BD",
+            "categories": "🏷️ Gestión Categorías",
+            "config": "⚙️ Configuración"
+        },
+        "export": {
+            "title": "📤 Exportar Entradas a CSV",
+            "description": "Descarga todas las entradas del libro diario en formato CSV.",
+            "total_entries": "📊 Total de entradas: **{count}**",
+            "button": "⬇️ Descargar CSV",
+            "no_entries": "No hay entradas para exportar."
+        },
+        "import": {
+            "title": "📥 Importar Datos Legacy",
+            "description": "Sube un archivo CSV para importar entradas al sistema.",
+            "type_label": "Tipo de datos a importar:",
+            "types": {
+                "expenses": "🔴 Gastos",
+                "income": "🟢 Ingresos",
+                "investments": "🟣 Inversiones"
+            },
+            "format_expenses": "**Formato GASTOS (separado por comas):**",
+            "format_income": "**Formato INGRESOS (separado por comas):**",
+            "format_investments": "**Formato INVERSIONES (separado por comas):**",
+            "uploader_label": "Selecciona archivo CSV",
+            "file_info": "📄 Archivo con {count} filas (excluyendo cabecera)",
+            "preview": "**Preview (primeras 5 filas):**",
+            "button": "🚀 Ejecutar Importación",
+            "processing": "⏳ Procesando archivo y actualizando base de datos...",
+            "success": "✅ Importación completada!",
+            "error": "Error procesando archivo: {error}"
+        },
+        "cleanup": {
+            "title": "🗑️ Limpiar Base de Datos",
+            "warning_irreversible": "**⚠️ CUIDADO**: Estas acciones son irreversibles.",
+            "option1_title": "#### 📋 Borrar Entradas y Cierres de Mes",
+            "option1_warning": "Esto eliminará **{count}** entradas del LEDGER y **todos los cierres de mes** registrados.",
+            "option1_info": "Las categorías se mantendrán intactas.",
+            "option1_confirm_label": "Escribe 'BORRAR TODO' para confirmar:",
+            "option1_confirm_text": "BORRAR TODO",
+            "option1_button": "🗑️ Borrar Entradas y Cierres",
+            "option1_success": "✅ Base de datos limpiada. Se eliminaron {count} entradas y todos los cierres.",
+            "option1_error": "Confirmación incorrecta. Escribe 'BORRAR TODO' exactamente.",
+            "option2_title": "#### ⚠️ RESET COMPLETO",
+            "option2_error": "Esto borrará TODOS los datos incluyendo categorías. Se regenerará la BD con categorías por defecto.",
+            "option2_confirm_label": "Escribe 'RESET TOTAL' para confirmar:",
+            "option2_confirm_text": "RESET TOTAL",
+            "option2_button": "💀 RESET TOTAL",
+            "option2_success": "✅ Reset completo. Base de datos reinicializada con categorías por defecto.",
+            "option2_error_msg": "Confirmación incorrecta. Escribe 'RESET TOTAL' exactamente."
+        },
+        "categories": {
+            "title": "🏷️ Gestión de Categorías",
+            "info": "Modifica el nombre o tipo de las categorías. Los cambios se reflejarán automáticamente en todas las entradas históricas.",
+            "columns": {
+                "id": "ID",
+                "type": "Tipo Movimiento",
+                "active": "Activo",
+                "name": "Nombre Categoría",
+                "count": "# Entradas"
+            },
+            "button": "💾 Guardar Cambios Categorías",
+            "processing": "Procesando cambios...",
+            "success": "✅ Cambios guardados: {details}.",
+            "no_changes": "No se han detectado cambios para guardar.",
+            "created": "{count} creadas",
+            "updated": "{count} actualizadas",
+            "deleted": "{count} eliminadas definitivamente",
+            "archived": "{count} archivadas (tenían historial)"
+        },
+        "config": {
+            "title": "⚙️ Configuración del Sistema",
+            "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
+            "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
+            "slider_rem_label": "% Retención Remanente (default)",
+            "slider_rem_help": "Valor por defecto para retener del saldo sobrante",
+            "slider_sal_label": "% Retención Nómina (default)",
+            "slider_sal_help": "Valor por defecto para retener de la nómina",
+            "section2_title": "#### 📝 Conceptos por defecto",
+            "section2_info": "Estos textos se sugerirán al añadir entradas de cada categoría.",
+            "input_placeholder": "Concepto default para {cat}...",
+            "button": "💾 Guardar Configuración",
+            "success": "✅ Configuración guardada en `data/config.json`"
+        }
+    }
+}

@@ -1,0 +1,29 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Project Specific
+data/finanzas.db
+data/*.db
+temp_import.csv
+*.log
+
+# Legacy Tools
+tools/
+

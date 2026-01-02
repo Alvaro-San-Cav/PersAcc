@@ -1,0 +1,42 @@
+{
+    "retenciones": {
+        "pct_remanente_default": 50,
+        "pct_salario_default": 50
+    },
+    "conceptos_default": {
+        "alcohol": "Cerveza",
+        "compras": "",
+        "dinero_que_te_deben": "",
+        "educacion": "",
+        "fiesta": "",
+        "hogar": "",
+        "impuestos": "Pago de IRPF",
+        "inversion_extra_(gasto)": "",
+        "liquidar_prestamo": "",
+        "ocio": "",
+        "regalos_yo": "",
+        "restaurantes": "",
+        "ropa": "",
+        "salud": "Medicinas ",
+        "supermercado": "",
+        "suscripciones": "",
+        "transporte": "",
+        "traspaso_a_otra_cuenta_(gasto)": "",
+        "vacaciones": "",
+        "tarifa_movil": "Tarifa movil pepephone",
+        "devolucion": "",
+        "ingresos_varios": "",
+        "prestamo": "",
+        "regalo": "",
+        "salario": "Nómina mensual",
+        "sodexo_devolucion_bizum": "",
+        "venta": "",
+        "inversion_historical": "",
+        "inversion_extra": "",
+        "inversion_retención_de_remanente": "",
+        "inversion_retención_de_salario": "Retencion de salario",
+        "ingreso_desde_otra_cuenta": "",
+        "saldo_inicial": "",
+        "traspaso_a_otra_cuenta": ""
+    }
+}

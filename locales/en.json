@@ -1,0 +1,294 @@
+{
+    "navigation": {
+        "ledger": "📊 Ledger",
+        "cierre": "🔒 Month Closing",
+        "historico": "📅 History",
+        "utilidades": "🔧 Utilities"
+    },
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "close": "Close",
+        "next": "Next",
+        "previous": "Previous",
+        "confirm": "Confirm",
+        "back": "Back",
+        "select": "Select",
+        "add": "Add",
+        "update": "Update",
+        "export": "Export",
+        "import": "Import",
+        "search": "Search",
+        "filter": "Filter",
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "warning": "Warning",
+        "info": "Information"
+    },
+    "sidebar": {
+        "quick_add": {
+            "title": "➕ Quick Add",
+            "type_label": "Movement Type",
+            "category_label": "Category",
+            "concept_label": "Concept",
+            "date_label": "Date",
+            "amount_label": "Amount (€)",
+            "relevance_label": "Relevance",
+            "liquidity_flag": "Liquidity shortage",
+            "submit_button": "💾 Save Movement",
+            "success_message": "✅ Movement saved successfully"
+        },
+        "types": {
+            "expense": "🔴 Expense",
+            "income": "🟢 Income",
+            "investment": "🟣 Investment",
+            "transfer_in": "🔵 Transfer In",
+            "transfer_out": "🟠 Transfer Out"
+        }
+    },
+    "analisis": {
+        "title": "💰 PersAcc - Ledger",
+        "month_selector": "📆 Fiscal Month ({year})",
+        "kpis": {
+            "initial_balance": "🏦 Initial",
+            "income": "🟢 Income",
+            "expenses": "🔴 Expenses",
+            "balance": "📊 Balance",
+            "investment": "💎 Investment",
+            "current_balance": "💰 Current Balance"
+        },
+        "initial_balance_config": {
+            "title": "⚙️ Configure Initial Month Balance",
+            "info": "This is the first month with no previous history. Enter your current account balance.",
+            "input_label": "💰 Initial account balance (€)",
+            "save_button": "💾 Save Initial Balance",
+            "success_message": "✅ Initial balance for {month} saved: {amount:,.2f} €"
+        },
+        "movements": {
+            "title": "📋 Movements of the Month",
+            "month_closed_warning": "🔒 Month closed - Entries cannot be modified",
+            "no_movements": "No movements this month",
+            "delete_selected": "🗑️ Delete {count} selected",
+            "save_changes": "💾 Save Changes",
+            "delete_success": "🗑️ {count} movements deleted",
+            "update_success": "✅ {count} movements updated",
+            "columns": {
+                "delete": "Delete",
+                "date": "Date",
+                "category": "Category",
+                "concept": "Concept",
+                "amount": "Amount (€)",
+                "type": "Type",
+                "relevance": "Rel."
+            }
+        },
+        "spending_quality": {
+            "title": "🎯 Spending Quality",
+            "no_data": "No expenses to analyze",
+            "labels": {
+                "necessary": "Necessary",
+                "like": "I like it",
+                "superfluous": "Superfluous",
+                "nonsense": "Nonsense"
+            }
+        }
+    },
+    "cierre": {
+        "title": "🔒 Month Closing",
+        "header_close_month": "🔒 Close Month: **{month}**",
+        "last_closed": "🔒 Last month closed: **{month}**",
+        "month_to_close": "📅 Month to Close: **{month}**",
+        "select_first_month": "📅 Select First Month to Close",
+        "already_closed": "🔒 Month **{month}** is already closed.",
+        "already_closed_info": "If you need to modify data, contact support or check the history.",
+        "wizard": {
+            "step1": {
+                "title": "Step 1: Actual Bank Balance",
+                "description": "How much money is in your account **RIGHT NOW** (before receiving the next salary)?",
+                "expected_balance_info": "💡 Expected initial balance from previous closing: **{amount:,.2f} €**",
+                "input_label": "Actual balance (€)",
+                "next_button": "Next →"
+            },
+            "step2": {
+                "title": "Step 2: New Salary",
+                "description": "Amount of your **next salary** (for the following month):",
+                "input_label": "Salary (€)",
+                "back_button": "← Previous",
+                "next_button": "Next →"
+            },
+            "step3": {
+                "title": "Step 3: Retentions",
+                "surplus_label": "% to retain from surplus",
+                "salary_label": "% to retain from salary",
+                "back_button": "← Previous",
+                "next_button": "Calculate →"
+            },
+            "step4": {
+                "title": "Step 4: Confirmation",
+                "summary_title": "📋 Closing Summary",
+                "back_button": "← Previous",
+                "execute_button": "✅ CONFIRM CLOSING",
+                "success": "✅ Previous month closed successfully!",
+                "error": "❌ Error executing closing: {error}"
+            }
+        }
+    },
+    "historico": {
+        "title": "📅 Annual Analysis",
+        "year_selector": "📆 Select Year",
+        "no_data": "No data recorded yet.",
+        "no_entries": "No entries recorded for {year}.",
+        "year_summary": "📊 Year Summary",
+        "kpis": {
+            "income": "🟢 Income",
+            "expenses": "🔴 Expenses",
+            "balance": "📊 Balance",
+            "investment": "💎 Investment Executed",
+            "savings_percent": "📈 % Savings"
+        },
+        "tabs": {
+            "overview": "📈 Overview",
+            "analysis": "🔬 Deep Analysis",
+            "data": "📋 Detailed Data"
+        },
+        "overview": {
+            "monthly_evolution": "📅 Monthly Evolution",
+            "no_monthly_data": "No monthly data.",
+            "expenses_by_category": "💸 Expenses by Category",
+            "spending_quality": "🎯 Spending Quality",
+            "no_expenses": "No expenses recorded",
+            "no_quality_data": "Insufficient relevance data",
+            "best_month": "🏆 **Best month:** {month}",
+            "worst_month": "📉 **Worst month:** {month}"
+        },
+        "analysis": {
+            "select_type": "Select what you want to analyze:",
+            "types": {
+                "expenses": "🔴 Expenses",
+                "income": "🟢 Income",
+                "investments": "🟣 Investments"
+            },
+            "tabs": {
+                "word_frequency": "📝 Word Frequency",
+                "top_entries": "💰 Top {label}",
+                "curiosities": "💡 Curiosities"
+            },
+            "word_frequency_title": "🗣️ Most common words in {type}",
+            "word_frequency_caption": "Word count ignoring prepositions",
+            "no_text_data": "Insufficient text data.",
+            "top_entries_title": "💸 Top 10 {label}",
+            "no_records": "No records.",
+            "curiosities_title": "🕵️ Curious Facts about {type}",
+            "curiosities_metrics": {
+                "top_day": "📅 Day with most movement",
+                "top_day_amount": "💸 Amount that day",
+                "daily_average": "📊 Daily average (active days)",
+                "active_days": "🗓️ Days recorded"
+            },
+            "no_curiosities": "Insufficient data to calculate curiosities."
+        },
+        "data": {
+            "title": "📋 Complete Movement List",
+            "columns": {
+                "date": "Date",
+                "type": "Type",
+                "category": "Category",
+                "concept": "Concept",
+                "amount": "Amount"
+            }
+        }
+    },
+    "utilidades": {
+        "title": "🔧 Utilities",
+        "tabs": {
+            "manual": "📙 User Manual",
+            "export": "📤 Export CSV",
+            "import": "📥 Import Legacy",
+            "cleanup": "🗑️ Clean DB",
+            "categories": "🏷️ Categories",
+            "config": "⚙️ Configuration"
+        },
+        "export": {
+            "title": "📤 Export Entries to CSV",
+            "description": "Download all ledger entries in CSV format.",
+            "total_entries": "📊 Total entries: **{count}**",
+            "button": "⬇️ Download CSV",
+            "no_entries": "No entries to export."
+        },
+        "import": {
+            "title": "📥 Import Legacy Data",
+            "description": "Upload a CSV file to import entries into the system.",
+            "type_label": "Data type to import:",
+            "types": {
+                "expenses": "🔴 Expenses",
+                "income": "🟢 Income",
+                "investments": "🟣 Investments"
+            },
+            "format_expenses": "**EXPENSES Format (comma separated):**",
+            "format_income": "**INCOME Format (comma separated):**",
+            "format_investments": "**INVESTMENTS Format (comma separated):**",
+            "uploader_label": "Select CSV file",
+            "file_info": "📄 File with {count} rows (excluding header)",
+            "preview": "**Preview (first 5 rows):**",
+            "button": "🚀 Execute Import",
+            "processing": "⏳ Processing file and updating database...",
+            "success": "✅ Import completed!",
+            "error": "❌ Error processing file: {error}"
+        },
+        "cleanup": {
+            "title": "🗑️ Clean Database",
+            "warning_irreversible": "**⚠️ WARNING**: These actions are irreversible.",
+            "option1_title": "#### 📋 Delete Entries and Month Closures",
+            "option1_warning": "This will delete **{count}** LEDGER entries and **all month closures** recorded.",
+            "option1_info": "Categories will remain intact.",
+            "option1_confirm_label": "Type 'DELETE ALL' to confirm:",
+            "option1_confirm_text": "DELETE ALL",
+            "option1_button": "🗑️ Delete Entries and Closures",
+            "option1_success": "✅ Database cleaned. {count} entries and all closures deleted.",
+            "option1_error": "Incorrect confirmation. Type 'DELETE ALL' exactly.",
+            "option2_title": "#### ⚠️ FULL RESET",
+            "option2_error": "This will delete ALL data including categories. DB will be regenerated with default categories.",
+            "option2_confirm_label": "Type 'FULL RESET' to confirm:",
+            "option2_confirm_text": "FULL RESET",
+            "option2_button": "💀 FULL RESET",
+            "option2_success": "✅ Full reset. Database re-initialized with default categories.",
+            "option2_error_msg": "Incorrect confirmation. Type 'FULL RESET' exactly."
+        },
+        "categories": {
+            "title": "🏷️ Category Management",
+            "info": "Modify category names or types. Changes will reflect automatically in all historical entries.",
+            "columns": {
+                "id": "ID",
+                "type": "Movement Type",
+                "active": "Active",
+                "name": "Category Name",
+                "count": "# Entries"
+            },
+            "button": "💾 Save Category Changes",
+            "processing": "Processing changes...",
+            "success": "✅ Changes saved: {details}.",
+            "no_changes": "No changes detected to save.",
+            "created": "{count} created",
+            "updated": "{count} updated",
+            "deleted": "{count} permanently deleted",
+            "archived": "{count} archived (had history)"
+        },
+        "config": {
+            "title": "⚙️ System Configuration",
+            "section1_title": "#### 📊 Default Values - Month Closing",
+            "section1_info": "These values will be used as defaults in the month closing wizard.",
+            "slider_rem_label": "% Surplus Retention (default)",
+            "slider_rem_help": "Default value to retain from surplus balance",
+            "slider_sal_label": "% Salary Retention (default)",
+            "slider_sal_help": "Default value to retain from salary",
+            "section2_title": "#### 📝 Default Concepts",
+            "section2_info": "These texts will be suggested when adding entries for each category.",
+            "input_placeholder": "Default concept for {cat}...",
+            "button": "💾 Save Configuration",
+            "success": "✅ Configuration saved in `data/config.json`"
+        }
+    }
+}
