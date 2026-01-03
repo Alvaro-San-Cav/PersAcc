@@ -7,7 +7,7 @@ from datetime import date
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, RELEVANCIA_DESCRIPTIONS
 from src.database import (
-    get_all_categorias, insert_ledger_entry, is_mes_cerrado
+    get_all_categorias, insert_ledger_entry, is_mes_cerrado, get_category_usage_stats
 )
 from src.business_logic import calcular_fecha_contable, calcular_mes_fiscal
 from src.config import load_config
@@ -29,6 +29,33 @@ def render_sidebar():
         # QUICK ADD FORM
         # ============================================================================
         st.markdown(f"## {t('sidebar.quick_add.title')}")
+        st.markdown("---")
+
+        # ============================================================================
+        # 0. FECHA (Moved to top for context-aware sorting)
+        # ============================================================================
+        
+        # Calcular fecha por defecto según el mes seleccionado
+        mes_global = st.session_state.get('mes_global', None)
+        mes_actual = date.today().strftime("%Y-%m")
+        
+        if mes_global and mes_global != mes_actual:
+            # Si el mes seleccionado es distinto del actual, usar el día 1 de ese mes
+            year, month = map(int, mes_global.split('-'))
+            fecha_default = date(year, month, 1)
+        else:
+            # Si es el mes actual o no hay mes seleccionado, usar la fecha actual
+            fecha_default = date.today()
+        
+        if "quick_date" not in st.session_state:
+            st.session_state["quick_date"] = fecha_default
+
+        fecha = st.date_input(
+            f"📅 {t('sidebar.quick_add.date_label')}", 
+            value=st.session_state["quick_date"],
+            key="quick_date_widget"
+        )
+        
         st.markdown("---")
         
         # Obtener categorías
@@ -56,6 +83,20 @@ def render_sidebar():
                 
         # PASO 2: Filtrar categorías por tipo seleccionado
         categorias_filtradas = [c for c in categorias if c.tipo_movimiento == tipo_mov]
+        
+        # ORDENAR CATEGORIAS INTELIGENTEMENTE
+        # 1. Uso en mismo mes de años anteriores (history)
+        # 2. Uso en año actual (curr_year)
+        # 3. Alfabético
+        stats = get_category_usage_stats(tipo_mov, fecha.month, fecha.year)
+        
+        def sort_key(c):
+            s = stats.get(c.id, {'history': 0, 'curr_year': 0})
+            # Negativo para orden descendente
+            return (-s['history'], -s['curr_year'], c.nombre)
+            
+        categorias_filtradas.sort(key=sort_key)
+        
         cat_dict = {c.nombre: c for c in categorias_filtradas}
         cat_nombres = list(cat_dict.keys())
         
@@ -83,10 +124,22 @@ def render_sidebar():
         cat_key = categoria_nombre.lower().replace(" ", "_")
         concepto_default = conceptos_default.get(cat_key, "")
         
+        # Lógica para actualizar el concepto si cambia la categoría
+        if "prev_cat_nombre" not in st.session_state:
+            st.session_state["prev_cat_nombre"] = ""
+            
+        # Inicializar concepto_input si no existe
+        if "concepto_input" not in st.session_state:
+            st.session_state["concepto_input"] = concepto_default
+
+        if st.session_state["prev_cat_nombre"] != categoria_nombre:
+            st.session_state["concepto_input"] = concepto_default
+            st.session_state["prev_cat_nombre"] = categoria_nombre
+
         # Concepto (justo después de categoría)
+        # NO pasamos 'value' porque ya estamos controlando session_state["concepto_input"]
         concepto = st.text_input(
             f"📝 {t('sidebar.quick_add.concept_label')}", 
-            value=concepto_default, 
             placeholder="Ej: Cena con amigos",
             key="concepto_input"
         )
@@ -125,28 +178,9 @@ def render_sidebar():
         # FORMULARIO para los datos de la transacción
         # Se elimina st.form para quitar el texto "Press enter to submit"
         
-        # Calcular fecha por defecto según el mes seleccionado
-        mes_global = st.session_state.get('mes_global', None)
-        mes_actual = date.today().strftime("%Y-%m")
-        
-        if mes_global and mes_global != mes_actual:
-            # Si el mes seleccionado es distinto del actual, usar el día 1 de ese mes
-            year, month = map(int, mes_global.split('-'))
-            fecha_default = date(year, month, 1)
-        else:
-            # Si es el mes actual o no hay mes seleccionado, usar la fecha actual
-            fecha_default = date.today()
-        
-        # Fecha
-        # Usamos key para poder reiniciar si es necesario
-        if "quick_date" not in st.session_state:
-            st.session_state["quick_date"] = fecha_default
+        # Fecha movida al inicio
+        # Mantenemos la variable 'fecha' que ya fue asignada arriba
 
-        fecha = st.date_input(
-            f"📅 {t('sidebar.quick_add.date_label')}", 
-            value=st.session_state["quick_date"],
-            key="quick_date_widget"
-        )
         
         # Importe
         # Usamos key para resetear

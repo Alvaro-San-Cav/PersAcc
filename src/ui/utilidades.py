@@ -565,7 +565,7 @@ def render_utilidades():
             categorias = get_all_categorias()
             for cat in categorias:
                 cat_key = cat.nombre.lower().replace(" ", "_")
-                input_key = f"concepto_{cat.id}"
+                input_key = f"config_concepto_{cat_key}"
                 if input_key in st.session_state:
                     nuevos_conceptos[cat_key] = st.session_state[input_key]
             

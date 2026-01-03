@@ -137,6 +137,52 @@ def deactivate_categoria(id: int, db_path: Path = DEFAULT_DB_PATH):
         conn.execute("UPDATE CAT_MAESTROS SET es_activo = 0 WHERE id = ?", (id,))
 
 
+def get_category_usage_stats(tipo_movimiento: TipoMovimiento, target_month: int, current_year: int, db_path: Path = DEFAULT_DB_PATH) -> dict:
+    """
+    Retorna estadisticas de uso de categorias para ordenamiento inteligente.
+    Retorna dict: {cat_id: {'history': count, 'curr_year': count}}
+    
+    Criterios:
+    1. Uso en el MISMO mes de años ANTERIORES.
+    2. Uso acumulado en el año ACTUAL.
+    """
+    stats = {}
+    with get_connection(db_path) as conn:
+        # 1. Histórico (mismo mes, años anteriores)
+        rows_hist = conn.execute(
+            """SELECT categoria_id, COUNT(*) as count 
+               FROM LEDGER 
+               WHERE tipo_movimiento = ? 
+                 AND CAST(strftime('%m', fecha_real) AS INT) = ?
+                 AND CAST(strftime('%Y', fecha_real) AS INT) < ?
+               GROUP BY categoria_id""",
+            (tipo_movimiento.value, target_month, current_year)
+        ).fetchall()
+        
+        # 2. Año actual
+        rows_curr = conn.execute(
+            """SELECT categoria_id, COUNT(*) as count 
+               FROM LEDGER 
+               WHERE tipo_movimiento = ? 
+                 AND CAST(strftime('%Y', fecha_real) AS INT) = ?
+               GROUP BY categoria_id""",
+            (tipo_movimiento.value, current_year)
+        ).fetchall()
+
+        # Procesar resultados
+        for row in rows_hist:
+            cid = row["categoria_id"]
+            if cid not in stats: stats[cid] = {'history': 0, 'curr_year': 0}
+            stats[cid]['history'] = row["count"]
+            
+        for row in rows_curr:
+            cid = row["categoria_id"]
+            if cid not in stats: stats[cid] = {'history': 0, 'curr_year': 0}
+            stats[cid]['curr_year'] = row["count"]
+            
+    return stats
+
+
 # ============================================================================
 # OPERACIONES LEDGER
 # ============================================================================

@@ -17,5 +17,5 @@ If colProcessList.Count > 0 Then
 End If
 
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run Chr(34) & CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\scripts\run_persacc.bat" & Chr(34), 0
+WshShell.Run Chr(34) & CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\run_persacc.bat" & Chr(34), 0
 Set WshShell = Nothing

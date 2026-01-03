@@ -1,5 +1,5 @@
 {
-    "language": "en",
+    "language": "es",
     "currency": "EUR",
     "enable_relevance": true,
     "enable_retentions": true,
@@ -23,5 +23,38 @@
     "cierre": {
         "metodo_saldo": "despues_salario"
     },
-    "conceptos_default": {}
+    "conceptos_default": {
+        "alcohol": "Cerveza",
+        "compras": "",
+        "devolucion": "",
+        "dinero_que_te_deben": "",
+        "educacion": "",
+        "fiesta": "",
+        "hogar": "",
+        "impuestos": "",
+        "ingreso_desde_otra_cuenta": "",
+        "ingresos_varios": "",
+        "inversion_historical": "",
+        "inversion_extra": "",
+        "inversion_retención_de_remanente": "",
+        "inversion_retención_de_salario": "",
+        "liquidar_prestamo": "",
+        "ocio": "",
+        "prestamo": "",
+        "regalo": "",
+        "regalos_yo": "",
+        "restaurantes": "",
+        "ropa": "",
+        "salario": "Nómina mensual",
+        "saldo_inicial": "",
+        "salud": "",
+        "sodexo_devolucion_bizum": "",
+        "supermercado": "",
+        "suscripciones": "",
+        "transporte": "",
+        "traspaso_a_otra_cuenta": "",
+        "vacaciones": "",
+        "venta": "",
+        "tarifa_movil": ""
+    }
 }
