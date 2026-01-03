@@ -59,11 +59,17 @@ The app will open at `http://localhost:8501`
 ### Main Dashboard
 Monthly analysis view with real-time KPIs, editable transactions table, and spending quality chart.
 
+![Main Dashboard](assets/mainmenu_jan2026.png)
+
 ### Month Closing Wizard
 Guided 4-step process: real balance, new salary, retentions, and confirmation.
 
+![Month Closing Wizard](assets/monthclose_jan2026.png)
+
 ### Annual Historical Analysis
 Dashboard with monthly evolution, aggregated KPIs, and curious metrics.
+
+![Annual Analysis](assets/yearsum_jan2026.png)
 
 ## 📖 Key Concepts
 

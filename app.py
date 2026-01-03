@@ -19,7 +19,7 @@ from src.ui.styles import apply_custom_css
 
 st.set_page_config(
     page_title="PersAcc - Finanzas Personales",
-    page_icon="logo.ico",
+    page_icon="assets/logo.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )

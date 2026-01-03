@@ -19,10 +19,10 @@ def render_sidebar():
     with st.sidebar:
         # LOGO
         import os
-        if os.path.exists("logo.ico"):
+        if os.path.exists("assets/logo.ico"):
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
-                st.image("logo.ico", width=250)
+                st.image("assets/logo.ico", width=250)
             st.markdown("---")
             
         # ============================================================================
