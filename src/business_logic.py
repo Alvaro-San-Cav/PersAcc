@@ -21,13 +21,7 @@ from .constants import (
 )
 
 
-def _add_months(fecha: date, months: int) -> date:
-    """Añade meses a una fecha (implementación nativa sin dateutil)."""
-    month = fecha.month - 1 + months
-    year = fecha.year + month // 12
-    month = month % 12 + 1
-    day = min(fecha.day, calendar.monthrange(year, month)[1])
-    return date(year, month, day)
+
 
 
 # ============================================================================
@@ -207,6 +201,7 @@ def ejecutar_cierre_mes(
     nomina_nueva: float,
     pct_retencion_remanente: float = 0.0,
     pct_retencion_salario: float = 0.0,
+    consequences_amount: float = 0.0,
     db_path: Path = DEFAULT_DB_PATH,
     salario_ya_incluido: bool = False
 ) -> SnapshotMensual:
@@ -270,7 +265,7 @@ def ejecutar_cierre_mes(
     # 4b. Crear entrada en LEDGER para la retención del remanente (en el mes actual)
     if retencion_remanente > 0:
         # Calcular último día del mes actual
-        import calendar
+
         year_cierre, month_cierre = map(int, mes_fiscal.split('-'))
         last_day = calendar.monthrange(year_cierre, month_cierre)[1]
         fecha_retencion = date(year_cierre, month_cierre, last_day)
@@ -362,8 +357,30 @@ def ejecutar_cierre_mes(
                     flag_liquidez=False
                 )
                 insert_ledger_entry(entrada_retencion_salario, db_path)
-    
-    # 9. Guardar cierre del mes actual
+                insert_ledger_entry(entrada_retencion_salario, db_path)
+
+        # 8c. Crear entrada de Inversión por CONSECUENCIAS (si > 0)
+        if consequences_amount > 0:
+             # Buscar o crear categoría "Inversión consecuencias"
+             cat_cons = next((c for c in categorias if c.nombre.lower() == "inversión consecuencias"), None)
+             
+             if not cat_cons:
+                 cat_cons = next((c for c in categorias if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
+                 
+             if cat_cons:
+                 entrada_consecuencias = LedgerEntry(
+                     id=None,
+                     fecha_real=dia_salario,
+                     fecha_contable=dia_salario,
+                     mes_fiscal=mes_siguiente,
+                     tipo_movimiento=TipoMovimiento.INVERSION,
+                     categoria_id=cat_cons.id,
+                     concepto=f"Retención Consecuencias {mes_fiscal} (auto-generada)",
+                     importe=consequences_amount,
+                     relevancia_code=None,
+                     flag_liquidez=False
+                 )
+                 insert_ledger_entry(entrada_consecuencias, db_path)
     cierre = CierreMensual(
         mes_fiscal=mes_fiscal,
         estado='CERRADO',
@@ -567,4 +584,89 @@ def calculate_curious_metrics(entries: list[LedgerEntry], filter_type: TipoMovim
         "promedio_dias_activos": promedio_dias_activos,
         "dias_activos": dias_activos,
         "total_registros": len(filtered)
+    }
+
+# ============================================================================
+# CUENTA DE CONSECUENCIAS
+# ============================================================================
+
+def calculate_consequences(mes_fiscal: str, rules: list, db_path: Path = DEFAULT_DB_PATH) -> dict:
+    """
+    Calcula el importe total de retenciones por 'consecuencias' y su desglose.
+    
+    Args:
+        mes_fiscal: Mes a analizar
+        rules: Lista de reglas configuradas (dicts)
+        db_path: Ruta a la base de datos
+    
+    Returns:
+        Dict con:
+            'total': float (suma total)
+            'breakdown': list of dicts [{'rule_name', 'amount', 'details'}]
+    """
+    if not rules:
+        return {'total': 0.0, 'breakdown': []}
+        
+    entries = get_ledger_by_month(mes_fiscal, db_path)
+    gastos = [e for e in entries if e.tipo_movimiento == TipoMovimiento.GASTO]
+    categorias = {c.id: c.nombre for c in get_all_categorias(db_path)}
+    
+    total_consequences = 0.0
+    breakdown = []
+    
+    # Procesar cada regla independientemente (efecto acumulativo)
+    for rule in rules:
+        if not rule.get('active', True):
+            continue
+            
+        rule_amount = 0.0
+        details_count = 0
+        
+        filter_rel = rule.get('filter_relevance')
+        filter_cat = rule.get('filter_category')
+        filter_concept = rule.get('filter_concept')
+        action_type = rule.get('action_type', 'percent')
+        action_value = float(rule.get('action_value', 0.0))
+        
+        for gasto in gastos:
+            # 1. Comprobar Filtros
+            
+            # Relevancia
+            if filter_rel:
+                # Si el gasto no tiene relevancia, no matchea si hay filtro
+                if not gasto.relevancia_code or gasto.relevancia_code.value != filter_rel:
+                    continue
+            
+            # Categoría
+            if filter_cat:
+                cat_name = categorias.get(gasto.categoria_id, "")
+                if cat_name != filter_cat:
+                    continue
+            
+            # Concepto (contains, case insensitive)
+            if filter_concept:
+                if not gasto.concepto or filter_concept.lower() not in gasto.concepto.lower():
+                    continue
+            
+            # 2. Aplicar Acción si pasa filtros
+            amount_to_add = 0.0
+            if action_type == 'percent':
+                amount_to_add = gasto.importe * (action_value / 100.0)
+            elif action_type == 'fixed':
+                amount_to_add = action_value
+                
+            rule_amount += amount_to_add
+            details_count += 1
+        
+        if rule_amount > 0:
+            total_consequences += rule_amount
+            breakdown.append({
+                'rule_name': rule.get('name', 'Unnamed Rule'),
+                'amount': rule_amount,
+                'count': details_count
+            })
+            
+    return {
+        'total': total_consequences,
+        'breakdown': breakdown
     }

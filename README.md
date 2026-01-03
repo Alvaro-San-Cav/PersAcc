@@ -1,196 +1,167 @@
 # 💰 PersAcc - Personal Accounting System
 
-> Sistema de contabilidad personal con metodología de cierre mensual, retenciones automáticas y análisis de calidad del gasto.
+> Personal accounting system with monthly closing methodology, automatic savings retention, and spending quality analysis.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
 [![SQLite](https://img.shields.io/badge/SQLite-3-green.svg)](https://www.sqlite.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-## 🎯 ¿Qué es PersAcc?
+## 🎯 What is PersAcc?
 
-**PersAcc** es una aplicación de contabilidad personal diseñada para personas que quieren **control total sobre sus finanzas mensuales** mediante un sistema de cierres contables riguroso.
+**PersAcc** is a personal accounting application designed for people who want **full control over their monthly finances** through a rigorous accounting closing system.
 
-### Características Principales
+### Key Features
 
-✅ **Cierre de Mes Automático** - Wizard paso a paso que calcula retenciones, genera snapshots inmutables y abre el siguiente mes  
-✅ **Retenciones Configurables** - Define % de ahorro/inversión sobre saldo sobrante y nómina  
-✅ **Clasificación de Gastos** - Sistema de relevancia (Necesario, Me gusta, Superfluo, Tontería) para analizar comportamiento  
-✅ **Tabla Editable** - Modifica movimientos inline con validación de meses cerrados  
-✅ **Dashboard Histórico** - KPIs anuales, evolución mensual y análisis de tendencias  
-✅ **Import/Export CSV** - Migra desde otras apps o realiza backups  
-✅ **Arquitectura Modular** - Código limpio y mantenible (8 módulos UI + constants + business logic)
+✅ **Automatic Month Closing** - Step-by-step wizard that calculates retentions, generates immutable snapshots, and opens the next month  
+✅ **Configurable Retentions** - Set savings/investment % on surplus balance and salary  
+✅ **Expense Classification** - Relevance system (Necessary, Like, Superfluous, Nonsense) to analyze behavior  
+✅ **Editable Table** - Modify transactions inline with closed month validation  
+✅ **Historical Dashboard** - Annual KPIs, monthly evolution, and trend analysis  
+✅ **CSV Import/Export** - Migrate from other apps or create backups  
+✅ **Modular Architecture** - Clean and maintainable code (8 UI modules + constants + business logic)
 
 ## 🚀 Quick Start
 
-### Requisitos
+### Requirements
 
-- Python 3.8 o superior
+- Python 3.8 or higher
 - pip
 
-### Instalación
+### Installation
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/tu-usuario/PersAcc.git
+# Clone the repository
+git clone https://github.com/your-username/PersAcc.git
 cd PersAcc
 
-# Crear entorno virtual (recomendado)
+# Create virtual environment (recommended)
 python -m venv .venv
-source .venv/bin/activate  # En Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Instalar dependencias
+# Install dependencies
 pip install -r requirements.txt
 
-# Inicializar base de datos
+# Initialize database
 python setup_db.py
 ```
 
-### Ejecutar la Aplicación
+### Run the Application
 
 ```bash
 streamlit run app.py
 ```
 
-La aplicación se abrirá en `http://localhost:8501`
+The app will open at `http://localhost:8501`
 
 ## 📸 Screenshots
 
-### Dashboard Principal
-Vista de análisis mensual con KPIs en tiempo real, tabla editable de movimientos y gráfico de calidad del gasto.
+### Main Dashboard
+Monthly analysis view with real-time KPIs, editable transactions table, and spending quality chart.
 
-### Wizard de Cierre de Mes
-Proceso guiado en 4 pasos: saldo real, nómina nueva, retenciones y confirmación.
+### Month Closing Wizard
+Guided 4-step process: real balance, new salary, retentions, and confirmation.
 
-### Análisis Histórico Anual
-Dashboard con evolución mensual, KPIs agregados y métricas curiosas.
+### Annual Historical Analysis
+Dashboard with monthly evolution, aggregated KPIs, and curious metrics.
 
-## 📖 Conceptos Clave
+## 📖 Key Concepts
 
-### Cierre de Mes
+### Month Closing
 
-El **flujo de cierre** es el corazón de PersAcc:
+The **monthly closing flow** is the heart of PersAcc. Follow these steps:
 
-1. **Capturar saldo real** del banco (antes de cobrar nómina)
-2. **Configurar nómina** del próximo mes
-3. **Definir retenciones** (% del remanente + % del salario)
-4. **Ejecutar cierre** → genera snapshot + inversiones automáticas + abre mes siguiente
+#### When to Close the Month?
+Once you receive next month's salary (even if it's on the 28th), you should start closing the current month.
 
-**Resultado**: Mes cerrado e inmutable + próximo mes listo con saldo inicial correcto.
+#### Wizard Steps
 
-### Relevancia del Gasto
+1. **Go to the "Month Closing" tab** - The system automatically detects the next month to close
 
-Clasifica cada gasto en:
-- **NE** (Necesario) - Esenciales para vivir
-- **LI** (Me gusta) - Aportan felicidad/bienestar  
-- **SUP** (Superfluo) - Justificables ocasionalmente
-- **TON** (Tontería) - Impulsivos o arrepentidos
+2. **Enter your bank balance** - Input the exact value shown in your bank account at that moment
+   - *Traditional mode*: Balance **before** receiving salary
+   - *Alternative mode*: Balance **after** receiving salary (configurable in settings)
 
-**Objetivo**: Analizar qué % de tus gastos va a cada categoría y mejorar hábitos.
+3. **Enter the salary amount** - Input the gross salary you just received
 
-### Stack Tecnológico
+4. **Configure retentions** - Set what percentage to allocate to investment/savings:
+   - **% Surplus Retention**: From leftover money before the new salary
+   - **% Salary Retention**: From the new salary received
 
-- **Frontend**: Streamlit (UI declarativa)
-- **Backend**: Python 3.8+ (lógica de negocio)
-- **Database**: SQLite (persistencia local)
+5. **Execute the closing** - The system:
+   - Creates automatic investment entries
+   - Generates the salary as income in the new month
+   - Calculates and displays the final result
+   - Automatically switches to the next month
 
-## 📊 Modelo de Datos
+**Result**: Closed and immutable month + next month ready with correct opening balance.
 
-### Tablas Principales
+### Spending Relevance
 
-**LEDGER** (Libro Diario)
-- `id`, `fecha_real`, `fecha_contable`, `mes_fiscal`
-- `tipo_movimiento`, `categoria_id`, `concepto`, `importe`
-- `relevancia_code`, `flag_liquidez`
+Classify each expense as:
+- **NE** (Necessary) - Essential for living
+- **LI** (Like) - Brings happiness/well-being  
+- **SUP** (Superfluous) - Occasionally justifiable
+- **TON** (Nonsense) - Impulsive or regretted
 
-**CAT_MAESTROS** (Categorías)
-- `id`, `nombre`, `tipo_movimiento`, `es_activo`
+**Goal**: Analyze what % of your spending goes to each category and improve habits.
 
-**CIERRES_MENSUALES** (Snapshots)
-- `mes_fiscal`, `estado`, `fecha_cierre`
-- `saldo_inicio`, `saldo_fin`, `total_ingresos`, `total_gastos`
-- `salario_mes`, `nomina_siguiente`, `notas`
+### Tech Stack
 
+- **Frontend**: Streamlit 
+- **Backend**: Python 3.8+ 
+- **Database**: SQLite 
 
-### Contribuir
+## 📝 Typical Usage
 
-1. Fork el proyecto
-2. Crea una rama: `git checkout -b feature/amazing-feature`
-3. Commit cambios: `git commit -m 'Add amazing feature'`
+### Daily Workflow
+
+1. **Quick Add** (sidebar) - Log expenses in 10 seconds
+2. **Analysis** - Review transactions table and monthly KPIs
+3. **End of month** - Closing wizard (5 minutes)
+
+### Closing Example
+
+```
+Month: January 2026
+Real balance: €1,245
+New salary: €2,500
+Surplus retention: 50% → €622.50
+Salary retention: 20% → €500
+
+→ February starts with €622.50 + €2,500 - €500 = €2,622.50 operational
+```
+
+### Contributing
+
+1. Fork the project
+2. Create a branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
 4. Push: `git push origin feature/amazing-feature`
-5. Abre un Pull Request
+5. Open a Pull Request
 
-## 📝 Uso Típico
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-### Workflow Diario
+## 📄 License
 
-1. **Quick Add** (sidebar) - Registra gastos en 10 segundos
-2. **Análisis** - Revisa tabla de movimientos y KPIs del mes
-3. **Fin de mes** - Wizard de cierre (5 minutos)
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
 
-### Ejemplo de Cierre
+The LICENSE file contains the full text of the license.  
+**Summary**: You are free to share and adapt the material for non-commercial purposes, as long as you give appropriate credit and distribute your contributions under the same license.
 
-```
-Mes: Enero 2026
-Saldo real: 1,245 €
-Nómina nueva: 2,500 €
-Retención remanente: 50% → 622.50 €
-Retención salario: 20% → 500 €
 
-→ Febrero inicia con 622.50 € + 2,500 € - 500 € = 2,622.50 € operativos
-```
+## 🙏 Acknowledgments
 
-## 🔮 Roadmap
+- [Streamlit](https://streamlit.io/) - Amazing and easy-to-use UI framework
 
-- [ ] **Fase 3**: Componentes UI reutilizables (`render_kpi_card`, etc.)
-- [ ] **LLM-Assisted Import**: Formateo automático de CSV con IA
-- [ ] **Tests Automatizados**: Cobertura de business_logic y database
-- [ ] **Multi-moneda**: Soporte para EUR, USD, etc.
-- [ ] **Mobile App**: Versión responsive/PWA
-- [ ] **Sincronización Cloud**: Backup automático a Drive/Dropbox
+## 📞 Contact
 
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
-
-## 🙏 Agradecimientos
-
-- [Streamlit](https://streamlit.io/) - Framework UI increíble
-- [Plotly](https://plotly.com/) - Gráficos interactivos
-- Comunidad Python por las herramientas
-
-## ☁️ Despliegue Fácil / Easy Deployment
-
-### Opción 1: Streamlit Cloud (Recomendado 🌟)
-La forma más rápida y gratuita de publicar tu PersAcc.
-
-1. Sube tu código a **GitHub**.
-2. Ve a [share.streamlit.io](https://share.streamlit.io/) y conecta tu cuenta.
-3. Haz clic en **"New app"**.
-4. Selecciona tu repositorio, rama (`main`) y el archivo principal (`app.py`).
-5. ¡Listo! En 2 minutos tendrás tu URL pública (ej: `persacc.streamlit.app`).
-
-### Opción 2: Docker 🐳
-Si prefieres auto-alojarlo en tu servidor o NAS:
-
-```bash
-# Construir imagen
-docker build -t persacc .
-
-# Ejecutar contenedor
-docker run -p 8501:8501 -v $(pwd)/data:/app/data persacc
-```
-*Nota: El volumen `-v` es vital para persistir tu base de datos `finanzas.db` fuera del contenedor.*
-
-## 📞 Contacto
-
-**Autor**: Alvaro Sánchez  
-**Email**: alvareitor26@gmail.com  
+**Author**: Alvaro Sánchez  
 **GitHub**: [@Alvaro-San-Cav](https://github.com/Alvaro-San-Cav)
 
 ---
 
-⭐ Si PersAcc te resulta útil, ¡dale una estrella al repo!
+⭐ If PersAcc is useful to you, give the repo a star!
 
-**Versión**: 2.0  
-**Última actualización**: Enero 2026
+**Version**: 1.2  
+**Last updated**: January 2026

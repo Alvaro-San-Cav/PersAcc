@@ -24,6 +24,7 @@ from src.business_logic import (
     calcular_kpis_anuales, get_word_counts, get_top_entries,
     calculate_curious_metrics
 )
+from src.config import format_currency, get_currency_symbol
 from src.i18n import t
 
 
@@ -78,7 +79,7 @@ def render_historico():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('historico.kpis.income')}</div>
-            <div class="kpi-value">{kpis['total_ingresos']:,.0f} €</div>
+            <div class="kpi-value">{format_currency(kpis['total_ingresos'], 0)}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -86,7 +87,7 @@ def render_historico():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('historico.kpis.expenses')}</div>
-            <div class="kpi-value" style="color: #ff6b6b;">{kpis['total_gastos']:,.0f} €</div>
+            <div class="kpi-value" style="color: #ff6b6b;">{format_currency(kpis['total_gastos'], 0)}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -96,7 +97,7 @@ def render_historico():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('historico.kpis.balance')}</div>
-            <div class="kpi-value" style="color: {color};">{balance:,.0f} €</div>
+            <div class="kpi-value" style="color: {color};">{format_currency(balance, 0)}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -104,7 +105,7 @@ def render_historico():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('historico.kpis.investment')}</div>
-            <div class="kpi-value">{kpis['total_inversion']:,.0f} €</div>
+            <div class="kpi-value">{format_currency(kpis['total_inversion'], 0)}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -125,6 +126,13 @@ def render_historico():
     ])
     
     cats_dict = {c.id: c.nombre for c in get_all_categorias()}
+    
+    cats_dict = {c.id: c.nombre for c in get_all_categorias()}
+    
+    # Cargar config
+    from src.config import load_config
+    config = load_config()
+    enable_relevance = config.get('enable_relevance', True)
     
     # === TAB 1: VISIÓN GLOBAL (Dashboard Unificado) ===
     with tab_overview:
@@ -186,29 +194,33 @@ def render_historico():
                 st.info(t('historico.overview.no_expenses'))
 
         with col_quality:
-            st.markdown(f"#### {t('historico.overview.spending_quality')}")
-            relevancia_data = defaultdict(float)
-            for e in entries:
-                if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
-                    relevancia_data[e.relevancia_code.value] += e.importe
-            
-            if relevancia_data:
-                labels_map = {'NE': t('analisis.spending_quality.labels.necessary'), 'LI': t('analisis.spending_quality.labels.like'), 'SUP': t('analisis.spending_quality.labels.superfluous'), 'TON': t('analisis.spending_quality.labels.nonsense')}
-                colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
-                fig_pie = go.Figure(data=[go.Pie(
-                    labels=[labels_map.get(k, k) for k in relevancia_data.keys()],
-                    values=list(relevancia_data.values()),
-                    hole=0.5,
-                    marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
-                )])
-                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=300)
-                st.plotly_chart(fig_pie, use_container_width=True)
+            if enable_relevance:
+                st.markdown(f"#### {t('historico.overview.spending_quality')}")
+                relevancia_data = defaultdict(float)
+                for e in entries:
+                    if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
+                        relevancia_data[e.relevancia_code.value] += e.importe
                 
-                # Stats Mini
-                st.info(t('historico.overview.best_month', month=kpis.get('mejor_mes', 'N/A')))
-                st.error(t('historico.overview.worst_month', month=kpis.get('peor_mes', 'N/A')))
+                if relevancia_data:
+                    labels_map = {'NE': t('analisis.spending_quality.labels.necessary'), 'LI': t('analisis.spending_quality.labels.like'), 'SUP': t('analisis.spending_quality.labels.superfluous'), 'TON': t('analisis.spending_quality.labels.nonsense')}
+                    colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
+                    fig_pie = go.Figure(data=[go.Pie(
+                        labels=[labels_map.get(k, k) for k in relevancia_data.keys()],
+                        values=list(relevancia_data.values()),
+                        hole=0.5,
+                        marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
+                    )])
+                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=300)
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                    
+                    # Stats Mini
+                    st.info(t('historico.overview.best_month', month=kpis.get('mejor_mes', 'N/A')))
+                    st.error(t('historico.overview.worst_month', month=kpis.get('peor_mes', 'N/A')))
+                else:
+                    st.warning(t('historico.overview.no_quality_data'))
             else:
-                st.warning(t('historico.overview.no_quality_data'))
+                 # Si está deshabilitado, mostrar algo alternativo o dejar vacío
+                 st.info(t('historico.overview.no_quality_data') + " (Relevance Disabled)")
 
     # === TAB 2: ANÁLISIS PROFUNDO (Interactivo) ===
     with tab_analysis:
@@ -279,7 +291,7 @@ def render_historico():
                         t('historico.data.columns.date'): e.fecha_real.strftime("%d/%m/%Y"),
                         t('historico.data.columns.concept'): e.concepto,
                         t('historico.data.columns.category'): cat_name,
-                        t('historico.data.columns.amount'): f"{e.importe:,.2f} €"
+                        t('historico.data.columns.amount'): format_currency(e.importe)
                     })
                 st.dataframe(top_data, use_container_width=True, hide_index=True)
             else:
@@ -293,9 +305,9 @@ def render_historico():
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
                     st.metric(t('historico.analysis.curiosities_metrics.top_day'), f"{curious['dia_top_fecha']}")
-                    st.metric(t('historico.analysis.curiosities_metrics.top_day_amount'), f"{curious['dia_top_importe']:,.2f} €")
+                    st.metric(t('historico.analysis.curiosities_metrics.top_day_amount'), format_currency(curious['dia_top_importe']))
                 with col_c2:
-                    st.metric(t('historico.analysis.curiosities_metrics.daily_average'), f"{curious['promedio_dias_activos']:,.2f} €")
+                    st.metric(t('historico.analysis.curiosities_metrics.daily_average'), format_currency(curious['promedio_dias_activos']))
                     st.metric(t('historico.analysis.curiosities_metrics.active_days'), f"{curious['dias_activos']}")
             else:
                 st.info(t('historico.analysis.no_curiosities'))
@@ -313,6 +325,6 @@ def render_historico():
                 t('historico.data.columns.type'): e.tipo_movimiento.value,
                 t('historico.data.columns.category'): cat_name,
                 t('historico.data.columns.concept'): e.concepto[:60] if e.concepto else "",
-                t('historico.data.columns.amount'): f"{signo}{e.importe:,.2f} €"
+                t('historico.data.columns.amount'): f"{signo}{format_currency(e.importe)}"
             })
         st.dataframe(data, use_container_width=True, hide_index=True, height=600)

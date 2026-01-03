@@ -14,6 +14,7 @@ from src.database import (
     delete_ledger_entry, update_ledger_entry
 )
 from src.business_logic import calcular_kpis, calcular_kpis_relevancia, calcular_mes_fiscal
+from src.config import get_currency_symbol, format_currency
 from src.i18n import t
 
 
@@ -21,6 +22,11 @@ def render_analisis():
     """Renderiza la página de análisis."""
     st.markdown(f'<div class="main-header"><h1>{t("analisis.title")}</h1></div>', unsafe_allow_html=True)
     
+    # Cargar configuración
+    from src.config import load_config
+    config = load_config()
+    enable_relevance = config.get('enable_relevance', True)
+
     # Selector de mes
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -47,11 +53,16 @@ def render_analisis():
         else:
             default_index = 0  # Enero del año a mostrar
         
+        def on_mes_change():
+            """Callback al cambiar de mes para forzar actualización."""
+            st.session_state['mes_global'] = st.session_state['mes_selector_analisis']
+        
         mes_seleccionado = st.selectbox(
             t('analisis.month_selector', year=year_to_show),
             options=meses,
             index=default_index,
-            key="mes_selector_analisis"
+            key="mes_selector_analisis",
+            on_change=on_mes_change
         )
         # Guardar en session_state global
         st.session_state['mes_global'] = mes_seleccionado
@@ -86,8 +97,14 @@ def render_analisis():
         saldo_inicial = 0.0
         tiene_saldo_guardado = False
     
-    # Si no hay saldo guardado, mostrar input para configurarlo
-    if not tiene_saldo_guardado:
+    # Verificar si el sistema ya fue inicializado (existe algún snapshot)
+    from src.database import get_latest_snapshot
+    sistema_inicializado = get_latest_snapshot() is not None
+    
+    # Solo mostrar config de saldo inicial si:
+    # 1. No hay saldo guardado para este mes Y
+    # 2. El sistema NUNCA fue inicializado (primera vez)
+    if not tiene_saldo_guardado and not sistema_inicializado:
         with st.expander(t('analisis.initial_balance_config.title'), expanded=True):
             st.info(t('analisis.initial_balance_config.info'))
             nuevo_saldo = st.number_input(
@@ -124,7 +141,7 @@ def render_analisis():
          st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.initial_balance')}</div>
-            <div class="kpi-value">{saldo_inicial:,.2f} €</div>
+            <div class="kpi-value">{format_currency(saldo_inicial)}</div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -132,7 +149,7 @@ def render_analisis():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.income')}</div>
-            <div class="kpi-value">{kpis['total_ingresos']:,.2f} €</div>
+            <div class="kpi-value">{format_currency(kpis['total_ingresos'])}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -140,7 +157,7 @@ def render_analisis():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.expenses')}</div>
-            <div class="kpi-value" style="color: #ff6b6b;">{kpis['total_gastos']:,.2f} €</div>
+            <div class="kpi-value" style="color: #ff6b6b;">{format_currency(kpis['total_gastos'])}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -149,7 +166,7 @@ def render_analisis():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.balance')}</div>
-            <div class="kpi-value" style="color: {balance_color};">{kpis['balance_mes']:,.2f} €</div>
+            <div class="kpi-value" style="color: {balance_color};">{format_currency(kpis['balance_mes'])}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -157,7 +174,7 @@ def render_analisis():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.investment')}</div>
-            <div class="kpi-value">{kpis['total_inversion']:,.2f} €</div>
+            <div class="kpi-value">{format_currency(kpis['total_inversion'])}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -168,7 +185,7 @@ def render_analisis():
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.current_balance')}</div>
-            <div class="kpi-value" style="color: {saldo_color};">{saldo_actual:,.2f} €</div>
+            <div class="kpi-value" style="color: {saldo_color};">{format_currency(saldo_actual)}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -208,9 +225,16 @@ def render_analisis():
                     "Relevancia": e.relevancia_code.value if e.relevancia_code else ""
                 })
             
+            
+            if not enable_relevance:
+                # Si está deshabilitado, eliminamos la columna de relevancia de los datos (aunque aquí no afecta a data_editor tanto como la config)
+                pass 
+            
             df = pd.DataFrame(data)
             
             # Configuración de columnas
+            
+            # Base config
             column_config = {
                 "id": None,  # Ocultar ID
                 "Borrar": st.column_config.CheckboxColumn(
@@ -236,18 +260,26 @@ def render_analisis():
                 ),
                 "Importe": st.column_config.NumberColumn(
                     t('analisis.movements.columns.amount'),
-                    format="%.2f €",
+                    format=f"%.2f {get_currency_symbol()}",
                     min_value=0.0,
                     disabled=mes_cerrado
                 ),
                 "Tipo": st.column_config.TextColumn(t('analisis.movements.columns.type'), disabled=True),
-                "Relevancia": st.column_config.SelectboxColumn(
+            }
+            
+            # Add Relevance column only if enabled
+            if enable_relevance:
+                column_config["Relevance"] = st.column_config.SelectboxColumn(
                     t('analisis.movements.columns.relevance'),
                     options=["NE", "LI", "SUP", "TON"],
                     required=False,
                     disabled=mes_cerrado
                 )
-            }
+            
+            # Definir columnas visibles
+            col_order = ["Borrar", "Fecha", "Categoría", "Concepto", "Importe", "Tipo"]
+            if enable_relevance:
+                col_order.append("Relevancia")
             
             # Mostrar tabla editable
             edited_df = st.data_editor(
@@ -256,6 +288,7 @@ def render_analisis():
                 column_config=column_config,
                 use_container_width=True,
                 hide_index=True,
+                column_order=col_order,
                 num_rows="fixed", # No permitir agregar filas aquí, usar formulario
                 disabled=["id", "Tipo"] if not mes_cerrado else ["id", "Borrar", "Fecha", "Categoría", "Concepto", "Importe", "Tipo", "Relevancia"]
             )
@@ -275,7 +308,12 @@ def render_analisis():
                 
                 # 2. Edición (detectar cambios en DF vs DB)
                 # Detectar si hubo cambios en los datos (excluyendo Borrar)
-                cols_check = ["Categoría", "Concepto", "Importe", "Relevancia"]
+                # 2. Edición (detectar cambios en DF vs DB)
+                # Detectar si hubo cambios en los datos (excluyendo Borrar)
+                cols_check = ["Categoría", "Concepto", "Importe"]
+                if enable_relevance:
+                    cols_check.append("Relevancia")
+                
                 hay_cambios = not edited_df[cols_check].equals(df[cols_check])
                 
                 if hay_cambios:
@@ -288,7 +326,7 @@ def render_analisis():
                             if not row[cols_check].equals(original_row[cols_check]):
                                 # Obtener ID categoría nuevo
                                 nuevo_cat_id = cats_inv_map.get(row["Categoría"])
-                                prueba_rel = row["Relevancia"] if row["Relevancia"] else None
+                                prueba_rel = row["Relevancia"] if (enable_relevance and row["Relevancia"]) else None
                                 
                                 # Actualizar en BD usando la función importada
                                 update_ledger_entry(
@@ -306,39 +344,82 @@ def render_analisis():
             st.info(t('analisis.movements.no_movements'))
     
     with col_grafico:
-        st.markdown(f"### {t('analisis.spending_quality.title')}")
+        # 1. Gráfico de Gastos por Categoría (Nuevo)
+        st.markdown(f"### {t('analisis.expenses_by_category.title')}")
+        from collections import defaultdict
         
-        # Datos para donut chart
-        total_gastos = sum(kpis_rel.values())
-        if total_gastos > 0:
-            labels = [
-                t('analisis.spending_quality.labels.necessary'),
-                t('analisis.spending_quality.labels.like'),
-                t('analisis.spending_quality.labels.superfluous'),
-                t('analisis.spending_quality.labels.nonsense')
-            ]
-            values = [kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON']]
-            colors = ['#00c853', '#448aff', '#ffab00', '#ff5252']
+        gastos_por_cat = defaultdict(float)
+        for e in entries:
+            if e.tipo_movimiento == TipoMovimiento.GASTO:
+                # Usar nombre de categoría
+                cat_nombre = cats_map.get(e.categoria_id, "Desconocida")
+                gastos_por_cat[cat_nombre] += e.importe
+        
+        if gastos_por_cat:
+            # Ordenar por importe descendente
+            sorted_cats = sorted(gastos_por_cat.items(), key=lambda x: x[1], reverse=True)
+            cats_labels = [x[0] for x in sorted_cats]
+            cats_values = [x[1] for x in sorted_cats]
             
-            fig = go.Figure(data=[go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.6,
-                marker_colors=colors,
-                textinfo='percent',
-                textfont_size=14
+            # Donut Chart para Categorías
+            fig_cat = go.Figure(data=[go.Pie(
+                labels=cats_labels,
+                values=cats_values,
+                hole=0.4,
+                textinfo='label+percent',
+                textposition='inside',
+                insidetextorientation='radial'
             )])
             
-            fig.update_layout(
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2),
+            fig_cat.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font_color='white',
                 margin=dict(t=20, b=20, l=20, r=20),
-                height=300
+                height=300,
+                showlegend=False
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig_cat, use_container_width=True)
         else:
-            st.info(t('analisis.spending_quality.no_data'))
+            st.info(t('analisis.movements.no_movements'))
+            
+        st.divider()
+
+        if enable_relevance:
+            st.markdown(f"### {t('analisis.spending_quality.title')}")
+            
+            # Datos para donut chart
+            total_gastos = sum(kpis_rel.values())
+            if total_gastos > 0:
+                labels = [
+                    t('analisis.spending_quality.labels.necessary'),
+                    t('analisis.spending_quality.labels.like'),
+                    t('analisis.spending_quality.labels.superfluous'),
+                    t('analisis.spending_quality.labels.nonsense')
+                ]
+                values = [kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON']]
+                colors = ['#00c853', '#448aff', '#ffab00', '#ff5252']
+                
+                fig = go.Figure(data=[go.Pie(
+                    labels=labels,
+                    values=values,
+                    hole=0.6,
+                    marker_colors=colors,
+                    textinfo='percent',
+                    textfont_size=14
+                )])
+                
+                fig.update_layout(
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font_color='white',
+                    margin=dict(t=20, b=20, l=20, r=20),
+                    height=300
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info(t('analisis.spending_quality.no_data'))

@@ -3,11 +3,12 @@ Página de Utilidades - PersAcc
 Renderiza la interfaz de utilidades.
 """
 import streamlit as st
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
-import sys
 import csv
 from io import StringIO
+import pandas as pd
+import uuid
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, CierreMensual, Categoria
 from src.database import (
@@ -24,6 +25,7 @@ from src.business_logic import (
     calcular_kpis_anuales, get_word_counts, get_top_entries,
     calculate_curious_metrics
 )
+from src.config import get_currency_symbol
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
 from src.i18n import t, get_language, set_language, get_language_flag, get_language_name
@@ -31,23 +33,56 @@ from src.i18n import t, get_language, set_language, get_language_flag, get_langu
 
 def render_utilidades():
     """Renderiza la página de utilidades del sistema."""
-    from src.database import get_all_ledger_entries, get_connection, DEFAULT_DB_PATH
-    import csv
-    from io import StringIO
+
     
     st.markdown(f'<div class="main-header"><h1>{t("utilidades.title")}</h1></div>', unsafe_allow_html=True)
     
-    # Sub-tabs para diferentes utilidades
-    util_tab_manual, util_tab1, util_tab2, util_tab3, util_tab4, util_tab5 = st.tabs([
-        t('utilidades.tabs.manual'),
-        t('utilidades.tabs.export'),
-        t('utilidades.tabs.import'),
-        t('utilidades.tabs.cleanup'),
-        t('utilidades.tabs.categories'),
-        t('utilidades.tabs.config')
-    ])
+    # Mostrar notificación de éxito si existe (antes de las tabs)
+    if st.session_state.get('notify_success'):
+        st.markdown(f"""
+        <div style="background: linear-gradient(90deg, #00c853 0%, #00e676 100%); 
+                    color: white; padding: 1rem; border-radius: 10px; 
+                    margin-bottom: 1rem; text-align: center; font-weight: bold;
+                    box-shadow: 0 4px 15px rgba(0,200,83,0.3);
+                    animation: fadeIn 0.5s ease-out;">
+            ✅ {st.session_state['notify_success']}
+        </div>
+        <style>
+            @keyframes fadeIn {{
+                from {{ opacity: 0; transform: translateY(-10px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+        del st.session_state['notify_success']
     
-    with util_tab_manual:
+    # Navegación persistente con Radio Buttons en lugar de Tabs
+    tabs_map = {
+        t('utilidades.tabs.config'): 'config',
+        t('utilidades.tabs.categories'): 'categories',
+        t('consequences.title'): 'consequences', # Nuevo Tab
+        t('utilidades.tabs.manual'): 'manual',
+        t('utilidades.tabs.export'): 'export',
+        t('utilidades.tabs.import'): 'import',
+        t('utilidades.tabs.cleanup'): 'cleanup'
+    }
+    
+    # Asegurar que la selección persiste si cambia el idioma
+    # Si el valor actual no está en las opciones (por cambio de idioma), resetear
+    current_selection = st.session_state.get("utilidades_tab_selected")
+    if current_selection and current_selection not in tabs_map.keys():
+        # Intentar recuperar por índice si es posible, o default a manual
+        st.session_state["utilidades_tab_selected"] = list(tabs_map.keys())[0]
+
+    selected_tab_label = st.radio(
+        label="Navegación Utilidades",
+        options=list(tabs_map.keys()),
+        horizontal=True,
+        label_visibility="collapsed",
+        key="utilidades_tab_selected"
+    )
+    
+    if selected_tab_label == t('utilidades.tabs.manual'):
         # Load correct manual based on language
         current_lang = get_language()
         if current_lang == 'en':
@@ -59,7 +94,7 @@ def render_utilidades():
     # ========================
     # TAB 1: EXPORTAR CSV
     # ========================
-    with util_tab1:
+    if selected_tab_label == t('utilidades.tabs.export'):
         st.markdown(f"### {t('utilidades.export.title')}")
         st.markdown(t('utilidades.export.description'))
         
@@ -103,7 +138,7 @@ def render_utilidades():
     # ========================
     # TAB 2: IMPORTAR LEGACY
     # ========================
-    with util_tab2:
+    if selected_tab_label == t('utilidades.tabs.import'):
         st.markdown(f"### {t('utilidades.import.title')}")
         st.markdown(t('utilidades.import.description'))
         
@@ -190,7 +225,7 @@ def render_utilidades():
     # ========================
     # TAB 3: LIMPIAR BD
     # ========================
-    with util_tab3:
+    if selected_tab_label == t('utilidades.tabs.cleanup'):
         st.markdown(f"### {t('utilidades.cleanup.title')}")
         st.markdown(t('utilidades.cleanup.warning_irreversible'))
         
@@ -265,7 +300,7 @@ def render_utilidades():
     # ========================
     # TAB 4: GESTIÓN CATEGORÍAS
     # ========================
-    with util_tab4:
+    if selected_tab_label == t('utilidades.tabs.categories'):
         st.markdown(f"### {t('utilidades.categories.title')}")
         st.info(t('utilidades.categories.info'))
         
@@ -339,7 +374,7 @@ def render_utilidades():
                     count_archived += 1
             
             # B. CREACIONES Y ACTUALIZACIONES
-            from src.models import Categoria  # Import local para evitar circular si fuera necesario
+
             
             with st.spinner(t('utilidades.categories.processing')):
                 for row in edited_data:
@@ -382,16 +417,130 @@ def render_utilidades():
                 if count_deleted: msg.append(t('utilidades.categories.deleted', count=count_deleted))
                 if count_archived: msg.append(t('utilidades.categories.archived', count=count_archived))
                 
-                st.success(t('utilidades.categories.success', details=', '.join(msg)))
-
+                # Guardar mensaje en session_state para mostrar después del rerun
+                st.session_state['notify_success'] = t('utilidades.categories.success', details=', '.join(msg))
                 st.rerun()
             else:
                 st.info(t('utilidades.categories.no_changes'))
 
     # ========================
+    # TAB: CONSECUENCIAS
+    # ========================
+    if selected_tab_label == t('consequences.title'):
+        st.markdown(f"### {t('consequences.title')}")
+        st.info(t('consequences.info'))
+        
+        # Cargar configuración y reglas
+        from src.config import load_config, save_config
+        config_data = load_config()
+        
+        if not config_data.get('enable_consequences', False):
+             st.warning(f"⚠️ {t('utilidades.config.enable_consequences_help')}")
+             st.info("Ve a Configuración para activar esta funcionalidad.")
+        else:
+            rules = config_data.get('consequences_rules', [])
+            
+            # Convertir a DataFrame para mejor manejo de tipos en editor
+            if rules:
+                df_rules = pd.DataFrame(rules)
+            else:
+                # Definir esquema vacío explícito
+                df_rules = pd.DataFrame(columns=[
+                    "id", "active", "name", "filter_relevance", 
+                    "filter_category", "filter_concept", "action_type", "action_value"
+                ])
+            
+            # Asegurar tipos
+            df_rules = df_rules.astype({
+                "active": bool,
+                "name": str,
+                "filter_relevance": str,
+                "filter_category": str,
+                "filter_concept": str,
+                "action_type": str,
+                "action_value": float
+            })
+            
+            # Proteger ID si no existe (nuevas filas)
+            if "id" not in df_rules.columns:
+                df_rules["id"] = None
+
+            column_config = {
+                "id": None, # Oculto
+                "active": st.column_config.CheckboxColumn(t('consequences.table_columns.active'), width="small", default=True),
+                "name": st.column_config.TextColumn(t('consequences.table_columns.name'), required=True, width="medium"),
+                "filter_relevance": st.column_config.SelectboxColumn(
+                    t('consequences.table_columns.filter_rel'), 
+                    options=["", "NE", "LI", "SUP", "TON"],
+                    required=False, width="small"
+                ),
+                "filter_category": st.column_config.SelectboxColumn(
+                    t('consequences.table_columns.filter_cat'),
+                    options=[""] + [c.nombre for c in get_all_categorias()],
+                    required=False, width="medium"
+                ),
+                "filter_concept": st.column_config.TextColumn(t('consequences.table_columns.filter_concept'), required=False),
+                "action_type": st.column_config.SelectboxColumn(
+                    t('consequences.table_columns.action_type'),
+                    options=["percent", "fixed"],
+                    required=True, width="small", default="percent"
+                ),
+                "action_value": st.column_config.NumberColumn(
+                    t('consequences.table_columns.action_value'), 
+                    min_value=0.0, step=0.1, required=True, width="small",
+                    format=f"{get_currency_symbol()} %.2f"
+                )
+            }
+            
+            edited_df = st.data_editor(
+                df_rules,
+                column_config=column_config,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="rules_editor",
+                hide_index=True
+            )
+            
+            if st.button(t('consequences.save_button'), type="primary"):
+                try:
+                    new_rules_list = []
+                    
+                    # Iterar sobre DataFrame editado (convertir a records)
+                    # replace nan with None/empty string for clean json
+                    records = edited_df.replace({pd.NA: None, float('nan'): None}).to_dict('records')
+                    
+                    for row in records:
+                        # Validar nombre obligatorio
+                        if not row.get("name") or str(row.get("name")).strip() == "":
+                            continue
+                            
+                        r_id = row.get("id")
+                        # Si es None o NaN o vacio
+                        if not r_id or pd.isna(r_id):
+                            r_id = str(uuid.uuid4())
+                        
+                        new_rules_list.append({
+                            "id": r_id,
+                            "active": bool(row.get("active", True)),
+                            "name": str(row.get("name")),
+                            "filter_relevance": str(row.get("filter_relevance", "") or ""),
+                            "filter_category": str(row.get("filter_category", "") or ""),
+                            "filter_concept": str(row.get("filter_concept", "") or ""),
+                            "action_type": str(row.get("action_type", "percent")),
+                            "action_value": float(row.get("action_value", 0.0))
+                        })
+                    
+                    config_data['consequences_rules'] = new_rules_list
+                    save_config(config_data)
+                    st.success(t('consequences.success'))
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error saving rules: {e}")
+
+    # ========================
     # TAB 5: CONFIGURACIÓN
     # ========================
-    with util_tab5:
+    if selected_tab_label == t('utilidades.tabs.config'):
         st.markdown(f"### {t('utilidades.config.title')}")
         
         # Cargar configuración desde archivo
@@ -405,6 +554,11 @@ def render_utilidades():
             default_rem = st.session_state.get('config_pct_remanente', 0)
             default_sal = st.session_state.get('config_pct_salario', 20)
             metodo_saldo = st.session_state.get('config_metodo_saldo', 'antes_salario')
+            enable_relevance = st.session_state.get('config_enable_relevance', True)
+            metodo_saldo = st.session_state.get('config_metodo_saldo', 'antes_salario')
+            enable_relevance = st.session_state.get('config_enable_relevance', True)
+            enable_retentions = st.session_state.get('config_enable_retentions', True)
+            enable_consequences = st.session_state.get('config_enable_consequences', False)
             
             # Recopilar conceptos desde todos los inputs
             nuevos_conceptos = {}
@@ -418,7 +572,12 @@ def render_utilidades():
             # Actualizar configuración
             current_lang = get_language()
             idioma_seleccionado = st.session_state.get('config_language', current_lang)
+            divisa_seleccionada = st.session_state.get('config_currency', 'EUR')
             config['language'] = idioma_seleccionado
+            config['currency'] = divisa_seleccionada
+            config['enable_relevance'] = enable_relevance
+            config['enable_retentions'] = enable_retentions
+            config['enable_consequences'] = enable_consequences
             config['retenciones'] = {
                 'pct_remanente_default': default_rem,
                 'pct_salario_default': default_sal
@@ -439,7 +598,8 @@ def render_utilidades():
             st.session_state['default_pct_remanente'] = default_rem
             st.session_state['default_pct_salario'] = default_sal
             
-            st.success(t('utilidades.config.success'))
+            # Guardar mensaje en session_state para mostrar después del rerun
+            st.session_state['notify_success'] = t('utilidades.config.success')
             st.rerun()
         
         st.markdown("---")
@@ -455,6 +615,63 @@ def render_utilidades():
             format_func=lambda x: f"{get_language_flag(x)} {get_language_name(x)}",
             index=0 if current_lang == 'es' else 1,
             key="config_language"
+        )
+        
+        st.markdown("---")
+        
+        # SECCIÓN: Divisa / Currency
+        st.markdown("#### 💱 Currency / Divisa")
+        
+        # Lista de divisas comunes
+        CURRENCIES = {
+            "EUR": "€ Euro (EUR)",
+            "USD": "$ US Dollar (USD)",
+            "GBP": "£ British Pound (GBP)",
+            "CHF": "₣ Swiss Franc (CHF)",
+            "JPY": "¥ Japanese Yen (JPY)",
+            "CNY": "¥ Chinese Yuan (CNY)",
+            "MXN": "$ Mexican Peso (MXN)",
+            "ARS": "$ Argentine Peso (ARS)",
+            "COP": "$ Colombian Peso (COP)",
+            "BRL": "R$ Brazilian Real (BRL)"
+        }
+        
+        current_currency = config.get('currency', 'EUR')
+        currency_list = list(CURRENCIES.keys())
+        current_index = currency_list.index(current_currency) if current_currency in currency_list else 0
+        
+        divisa_seleccionada = st.selectbox(
+            t('utilidades.config.currency_label') if 'utilidades.config.currency_label' in t('utilidades.config.currency_label') else "Select Currency / Seleccionar Divisa",
+            options=currency_list,
+            format_func=lambda x: CURRENCIES.get(x, x),
+            index=current_index,
+            key="config_currency"
+        )
+
+        st.markdown("---")
+
+        # SECCIÓN: Características / Features
+        st.markdown(t('utilidades.config.section_features_title'))
+        
+        enable_relevance = st.toggle(
+            t('utilidades.config.enable_relevance_label'),
+            value=config.get('enable_relevance', True),
+            help=t('utilidades.config.enable_relevance_help'),
+            key="config_enable_relevance"
+        )
+        
+        enable_retentions = st.toggle(
+            t('utilidades.config.enable_retentions_label'),
+            value=config.get('enable_retentions', True),
+            help=t('utilidades.config.enable_retentions_help'),
+            key="config_enable_retentions"
+        )
+        
+        enable_consequences = st.toggle(
+            t('utilidades.config.enable_consequences_label'),
+            value=config.get('enable_consequences', False),
+            help=t('utilidades.config.enable_consequences_help'),
+            key="config_enable_consequences"
         )
 
         st.markdown("---")

@@ -5,6 +5,30 @@
         "historico": "📅 History",
         "utilidades": "🔧 Utilities"
     },
+    "consequences": {
+        "title": "⚖️ Consequences Rules",
+        "info": "Define rules to apply 'punishment' retentions based on your expenses. These retentions will be automatically invested the following month.",
+        "table_columns": {
+            "name": "Rule Name",
+            "active": "Active",
+            "filter_rel": "Relevance Filter",
+            "filter_cat": "Category Filter",
+            "filter_concept": "Concept Filter (contains)",
+            "action_type": "Action Type",
+            "action_value": "Value"
+        },
+        "action_types": {
+            "percent": "% of Expense",
+            "fixed": "Fixed Amount (€)"
+        },
+        "no_rules": "No rules defined.",
+        "add_button": "➕ Add Rule",
+        "save_button": "💾 Save Rules",
+        "success": "Rules saved successfully.",
+        "closing_summary": "⚖️ Consequences Retention",
+        "closing_breakdown": "Breakdown:",
+        "investment_concept": "Consequences Retention {month}"
+    },
     "common": {
         "save": "Save",
         "cancel": "Cancel",
@@ -35,7 +59,7 @@
             "category_label": "Category",
             "concept_label": "Concept",
             "date_label": "Date",
-            "amount_label": "Amount (€)",
+            "amount_label": "Amount",
             "relevance_label": "Relevance",
             "liquidity_flag": "Liquidity shortage",
             "submit_button": "💾 Save Movement",
@@ -63,9 +87,9 @@
         "initial_balance_config": {
             "title": "⚙️ Configure Initial Month Balance",
             "info": "This is the first month with no previous history. Enter your current account balance.",
-            "input_label": "💰 Initial account balance (€)",
+            "input_label": "💰 Initial account balance",
             "save_button": "💾 Save Initial Balance",
-            "success_message": "✅ Initial balance for {month} saved: {amount:,.2f} €"
+            "success_message": "✅ Initial balance for {month} saved successfully"
         },
         "movements": {
             "title": "📋 Movements of the Month",
@@ -80,7 +104,7 @@
                 "date": "Date",
                 "category": "Category",
                 "concept": "Concept",
-                "amount": "Amount (€)",
+                "amount": "Amount",
                 "type": "Type",
                 "relevance": "Rel."
             }
@@ -94,6 +118,9 @@
                 "superfluous": "Superfluous",
                 "nonsense": "Nonsense"
             }
+        },
+        "expenses_by_category": {
+            "title": "📉 Expenses by Category"
         }
     },
     "cierre": {
@@ -110,15 +137,15 @@
                 "title_despues": "Step 1: Actual Bank Balance (with salary received)",
                 "description_antes": "How much money is in your account **RIGHT NOW** (before receiving the next salary)?",
                 "description_despues": "How much money is in your account **RIGHT NOW** (with the new salary already received)?",
-                "expected_balance_info": "💡 Expected initial balance from previous closing: **{amount:,.2f} €**",
-                "input_label_antes": "Actual balance (before salary) €",
-                "input_label_despues": "Current balance (with salary received) €",
+                "expected_balance_info": "💡 Expected initial balance from previous closing available",
+                "input_label_antes": "Actual balance (before salary)",
+                "input_label_despues": "Current balance (with salary received)",
                 "next_button": "Next →"
             },
             "step2": {
                 "title": "Step 2: New Salary",
                 "description": "Amount of your **next salary** (for the following month):",
-                "input_label": "Salary (€)",
+                "input_label": "Salary",
                 "back_button": "← Previous",
                 "next_button": "Next →"
             },
@@ -281,6 +308,13 @@
         },
         "config": {
             "title": "⚙️ System Configuration",
+            "section_features_title": "#### 🛠️ Features",
+            "enable_relevance_label": "Enable Relevance Analysis (NE/LI/SUP/TON)",
+            "enable_relevance_help": "If disabled, fields and charts related to expense relevance classification will be hidden.",
+            "enable_retentions_label": "Enable Automatic Investment Retentions",
+            "enable_retentions_help": "If disabled, the system will not calculate or suggest investment retentions (salary/remaining) during month closing.",
+            "enable_consequences_label": "Enable Consequences Account",
+            "enable_consequences_help": "Activates the rule system to penalize specific expenses with additional investment next month.",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
             "section_closing_title": "#### 🔒 Month Closing Method",
@@ -296,7 +330,7 @@
             "section2_info": "These texts will be suggested when adding entries for each category.",
             "input_placeholder": "Default concept for {cat}...",
             "button": "💾 Save Changes",
-            "success": "✅ Configuration saved in `data/config.json`"
+            "success": "Configuration saved"
         }
     }
 }

@@ -5,6 +5,30 @@
         "historico": "📅 Histórico",
         "utilidades": "🔧 Utilidades"
     },
+    "consequences": {
+        "title": "⚖️ Reglas Consecuencias",
+        "info": "Define reglas para aplicar retenciones 'castigo' basadas en tus gastos. Estas retenciones se invertirán automáticamente el mes siguiente.",
+        "table_columns": {
+            "name": "Nombre Regla",
+            "active": "Activa",
+            "filter_rel": "Filtro Relevancia",
+            "filter_cat": "Filtro Categoría",
+            "filter_concept": "Filtro Concepto (contiene)",
+            "action_type": "Tipo Acción",
+            "action_value": "Valor"
+        },
+        "action_types": {
+            "percent": "% del Gasto",
+            "fixed": "Importe Fijo (€)"
+        },
+        "no_rules": "No hay reglas definidas.",
+        "add_button": "➕ Añadir Regla",
+        "save_button": "💾 Guardar Reglas",
+        "success": "Reglas guardadas correctamente.",
+        "closing_summary": "⚖️ Retención Consecuencias",
+        "closing_breakdown": "Desglose:",
+        "investment_concept": "Retención Consecuencias {month}"
+    },
     "common": {
         "save": "Guardar",
         "cancel": "Cancelar",
@@ -35,7 +59,7 @@
             "category_label": "Categoría",
             "concept_label": "Concepto",
             "date_label": "Fecha",
-            "amount_label": "Importe (€)",
+            "amount_label": "Importe",
             "relevance_label": "Relevancia",
             "liquidity_flag": "Falta de liquidez",
             "submit_button": "💾 Guardar Movimiento",
@@ -63,9 +87,9 @@
         "initial_balance_config": {
             "title": "⚙️ Configurar Saldo Inicial del Mes",
             "info": "Este es el primer mes sin historial previo. Ingresa el saldo actual de tu cuenta.",
-            "input_label": "💰 Saldo inicial de la cuenta (€)",
+            "input_label": "💰 Saldo inicial de la cuenta",
             "save_button": "💾 Guardar Saldo Inicial",
-            "success_message": "✅ Saldo inicial de {month} guardado: {amount:,.2f} €"
+            "success_message": "✅ Saldo inicial de {month} guardado correctamente"
         },
         "movements": {
             "title": "📋 Movimientos del Mes",
@@ -80,7 +104,7 @@
                 "date": "Fecha",
                 "category": "Categoría",
                 "concept": "Concepto",
-                "amount": "Importe (€)",
+                "amount": "Importe",
                 "type": "Tipo",
                 "relevance": "Rel."
             }
@@ -94,6 +118,9 @@
                 "superfluous": "Superfluo",
                 "nonsense": "Tontería"
             }
+        },
+        "expenses_by_category": {
+            "title": "📉 Gastos por Categoría"
         }
     },
     "cierre": {
@@ -110,15 +137,15 @@
                 "title_despues": "Paso 1: Saldo Real del Banco (con nómina cobrada)",
                 "description_antes": "¿Cuánto dinero hay en tu cuenta **AHORA** (antes de cobrar la nueva nómina)?",
                 "description_despues": "¿Cuánto dinero hay en tu cuenta **AHORA** (ya con la nómina nueva cobrada)?",
-                "expected_balance_info": "💡 Saldo inicial esperado según cierre anterior: **{amount:,.2f} €**",
-                "input_label_antes": "Saldo real (antes de nómina) €",
-                "input_label_despues": "Saldo actual (con nómina ya cobrada) €",
+                "expected_balance_info": "💡 Saldo inicial esperado según cierre anterior disponible",
+                "input_label_antes": "Saldo real (antes de nómina)",
+                "input_label_despues": "Saldo actual (con nómina ya cobrada)",
                 "next_button": "Siguiente →"
             },
             "step2": {
                 "title": "Paso 2: Nueva Nómina",
                 "description": "Importe de tu **próxima nómina** (para el mes siguiente):",
-                "input_label": "Nómina (€)",
+                "input_label": "Nómina",
                 "back_button": "← Anterior",
                 "next_button": "Siguiente →"
             },
@@ -281,6 +308,13 @@
         },
         "config": {
             "title": "⚙️ Configuración del Sistema",
+            "section_features_title": "#### 🛠️ Características / Features",
+            "enable_relevance_label": "Habilitar Análisis de Relevancia (NE/LI/SUP/TON)",
+            "enable_relevance_help": "Si se desactiva, se ocultarán los campos y gráficos relacionados con la clasificación de gastos por relevancia.",
+            "enable_retentions_label": "Habilitar Retenciones de Inversión Automáticas",
+            "enable_retentions_help": "Si se desactiva, el sistema no calculará ni sugerirá retenciones de inversión (salario/remanente) durante el cierre de mes.",
+            "enable_consequences_label": "Habilitar Cuenta de Consecuencias",
+            "enable_consequences_help": "Activa el sistema de reglas para penalizar gastos específicos con inversión adicional el mes siguiente.",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
             "section_closing_title": "#### 🔒 Método de Cierre de Mes",
@@ -296,7 +330,7 @@
             "section2_info": "Estos textos se sugerirán al añadir entradas de cada categoría.",
             "input_placeholder": "Concepto default para {cat}...",
             "button": "💾 Guardar Cambios",
-            "success": "✅ Configuración guardada en `data/config.json`"
+            "success": "Configuración guardada"
         }
     }
 }

@@ -12,6 +12,11 @@ CONFIG_PATH = Path(__file__).parent.parent / "data" / "config.json"
 # Configuración por defecto (si no existe el archivo)
 DEFAULT_CONFIG = {
     "language": "es",  # "es" o "en"
+    "currency": "EUR",  # "EUR", "USD", "GBP", etc.
+    "enable_relevance": True,  # Activar/desactivar análisis de relevancia
+    "enable_retentions": True, # Activar/desactivar retenciones de inversión automáticas
+    "enable_consequences": False, # Activar/desactivar cuenta de consecuencias
+    "consequences_rules": [], # Lista de reglas [{id, name, active, filters, action}]
     "retenciones": {
         "pct_remanente_default": 0,
         "pct_salario_default": 20
@@ -87,3 +92,38 @@ def set_config_value(key_path: str, value: Any) -> None:
         current = current[key]
     current[keys[-1]] = value
     save_config(config)
+
+
+# Mapeo de códigos de divisa a símbolos
+CURRENCY_SYMBOLS = {
+    "EUR": "€",
+    "USD": "$",
+    "GBP": "£",
+    "CHF": "₣",
+    "JPY": "¥",
+    "CNY": "¥",
+    "MXN": "$",
+    "ARS": "$",
+    "COP": "$",
+    "BRL": "R$"
+}
+
+
+def get_currency_symbol() -> str:
+    """Obtiene el símbolo de la divisa configurada."""
+    config = load_config()
+    currency_code = config.get('currency', 'EUR')
+    return CURRENCY_SYMBOLS.get(currency_code, currency_code)
+
+
+def format_currency(amount: float, decimals: int = 2) -> str:
+    """
+    Formatea un importe con el símbolo de divisa configurado.
+    Ejemplo: format_currency(1234.56) -> "1,234.56 €"
+    """
+    symbol = get_currency_symbol()
+    if decimals == 0:
+        formatted = f"{amount:,.0f}"
+    else:
+        formatted = f"{amount:,.{decimals}f}"
+    return f"{formatted} {symbol}"

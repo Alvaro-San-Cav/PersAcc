@@ -5,29 +5,13 @@ Interfaz Streamlit
 Ejecutar con: streamlit run app.py
 """
 import streamlit as st
-from datetime import date, datetime, timedelta
 from pathlib import Path
 import sys
 
 # Añadir src al path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, RELEVANCIA_DESCRIPTIONS
-from src.database import (
-    get_all_categorias, get_categorias_by_tipo, insert_ledger_entry,
-    get_ledger_by_month, get_all_ledger_entries, get_latest_snapshot,
-    update_categoria, get_category_counts, delete_categoria, 
-    deactivate_categoria, insert_categoria, DEFAULT_DB_PATH,
-    delete_ledger_entry, update_ledger_entry
-)
-from src.business_logic import (
-    calcular_fecha_contable, calcular_mes_fiscal,
-    calcular_kpis, calcular_kpis_relevancia, ejecutar_cierre_mes,
-    calcular_kpis_anuales, get_word_counts, get_top_entries,
-    calculate_curious_metrics
-)
 from src.ui.styles import apply_custom_css
-from src.constants import RELEVANCIA_COLORS
 
 # ============================================================================
 # CONFIGURACIÓN DE LA PÁGINA

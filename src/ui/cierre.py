@@ -22,8 +22,9 @@ from src.business_logic import (
     calcular_fecha_contable, calcular_mes_fiscal, calcular_kpis,
     calcular_kpis_relevancia, ejecutar_cierre_mes,
     calcular_kpis_anuales, get_word_counts, get_top_entries,
-    calculate_curious_metrics
+    calculate_curious_metrics, calculate_consequences
 )
+from src.config import format_currency, get_currency_symbol
 from src.i18n import t
 
 
@@ -161,26 +162,34 @@ def render_cierre():
         from src.config import load_config
         config = load_config()
         retenciones = config.get('retenciones', {})
+        enable_retentions = config.get('enable_retentions', True)
+        
         default_pct_remanente = st.session_state.get('default_pct_remanente', retenciones.get('pct_remanente_default', 0))
         default_pct_salario = st.session_state.get('default_pct_salario', retenciones.get('pct_salario_default', 20))
         
-        with col1:
-            pct_remanente = st.slider(
-                t('cierre.wizard.step3.surplus_label'),
-                min_value=0,
-                max_value=100,
-                value=default_pct_remanente,
-                help="Porcentaje del saldo sobrante a enviar a inversión"
-            ) / 100
-        
-        with col2:
-            pct_salario = st.slider(
-                t('cierre.wizard.step3.salary_label'),
-                min_value=0,
-                max_value=100,
-                value=default_pct_salario,
-                help="Porcentaje de la nueva nómina a enviar a inversión"
-            ) / 100
+        if enable_retentions:
+            with col1:
+                pct_remanente = st.slider(
+                    t('cierre.wizard.step3.surplus_label'),
+                    min_value=0,
+                    max_value=100,
+                    value=default_pct_remanente,
+                    help="Porcentaje del saldo sobrante a enviar a inversión"
+                ) / 100
+            
+            with col2:
+                pct_salario = st.slider(
+                    t('cierre.wizard.step3.salary_label'),
+                    min_value=0,
+                    max_value=100,
+                    value=default_pct_salario,
+                    help="Porcentaje de la nueva nómina a enviar a inversión"
+                ) / 100
+        else:
+            # Si retenciones están desactivadas, forzar a 0 y mostrar mensaje
+            pct_remanente = 0.0
+            pct_salario = 0.0
+            st.info(t('utilidades.config.enable_retentions_help'))
         
         col1, col2 = st.columns(2)
         with col1:
@@ -202,6 +211,18 @@ def render_cierre():
         pct_rem = st.session_state.get('pct_remanente', 0)
         pct_sal = st.session_state.get('pct_salario', 0.2)
         
+        # Calcular Consecuencias (si está activado)
+        from src.config import load_config
+        config = load_config()
+        enable_consequences = config.get('enable_consequences', False)
+        consequences_data = {'total': 0.0, 'breakdown': []}
+        
+        if enable_consequences:
+            rules = config.get('consequences_rules', [])
+            consequences_data = calculate_consequences(mes_actual, rules)
+            
+        consequences_amount = consequences_data['total']
+        
         # Calcular KPIs del mes
         kpis = calcular_kpis(mes_actual)
         
@@ -218,32 +239,47 @@ def render_cierre():
         # Calcular transferencia
         retencion_remanente = saldo_base_remanente * pct_rem
         retencion_salario = nomina * pct_sal
-        total_inversion = kpis['total_inversion'] + retencion_remanente + retencion_salario
-        transferencia_nueva = retencion_remanente + retencion_salario
+        
+        # Total inversión = Manuales + Remanente + Salario + Consecuencias
+        total_inversion = kpis['total_inversion'] + retencion_remanente + retencion_salario + consequences_amount
+        
+        # Lo "nuevo" a transferir = Remanente + Salario + Consecuencias (Manuales ya están fuera)
+        # OJO: La retención de salario y consecuencias se guardan para el mes siguiente, 
+        # pero contablemente ¿sale el dinero ya? Sí, se transfiere a la cuenta de inversión.
+        transferencia_nueva = retencion_remanente + retencion_salario + consequences_amount
         
         # Saldo final del mes actual (después de retención remanente, antes del salario)
+        # Las "Consecuencias" NO se restan del saldo del mes actual (según requerimiento: "Este valor no es deducido del mes en curso...")
         saldo_fin_mes = saldo_base_remanente - retencion_remanente
         
-        # Saldo inicial del mes siguiente (saldo fin + salario - retención salario)
-        saldo_inicio_siguiente = saldo_fin_mes + nomina - retencion_salario
+        # Saldo inicial del mes siguiente
+        # = Saldo fin + Salario - Retención Salario - Retención Consecuencias
+        saldo_inicio_siguiente = saldo_fin_mes + nomina - retencion_salario - consequences_amount
         
         # Mostrar resumen
         st.markdown(f"##### {t('cierre.wizard.step4.summary_title')}")
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Saldo Banco Actual", f"{saldo:,.2f} €")
-            st.metric("Nueva Nómina", f"{nomina:,.2f} €")
-            st.metric("Retenciones Manuales (ya hechas)", f"{kpis['total_inversion']:,.2f} €")
+            st.metric("Saldo Banco Actual", format_currency(saldo))
+            st.metric("Nueva Nómina", format_currency(nomina))
+            st.metric("Retenciones Manuales (ya hechas)", format_currency(kpis['total_inversion']))
         
         with col2:
-            st.metric("Retención Remanente", f"{retencion_remanente:,.2f} €")
-            st.metric("Retención Nómina", f"{retencion_salario:,.2f} €")
-            st.metric("💎 Total a Inversión", f"{total_inversion:,.2f} €", 
-                     delta=f"+{transferencia_nueva:,.2f} € nueva transferencia")
+            st.metric("Retención Remanente", format_currency(retencion_remanente))
+            st.metric("Retención Nómina", format_currency(retencion_salario))
+            
+            if consequences_amount > 0:
+                 st.metric("⚖️ Retención Consecuencias", format_currency(consequences_amount), help="Calculado según reglas de castigo")
+                 with st.expander("Ver desglose consecuencias"):
+                     for item in consequences_data['breakdown']:
+                         st.markdown(f"- **{item['rule_name']}**: {format_currency(item['amount'])}")
+            
+            st.metric("💎 Total a Inversión", format_currency(total_inversion), 
+                     delta=f"+{format_currency(transferencia_nueva)} nueva transferencia")
         
         st.markdown("---")
-        st.markdown(f"### 🏦 Saldo Inicio Nuevo Mes: **{saldo_fin_mes:,.2f} €**")
+        st.markdown(f"### 🏦 Saldo Inicio Nuevo Mes: **{format_currency(saldo_fin_mes)}**")
         st.caption("(El salario se sumará como ingreso en el nuevo mes)")
         
         # Detectar desviación (diferencia entre saldo calculado y saldo real)
@@ -282,15 +318,16 @@ def render_cierre():
         # Mostrar siempre la desviación
         col_dev1, col_dev2 = st.columns(2)
         with col_dev1:
-            st.metric("📊 Saldo Calculado (según registros)", f"{balance_esperado:,.2f} €")
+            st.metric("📊 Saldo Calculado (según registros)", format_currency(balance_esperado))
         with col_dev2:
+            sym = get_currency_symbol()
             # Color según magnitud de desviación
             if abs(desviacion) <= 10:
-                st.metric("✅ Desviación", f"{desviacion:+,.2f} €", help="Diferencia mínima, todo correcto")
+                st.metric("✅ Desviación", f"{desviacion:+,.2f} {sym}", help="Diferencia mínima, todo correcto")
             elif desviacion > 0:
-                st.metric("⚠️ Desviación", f"{desviacion:+,.2f} €", delta="Tienes menos de lo registrado", delta_color="inverse")
+                st.metric("⚠️ Desviación", f"{desviacion:+,.2f} {sym}", delta="Tienes menos de lo registrado", delta_color="inverse")
             else:
-                st.metric("⚠️ Desviación", f"{desviacion:+,.2f} €", delta="Tienes más de lo registrado", delta_color="normal")
+                st.metric("⚠️ Desviación", f"{desviacion:+,.2f} {sym}", delta="Tienes más de lo registrado", delta_color="normal")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -306,6 +343,7 @@ def render_cierre():
                         nomina_nueva=nomina,
                         pct_retencion_remanente=pct_rem,
                         pct_retencion_salario=pct_sal,
+                        consequences_amount=consequences_amount,
                         salario_ya_incluido=salario_ya_incluido
                     )
                     st.session_state['cierre_step'] = 5
@@ -326,12 +364,12 @@ def render_cierre():
             
             st.markdown(f"""
             - **Mes cerrado:** {snapshot.mes_cierre}
-            - **Retención ejecutada:** {snapshot.retencion_ejecutada:,.2f} €
-            - **Saldo inicial nuevo mes:** {snapshot.saldo_inicial_nuevo:,.2f} €
+            - **Retención ejecutada:** {format_currency(snapshot.retencion_ejecutada)}
+            - **Saldo inicial nuevo mes:** {format_currency(snapshot.saldo_inicial_nuevo)}
             """)
             
             if snapshot.nomina_nuevo_mes > 0:
-                st.success(f"💰 Al cerrar **{snapshot.mes_cierre}** se ha registrado el salario de **{mes_sig}**: **{snapshot.nomina_nuevo_mes:,.2f} €**")
+                st.success(f"💰 Al cerrar **{snapshot.mes_cierre}** se ha registrado el salario de **{mes_sig}**: **{format_currency(snapshot.nomina_nuevo_mes)}**")
         
         if st.button("🆕 Nuevo Cierre", use_container_width=True):
             st.session_state['cierre_step'] = 1

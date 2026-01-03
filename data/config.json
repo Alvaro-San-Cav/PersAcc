@@ -1,5 +1,21 @@
 {
     "language": "es",
+    "currency": "EUR",
+    "enable_relevance": true,
+    "enable_retentions": true,
+    "enable_consequences": true,
+    "consequences_rules": [
+        {
+            "id": "5015d37b-50b4-4f0c-affd-586ba8050313",
+            "active": true,
+            "name": "impuesto al alcohol",
+            "filter_relevance": "",
+            "filter_category": "Alcohol",
+            "filter_concept": "",
+            "action_type": "fixed",
+            "action_value": 1.0
+        }
+    ],
     "retenciones": {
         "pct_remanente_default": 50,
         "pct_salario_default": 50
