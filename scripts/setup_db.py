@@ -11,6 +11,12 @@ from pathlib import Path
 # Ruta de la base de datos
 DB_PATH = Path(__file__).parent / "data" / "finanzas.db"
 
+# Añadir src al path para poder importar config
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import load_config
+
+
 
 def create_tables(conn: sqlite3.Connection):
     """Crea las tablas del esquema."""
@@ -66,26 +72,7 @@ def create_tables(conn: sqlite3.Connection):
         )
     """)
     
-    # Tabla SNAPSHOTS_ANUALES (Cierres de Fin de Año)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS SNAPSHOTS_ANUALES (
-            anio INTEGER PRIMARY KEY,
-            fecha_ejecucion DATETIME NOT NULL,
-            total_ingresos REAL NOT NULL,
-            total_gastos REAL NOT NULL,
-            total_ahorrado REAL NOT NULL,
-            pct_ahorro REAL,
-            gastos_NE REAL,
-            gastos_LI REAL,
-            gastos_SUP REAL,
-            gastos_TON REAL,
-            mejor_mes TEXT,
-            peor_mes TEXT,
-            categoria_mas_gasto TEXT,
-            notas TEXT
-        )
-    """)
-    
+
     # Tabla CIERRES_MENSUALES (Estado de cada mes)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS CIERRES_MENSUALES (
@@ -198,6 +185,11 @@ def setup_database():
         create_tables(conn)
         insert_relevancia_codes(conn)
         insert_default_categories(conn)
+        
+        # Generar config.json si no existe
+        print("Configurando archivo de configuración por defecto...")
+        load_config()
+        
         conn.commit()
         
         print("-" * 50)

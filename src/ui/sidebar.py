@@ -18,32 +18,6 @@ def render_sidebar():
     """Renderiza el formulario Quick Add en el sidebar."""
     with st.sidebar:
         # ============================================================================
-        # SELECTOR DE IDIOMA
-        # ============================================================================
-        st.markdown("### 🌐 Language / Idioma")
-        col1, col2 = st.columns([1, 1])
-        
-        current_lang = get_language()
-        
-        with col1:
-            if st.button(f"{get_language_flag('es')} ES", 
-                        use_container_width=True,
-                        type="primary" if current_lang == "es" else "secondary",
-                        key="lang_es"):
-                set_language("es")
-                st.rerun()
-        
-        with col2:
-            if st.button(f"{get_language_flag('en')} EN",
-                        use_container_width=True,
-                        type="primary" if current_lang == "en" else "secondary",
-                        key="lang_en"):
-                set_language("en")
-                st.rerun()
-        
-        st.markdown("---")
-        
-        # ============================================================================
         # QUICK ADD FORM
         # ============================================================================
         st.markdown(f"## {t('sidebar.quick_add.title')}")
@@ -92,6 +66,20 @@ def render_sidebar():
         
         categoria_sel = cat_dict.get(categoria_nombre)
         
+        # Obtener concepto por defecto desde config
+        config = load_config()
+        conceptos_default = config.get('conceptos_default', {})
+        cat_key = categoria_nombre.lower().replace(" ", "_")
+        concepto_default = conceptos_default.get(cat_key, "")
+        
+        # Concepto (justo después de categoría)
+        concepto = st.text_input(
+            f"📝 {t('sidebar.quick_add.concept_label')}", 
+            value=concepto_default, 
+            placeholder="Ej: Cena con amigos",
+            key="concepto_input"
+        )
+        
         # Selector de relevancia (solo para GASTO)
         relevancia = None
         flag_liquidez = False
@@ -122,19 +110,7 @@ def render_sidebar():
             # Fecha
             fecha = st.date_input(f"📅 {t('sidebar.quick_add.date_label')}", value=date.today())
             
-            # Obtener concepto por defecto desde config
-            config = load_config()
-            conceptos_default = config.get('conceptos_default', {})
-            cat_key = categoria_nombre.lower().replace(" ", "_")
-            concepto_default = conceptos_default.get(cat_key, "")
-            
-            # Concepto
-            concepto = st.text_input(
-                f"📝 {t('sidebar.quick_add.concept_label')}", 
-                value=concepto_default, 
-                placeholder="Ej: Cena con amigos"
-            )
-            
+
             # Importe
             importe = st.number_input(
                 f"💵 {t('sidebar.quick_add.amount_label')}", 

@@ -95,9 +95,16 @@ def render_cierre():
     # Wizard paso a paso
     step = st.session_state.get('cierre_step', 1)
     
+    # Cargar método de cierre desde configuración
+    from src.config import load_config
+    config = load_config()
+    metodo_saldo = config.get('cierre', {}).get('metodo_saldo', 'antes_salario')
+    
     if step == 1:
-        st.markdown(f"#### {t('cierre.wizard.step1.title')}")
-        st.markdown(t('cierre.wizard.step1.description'))
+        # Usar textos según método configurado
+        suffix = 'antes' if metodo_saldo == 'antes_salario' else 'despues'
+        st.markdown(f"#### {t(f'cierre.wizard.step1.title_{suffix}')}")
+        st.markdown(t(f'cierre.wizard.step1.description_{suffix}'))
         
         # Intentar obtener saldo estimado desde el cierre anterior
         default_saldo = 0.0
@@ -108,7 +115,7 @@ def render_cierre():
              st.info(t('cierre.wizard.step1.expected_balance_info', amount=default_saldo))
 
         saldo_banco = st.number_input(
-            t('cierre.wizard.step1.input_label'),
+            t(f'cierre.wizard.step1.input_label_{suffix}'),
             min_value=0.0,
             step=100.0,
             value=default_saldo,
@@ -118,6 +125,7 @@ def render_cierre():
         
         if st.button(t('cierre.wizard.step1.next_button'), use_container_width=True):
             st.session_state['saldo_banco_real'] = saldo_banco
+            st.session_state['metodo_saldo'] = metodo_saldo  # Guardar método usado
             st.session_state['cierre_step'] = 2
             st.rerun()
     
@@ -197,14 +205,24 @@ def render_cierre():
         # Calcular KPIs del mes
         kpis = calcular_kpis(mes_actual)
         
+        # Verificar si el saldo ya incluye la nómina
+        metodo_usado = st.session_state.get('metodo_saldo', 'antes_salario')
+        salario_ya_incluido = metodo_usado == 'despues_salario'
+        
+        # Calcular saldo base para retención de remanente
+        if salario_ya_incluido:
+            saldo_base_remanente = saldo - nomina
+        else:
+            saldo_base_remanente = saldo
+        
         # Calcular transferencia
-        retencion_remanente = saldo * pct_rem
+        retencion_remanente = saldo_base_remanente * pct_rem
         retencion_salario = nomina * pct_sal
         total_inversion = kpis['total_inversion'] + retencion_remanente + retencion_salario
         transferencia_nueva = retencion_remanente + retencion_salario
         
         # Saldo final del mes actual (después de retención remanente, antes del salario)
-        saldo_fin_mes = saldo - retencion_remanente
+        saldo_fin_mes = saldo_base_remanente - retencion_remanente
         
         # Saldo inicial del mes siguiente (saldo fin + salario - retención salario)
         saldo_inicio_siguiente = saldo_fin_mes + nomina - retencion_salario
@@ -249,7 +267,17 @@ def render_cierre():
         
         # Saldo calculado = saldo inicial + balance del mes - inversiones ya hechas
         balance_esperado = saldo_inicial_mes + kpis['balance_mes'] - kpis['total_inversion']
-        desviacion = balance_esperado - saldo if saldo > 0 else 0
+        
+        # Calcular desviación según método configurado
+        metodo_usado = st.session_state.get('metodo_saldo', 'antes_salario')
+        if metodo_usado == 'despues_salario':
+            # Si el saldo incluye la nómina, restar para comparar con mes anterior
+            saldo_comparar = saldo - nomina
+        else:
+            # Método tradicional: saldo es antes de nómina
+            saldo_comparar = saldo
+        
+        desviacion = balance_esperado - saldo_comparar if saldo > 0 else 0
         
         # Mostrar siempre la desviación
         col_dev1, col_dev2 = st.columns(2)
@@ -277,7 +305,8 @@ def render_cierre():
                         saldo_banco_real=saldo,
                         nomina_nueva=nomina,
                         pct_retencion_remanente=pct_rem,
-                        pct_retencion_salario=pct_sal
+                        pct_retencion_salario=pct_sal,
+                        salario_ya_incluido=salario_ya_incluido
                     )
                     st.session_state['cierre_step'] = 5
                     st.session_state['snapshot'] = snapshot

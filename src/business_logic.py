@@ -207,7 +207,8 @@ def ejecutar_cierre_mes(
     nomina_nueva: float,
     pct_retencion_remanente: float = 0.0,
     pct_retencion_salario: float = 0.0,
-    db_path: Path = DEFAULT_DB_PATH
+    db_path: Path = DEFAULT_DB_PATH,
+    salario_ya_incluido: bool = False
 ) -> SnapshotMensual:
     """
     Ejecuta el cierre de mes completo:
@@ -219,11 +220,12 @@ def ejecutar_cierre_mes(
     
     Args:
         mes_fiscal: Mes a cerrar en formato 'YYYY-MM'
-        saldo_banco_real: Dinero real en el banco antes de cobrar
+        saldo_banco_real: Dinero real en el banco (puede incluir o no la nómina según salario_ya_incluido)
         nomina_nueva: Importe de la nueva nómina (para el MES SIGUIENTE)
         pct_retencion_remanente: % a retener del saldo remanente
         pct_retencion_salario: % a retener de la nómina nueva
         db_path: Ruta a la base de datos
+        salario_ya_incluido: Si True, el saldo_banco_real YA incluye la nómina nueva
     
     Returns:
         Snapshot del cierre guardado
@@ -254,8 +256,15 @@ def ejecutar_cierre_mes(
     # Solo la parte nueva a transferir (excluyendo retenciones manuales ya hechas)
     transferencia_nueva = retencion_ejecutada - kpis["total_inversion"]
     
+    # Calcular saldo base para retención de remanente
+    # Si salario_ya_incluido=True, el saldo real del mes (sin la nómina nueva) es saldo - nómina
+    if salario_ya_incluido:
+        saldo_base_remanente = saldo_banco_real - nomina_nueva
+    else:
+        saldo_base_remanente = saldo_banco_real
+    
     # Retenciones separadas
-    retencion_remanente = saldo_banco_real * pct_retencion_remanente
+    retencion_remanente = saldo_base_remanente * pct_retencion_remanente
     retencion_salario = nomina_nueva * pct_retencion_salario
     
     # 4b. Crear entrada en LEDGER para la retención del remanente (en el mes actual)
@@ -292,7 +301,11 @@ def ejecutar_cierre_mes(
             insert_ledger_entry(entry_remanente, db_path)
     
     # 5. Calcular saldo final del mes actual (después de retención del remanente, ANTES del salario)
-    saldo_fin = saldo_banco_real - retencion_remanente
+    # Si el saldo ya incluye la nómina, usamos saldo_base_remanente como punto de partida
+    if salario_ya_incluido:
+        saldo_fin = saldo_base_remanente - retencion_remanente
+    else:
+        saldo_fin = saldo_banco_real - retencion_remanente
     
     # 6. Calcular saldo inicial del mes siguiente (saldo_fin + salario - retención salario)
     saldo_inicio_siguiente = saldo_fin + nomina_nueva - retencion_salario

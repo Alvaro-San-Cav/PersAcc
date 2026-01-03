@@ -35,7 +35,7 @@ from src.constants import RELEVANCIA_COLORS
 
 st.set_page_config(
     page_title="PersAcc - Finanzas Personales",
-    page_icon="💰",
+    page_icon="logo.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -65,7 +65,15 @@ from src.ui.cierre import render_cierre
 from src.ui.historico import render_historico
 from src.ui.utilidades import render_utilidades
 from src.ui.manual import render_manual
-from src.i18n import t
+from src.i18n import t, set_language, get_language
+from src.config import load_config
+
+# Cargar idioma desde configuración al inicio
+config = load_config()
+preferred_lang = config.get('language', 'es')
+current_lang = get_language()
+if preferred_lang != current_lang:
+    set_language(preferred_lang)
 
 
 

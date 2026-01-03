@@ -10,7 +10,7 @@ from typing import Optional, List
 
 from .models import (
     TipoMovimiento, RelevanciaCode, RELEVANCIA_DESCRIPTIONS,
-    Categoria, LedgerEntry, SnapshotMensual, SnapshotAnual, CierreMensual
+    Categoria, LedgerEntry, SnapshotMensual, CierreMensual
 )
 
 # Ruta por defecto de la base de datos

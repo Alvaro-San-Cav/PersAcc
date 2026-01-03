@@ -11,9 +11,13 @@ CONFIG_PATH = Path(__file__).parent.parent / "data" / "config.json"
 
 # Configuración por defecto (si no existe el archivo)
 DEFAULT_CONFIG = {
+    "language": "es",  # "es" o "en"
     "retenciones": {
         "pct_remanente_default": 0,
         "pct_salario_default": 20
+    },
+    "cierre": {
+        "metodo_saldo": "antes_salario"  # "antes_salario" o "despues_salario"
     },
     "conceptos_default": {
         "salario": "Nómina mensual",

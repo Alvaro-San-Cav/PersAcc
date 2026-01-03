@@ -26,7 +26,7 @@ from src.business_logic import (
 )
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
-from src.i18n import t, get_language
+from src.i18n import t, get_language, set_language, get_language_flag, get_language_name
 
 
 def render_utilidades():
@@ -221,7 +221,7 @@ def render_utilidades():
                     # Also clear deprecated tables if exist
                     try:
                         conn.execute("DELETE FROM SNAPSHOTS_MENSUALES")
-                        conn.execute("DELETE FROM SNAPSHOTS_ANUALES")
+
                     except:
                         pass
                 st.session_state['delete_success'] = t('utilidades.cleanup.option1_success', count=entries_count)
@@ -249,7 +249,7 @@ def render_utilidades():
                     conn.execute("DELETE FROM CAT_MAESTROS")
                     try:
                         conn.execute("DELETE FROM SNAPSHOTS_MENSUALES")
-                        conn.execute("DELETE FROM SNAPSHOTS_ANUALES")
+
                     except:
                         pass
                 
@@ -398,6 +398,68 @@ def render_utilidades():
         from src.config import load_config, save_config
         config = load_config()
         
+        
+        # Botón de guardar configuración (al principio)
+        if st.button(t('utilidades.config.button'), type="primary", key="save_config_btn", use_container_width=True):
+            # Recopilar valores de los widgets
+            default_rem = st.session_state.get('config_pct_remanente', 0)
+            default_sal = st.session_state.get('config_pct_salario', 20)
+            metodo_saldo = st.session_state.get('config_metodo_saldo', 'antes_salario')
+            
+            # Recopilar conceptos desde todos los inputs
+            nuevos_conceptos = {}
+            categorias = get_all_categorias()
+            for cat in categorias:
+                cat_key = cat.nombre.lower().replace(" ", "_")
+                input_key = f"concepto_{cat.id}"
+                if input_key in st.session_state:
+                    nuevos_conceptos[cat_key] = st.session_state[input_key]
+            
+            # Actualizar configuración
+            current_lang = get_language()
+            idioma_seleccionado = st.session_state.get('config_language', current_lang)
+            config['language'] = idioma_seleccionado
+            config['retenciones'] = {
+                'pct_remanente_default': default_rem,
+                'pct_salario_default': default_sal
+            }
+            config['cierre'] = {
+                'metodo_saldo': metodo_saldo
+            }
+            config['conceptos_default'] = nuevos_conceptos
+            
+            # Guardar a archivo
+            save_config(config)
+            
+            # Si cambió el idioma, actualizarlo en session
+            if idioma_seleccionado != current_lang:
+                set_language(idioma_seleccionado)
+            
+            # También actualizar session_state para uso inmediato
+            st.session_state['default_pct_remanente'] = default_rem
+            st.session_state['default_pct_salario'] = default_sal
+            
+            st.success(t('utilidades.config.success'))
+            st.rerun()
+        
+        st.markdown("---")
+        
+
+        # SECCIÓN 0: Idioma
+        st.markdown("#### 🌐 Language / Idioma")
+        current_lang = get_language()
+        
+        idioma_seleccionado = st.selectbox(
+            "Select Language / Seleccionar Idioma",
+            options=['es', 'en'],
+            format_func=lambda x: f"{get_language_flag(x)} {get_language_name(x)}",
+            index=0 if current_lang == 'es' else 1,
+            key="config_language"
+        )
+
+        st.markdown("---")
+
+
         # SECCIÓN 1: Retenciones
         st.markdown(t('utilidades.config.section1_title'))
         st.info(t('utilidades.config.section1_info'))
@@ -423,6 +485,21 @@ def render_utilidades():
                 help=t('utilidades.config.slider_sal_help'),
                 key="config_pct_salario"
             )
+        
+        
+        # SECCIÓN: Método de Cierre
+        st.markdown(t('utilidades.config.section_closing_title'))
+        
+        metodo_actual = config.get('cierre', {}).get('metodo_saldo', 'antes_salario')
+        metodo_saldo = st.radio(
+            t('utilidades.config.closing_method_label'),
+            options=['antes_salario', 'despues_salario'],
+            format_func=lambda x: t(f'utilidades.config.method_{x.split("_")[0]}'),
+            index=0 if metodo_actual == 'antes_salario' else 1,
+            help=t('utilidades.config.closing_method_help'),
+            key="config_metodo_saldo",
+            horizontal=True
+        )
         
         st.markdown("---")
         
@@ -458,21 +535,4 @@ def render_utilidades():
                 label_visibility="visible"
             )
         
-        st.markdown("---")
-        
-        if st.button(t('utilidades.config.button'), type="primary", key="save_config_btn"):
-            # Actualizar configuración
-            config['retenciones'] = {
-                'pct_remanente_default': default_rem,
-                'pct_salario_default': default_sal
-            }
-            config['conceptos_default'] = nuevos_conceptos
-            
-            # Guardar a archivo
-            save_config(config)
-            
-            # También actualizar session_state para uso inmediato
-            st.session_state['default_pct_remanente'] = default_rem
-            st.session_state['default_pct_salario'] = default_sal
-            
-            st.success(t('utilidades.config.success'))
+

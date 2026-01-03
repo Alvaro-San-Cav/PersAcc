@@ -106,10 +106,13 @@
         "already_closed_info": "If you need to modify data, contact support or check the history.",
         "wizard": {
             "step1": {
-                "title": "Step 1: Actual Bank Balance",
-                "description": "How much money is in your account **RIGHT NOW** (before receiving the next salary)?",
+                "title_antes": "Step 1: Actual Bank Balance (before salary)",
+                "title_despues": "Step 1: Actual Bank Balance (with salary received)",
+                "description_antes": "How much money is in your account **RIGHT NOW** (before receiving the next salary)?",
+                "description_despues": "How much money is in your account **RIGHT NOW** (with the new salary already received)?",
                 "expected_balance_info": "💡 Expected initial balance from previous closing: **{amount:,.2f} €**",
-                "input_label": "Actual balance (€)",
+                "input_label_antes": "Actual balance (before salary) €",
+                "input_label_despues": "Current balance (with salary received) €",
                 "next_button": "Next →"
             },
             "step2": {
@@ -280,6 +283,11 @@
             "title": "⚙️ System Configuration",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
+            "section_closing_title": "#### 🔒 Month Closing Method",
+            "closing_method_label": "When do you check your bank balance?",
+            "closing_method_help": "Choose whether you check your balance before or after receiving salary when closing the month",
+            "method_antes": "Before receiving salary",
+            "method_despues": "After receiving salary",
             "slider_rem_label": "% Surplus Retention (default)",
             "slider_rem_help": "Default value to retain from surplus balance",
             "slider_sal_label": "% Salary Retention (default)",
@@ -287,7 +295,7 @@
             "section2_title": "#### 📝 Default Concepts",
             "section2_info": "These texts will be suggested when adding entries for each category.",
             "input_placeholder": "Default concept for {cat}...",
-            "button": "💾 Save Configuration",
+            "button": "💾 Save Changes",
             "success": "✅ Configuration saved in `data/config.json`"
         }
     }

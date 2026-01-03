@@ -75,24 +75,6 @@ class SnapshotMensual:
     saldo_inicial_nuevo: float
 
 
-@dataclass
-class SnapshotAnual:
-    """Representa un cierre de año (SNAPSHOTS_ANUALES)."""
-    anio: int
-    fecha_ejecucion: datetime
-    total_ingresos: float
-    total_gastos: float
-    total_ahorrado: float
-    pct_ahorro: Optional[float]
-    gastos_NE: Optional[float]
-    gastos_LI: Optional[float]
-    gastos_SUP: Optional[float]
-    gastos_TON: Optional[float]
-    mejor_mes: Optional[str]
-    peor_mes: Optional[str]
-    categoria_mas_gasto: Optional[str]
-    notas: Optional[str] = None
-
 
 @dataclass
 class CierreMensual:

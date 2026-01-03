@@ -151,7 +151,7 @@ def get_language_flag(lang_code: str) -> str:
         Emoji de bandera
     """
     flags = {
-        "es": "🇪🇸",
-        "en": "🇬🇧"
+        "es": "ES",
+        "en": "EN"
     }
     return flags.get(lang_code, "🌐")

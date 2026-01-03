@@ -88,39 +88,11 @@ Clasifica cada gasto en:
 
 **Objetivo**: Analizar qué % de tus gastos va a cada categoría y mejorar hábitos.
 
-## 🏗️ Arquitectura
-
-PersAcc sigue una **arquitectura modular** limpia:
-
-```
-PersAcc/
-├── app.py                  # Entry point (91 líneas)
-├── src/
-│   ├── constants.py        # Constantes centralizadas
-│   ├── models.py           # Modelos de datos
-│   ├── database.py         # Capa de acceso a datos (SQLite)
-│   ├── business_logic.py   # Lógica de negocio (KPIs, cierre, etc.)
-│   ├── config.py           # Gestión de configuración
-│   └── ui/                 # Módulos de interfaz
-│       ├── styles.py       # CSS centralizado
-│       ├── sidebar.py      # Formulario Quick Add
-│       ├── analisis.py     # Dashboard principal
-│       ├── cierre.py       # Wizard de cierre
-│       ├── historico.py    # Análisis anual
-│       ├── utilidades.py   # Import/Export/Config
-│       └── manual.py       # Documentación
-└── data/
-    ├── finanzas.db         # Base de datos SQLite
-    └── config.json         # Configuración del usuario
-```
-
 ### Stack Tecnológico
 
 - **Frontend**: Streamlit (UI declarativa)
 - **Backend**: Python 3.8+ (lógica de negocio)
 - **Database**: SQLite (persistencia local)
-- **Charts**: Plotly (gráficos interactivos)
-- **Data**: Pandas (manipulación de datos)
 
 ## 📊 Modelo de Datos
 
@@ -139,24 +111,6 @@ PersAcc/
 - `saldo_inicio`, `saldo_fin`, `total_ingresos`, `total_gastos`
 - `salario_mes`, `nomina_siguiente`, `notas`
 
-## 🛠️ Desarrollo
-
-### Estructura de Código
-
-- **Separación de responsabilidades**: UI / Lógica / Datos
-- **Sin magic numbers**: Todo en `constants.py`
-- **Funciones < 150 líneas**: Código legible y testeable
-- **Type hints**: Documentación implícita
-
-### Ejecutar Tests
-
-```bash
-# Sintaxis check
-python -m py_compile src/*.py src/ui/*.py
-
-# Tests manuales
-python debug_db.py  # Inspeccionar BD
-```
 
 ### Contribuir
 
@@ -230,9 +184,9 @@ docker run -p 8501:8501 -v $(pwd)/data:/app/data persacc
 
 ## 📞 Contacto
 
-**Autor**: [Tu Nombre]  
-**Email**: tu.email@example.com  
-**GitHub**: [@tu-usuario](https://github.com/tu-usuario)
+**Autor**: Alvaro Sánchez  
+**Email**: alvareitor26@gmail.com  
+**GitHub**: [@Alvaro-San-Cav](https://github.com/Alvaro-San-Cav)
 
 ---
 

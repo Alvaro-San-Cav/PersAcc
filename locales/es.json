@@ -106,10 +106,13 @@
         "already_closed_info": "Si necesitas modificar datos, contacta con soporte o revisa el historial.",
         "wizard": {
             "step1": {
-                "title": "Paso 1: Saldo Real del Banco",
-                "description": "¿Cuánto dinero hay en tu cuenta **AHORA** (antes de cobrar la nueva nómina)?",
+                "title_antes": "Paso 1: Saldo Real del Banco (antes de nómina)",
+                "title_despues": "Paso 1: Saldo Real del Banco (con nómina cobrada)",
+                "description_antes": "¿Cuánto dinero hay en tu cuenta **AHORA** (antes de cobrar la nueva nómina)?",
+                "description_despues": "¿Cuánto dinero hay en tu cuenta **AHORA** (ya con la nómina nueva cobrada)?",
                 "expected_balance_info": "💡 Saldo inicial esperado según cierre anterior: **{amount:,.2f} €**",
-                "input_label": "Saldo real (€)",
+                "input_label_antes": "Saldo real (antes de nómina) €",
+                "input_label_despues": "Saldo actual (con nómina ya cobrada) €",
                 "next_button": "Siguiente →"
             },
             "step2": {
@@ -280,6 +283,11 @@
             "title": "⚙️ Configuración del Sistema",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
+            "section_closing_title": "#### 🔒 Método de Cierre de Mes",
+            "closing_method_label": "¿Cuándo consultas el saldo del banco?",
+            "closing_method_help": "Elige si revisas tu saldo antes o después de cobrar la nómina al hacer el cierre",
+            "method_antes": "Antes de cobrar la nómina",
+            "method_despues": "Después de cobrar la nómina",
             "slider_rem_label": "% Retención Remanente (default)",
             "slider_rem_help": "Valor por defecto para retener del saldo sobrante",
             "slider_sal_label": "% Retención Nómina (default)",
@@ -287,7 +295,7 @@
             "section2_title": "#### 📝 Conceptos por defecto",
             "section2_info": "Estos textos se sugerirán al añadir entradas de cada categoría.",
             "input_placeholder": "Concepto default para {cat}...",
-            "button": "💾 Guardar Configuración",
+            "button": "💾 Guardar Cambios",
             "success": "✅ Configuración guardada en `data/config.json`"
         }
     }
