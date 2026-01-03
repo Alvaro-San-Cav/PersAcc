@@ -156,11 +156,11 @@ The LICENSE file contains the full text of the license.
 **Summary**: You are free to share and adapt the material for non-commercial purposes, as long as you give appropriate credit and distribute your contributions under the same license.
 
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Streamlit](https://streamlit.io/) - Amazing and easy-to-use UI framework
 
-## 📞 Contact
+##  Contact
 
 **Author**: Alvaro Sánchez  
 **GitHub**: [@Alvaro-San-Cav](https://github.com/Alvaro-San-Cav)
