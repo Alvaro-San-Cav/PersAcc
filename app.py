@@ -43,6 +43,20 @@ st.set_page_config(
 # Aplicar CSS personalizado
 apply_custom_css(st)
 
+# Hack para deshabilitar traducción de Google
+st.markdown(
+    """
+    <meta name="google" content="notranslate">
+    <style>
+    .stApp {
+        /* Prevent font shifting */
+        -webkit-font-smoothing: antialiased;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 
 # Importar componentes UI  
 from src.ui.sidebar import render_sidebar

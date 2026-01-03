@@ -24,6 +24,12 @@ data/*.db
 temp_import.csv
 *.log
 
+
 # Legacy Tools
 tools/
+
+# Packaging
+build/
+dist/
+*.spec
 
