@@ -217,7 +217,7 @@ def render_month_view(entries, mes_sel, anio_sel):
                     hole=0.5,
                     marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
                 )])
-                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=350)
+                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=450)
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
                 st.warning(t('historico.overview.no_quality_data'))
@@ -401,7 +401,7 @@ def render_year_view(entries, anio_sel):
                         hole=0.5,
                         marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
                     )])
-                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=400)
+                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=500)
                     st.plotly_chart(fig_pie, use_container_width=True)
                     
                     # Stats Mini
