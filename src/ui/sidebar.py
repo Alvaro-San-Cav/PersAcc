@@ -105,13 +105,12 @@ def render_sidebar():
             return
         
         # Selector de categoría (ya filtrado)
+        selectbox_key = f"cat_{tipo_mov.value}"
         categoria_nombre = st.selectbox(
             f"📁 {t('sidebar.quick_add.category_label')}",
             options=cat_nombres,
-            key=f"cat_{tipo_mov.value}"
+            key=selectbox_key
         )
-        
-        categoria_sel = cat_dict.get(categoria_nombre)
         
         categoria_sel = cat_dict.get(categoria_nombre)
         
@@ -119,29 +118,44 @@ def render_sidebar():
         config = load_config()
         enable_relevance = config.get('enable_relevance', True)
         
-        # Obtener concepto por defecto desde config
+        # Obtener valores por defecto desde config
         conceptos_default = config.get('conceptos_default', {})
+        importes_default = config.get('importes_default', {})
+        relevancias_default = config.get('relevancias_default', {})
+        
         cat_key = categoria_nombre.lower().replace(" ", "_")
         concepto_default = conceptos_default.get(cat_key, "")
+        importe_default = importes_default.get(cat_key, 0.0)
+        relevancia_default = relevancias_default.get(cat_key, "")
         
-        # Lógica para actualizar el concepto si cambia la categoría
-        if "prev_cat_nombre" not in st.session_state:
-            st.session_state["prev_cat_nombre"] = ""
-            
-        # Inicializar concepto_input si no existe
-        if "concepto_input" not in st.session_state:
-            st.session_state["concepto_input"] = concepto_default
-
-        if st.session_state["prev_cat_nombre"] != categoria_nombre:
-            st.session_state["concepto_input"] = concepto_default
-            st.session_state["prev_cat_nombre"] = categoria_nombre
-
-        # Concepto (justo después de categoría)
-        # NO pasamos 'value' porque ya estamos controlando session_state["concepto_input"]
+        # Usar una key de tracking separada (NO la del widget)
+        # para detectar cambios de categoría
+        tracking_key = f"tracked_cat_{tipo_mov.value}"
+        tracked_categoria = st.session_state.get(tracking_key, None)
+        
+        # Determinar si debemos aplicar defaults
+        should_reset_defaults = False
+        
+        # Detectar cambio: tracked != actual
+        if tracked_categoria != categoria_nombre:
+            should_reset_defaults = True
+        
+        if st.session_state.get("reset_concepto_flag", False):
+            should_reset_defaults = True
+            st.session_state["reset_concepto_flag"] = False
+        
+        # Aplicar defaults DIRECTAMENTE a las keys de los widgets
+        if should_reset_defaults:
+            st.session_state["concepto_input_widget"] = concepto_default
+            st.session_state["quick_amount_widget"] = importe_default
+            # Actualizar tracking DESPUÉS de aplicar defaults
+            st.session_state[tracking_key] = categoria_nombre
+        
+        # Concepto 
         concepto = st.text_input(
             f"📝 {t('sidebar.quick_add.concept_label')}", 
             placeholder="Ej: Cena con amigos",
-            key="concepto_input"
+            key="concepto_input_widget"
         )
         
         # Selector de relevancia (solo para GASTO)
@@ -151,9 +165,15 @@ def render_sidebar():
         if tipo_mov == TipoMovimiento.GASTO:
             if enable_relevance:
                 st.markdown(f"**{t('sidebar.quick_add.relevance_label')}**")
+                
+                # Aplicar default de relevancia directamente a session_state
+                relevancia_options = ["NE", "LI", "SUP", "TON"]
+                if should_reset_defaults and relevancia_default in relevancia_options:
+                    st.session_state["relevancia_sel"] = relevancia_default
+                
                 relevancia_code = st.radio(
                     "Relevancia",
-                    options=["NE", "LI", "SUP", "TON"],
+                    options=relevancia_options,
                     format_func=lambda x: f"{x} - {RELEVANCIA_DESCRIPTIONS[RelevanciaCode(x)]}",
                     horizontal=True,
                     label_visibility="collapsed",
@@ -161,9 +181,7 @@ def render_sidebar():
                 )
                 relevancia = RelevanciaCode(relevancia_code)
             else:
-                # Si está desactivado, asignar valor neutro o None (depende del modelo, aquí usaremos None y manejaremos en insert)
-                # O forzar un valor por defecto como NEcesario si la DB lo requiere. 
-                # El modelo LedgerEntry permite relevancia_code opcional (Optional[RelevanciaCode])
+                # Si está desactivado, asignar valor neutro o None
                 relevancia = None
             
             
@@ -182,14 +200,12 @@ def render_sidebar():
         # Mantenemos la variable 'fecha' que ya fue asignada arriba
 
         
-        # Importe
-        # Usamos key para resetear
-        if "quick_amount" not in st.session_state:
-            st.session_state["quick_amount"] = 0.00
-            
+        
+        # Importe (el valor se actualiza en el bloque should_reset_defaults arriba)
+        # No usamos value= porque Streamlit lee directamente de st.session_state[key]
         importe = st.number_input(
             f"💵 {t('sidebar.quick_add.amount_label')}", 
-            min_value=0.00, # Permitir 0 para reset visual, validamos luego
+            min_value=0.00,
             step=0.01, 
             format="%.2f",
             key="quick_amount_widget"
@@ -240,22 +256,11 @@ def render_sidebar():
                         insert_ledger_entry(entry)
                         st.success(t('sidebar.quick_add.success_message'))
                         
-                        # Limpiar campos manualmentes
-                        # Concepto (key: concepto_input)
-                        st.session_state["concepto_input"] = "" # Usa el valor por defecto del widget si no
-                        # Importe
-                        st.session_state["quick_amount"] = 0.00 # Reset value
-                        # Fecha no la reseteamos a hoy necesariamente, o sí? 
-                        # Mejor mantenerla o resetear a default? Mantenemos fecha suele ser cómodo.
-                        
-                        # Hack para limpiar widgets en el siguiente rerun
-                        # Debemos actualizar las keys de los widgets si usamos st.session_state
-                        # Para concepto_input ya funciona si el text_input lee de session_state (lo hace si key existe)
-                        # Para number_input igual.
-                        
-                        # Para forzar update visual del number_input, actualizamos su key
-                        st.session_state["quick_amount_widget"] = 0.00
-                        st.session_state["concepto_input"] = concepto_default # Reset al default de categoría o vacío
+                        # Limpiar campos manualmente
+                        # Usamos flag para resetear valores en el próximo rerun
+                        st.session_state["reset_concepto_flag"] = True
+                        st.session_state["concepto_value"] = concepto_default
+                        st.session_state["importe_value"] = importe_default
                         
                         st.rerun()
 

@@ -168,6 +168,11 @@
     },
     "historico": {
         "title": "📅 Annual Analysis",
+        "period_selector": "📆 View data for",
+        "full_year": "Full Year",
+        "chart_click_hint": "💡 Click on a bar to see that month's details",
+        "month_summary": "📊 Month Summary",
+        "back_to_year": "← Back to year view",
         "year_selector": "📆 Select Year",
         "no_data": "No data recorded yet.",
         "no_entries": "No entries recorded for {year}.",
@@ -239,7 +244,21 @@
             "import": "📥 Import Legacy",
             "cleanup": "🗑️ Clean DB",
             "categories": "🏷️ Categories",
-            "config": "⚙️ Configuration"
+            "config": "⚙️ Configuration",
+            "defaults": "📋 Default Values"
+        },
+        "defaults": {
+            "title": "📋 Default Values by Category",
+            "info": "Configure default values to speed up data entry. These values will be automatically applied when selecting each category in the Quick Add form.",
+            "columns": {
+                "type": "Type",
+                "category": "Category",
+                "concept": "Default Concept",
+                "amount": "Default Amount",
+                "relevance": "Default Relevance"
+            },
+            "button": "💾 Save Default Values",
+            "success": "✅ Default values saved successfully"
         },
         "export": {
             "title": "📤 Export Entries to CSV",
@@ -308,6 +327,7 @@
         },
         "config": {
             "title": "⚙️ System Configuration",
+            "currency_label": "Select Currency",
             "section_features_title": "#### 🛠️ Features",
             "enable_relevance_label": "Enable Relevance Analysis (NE/LI/SUP/TON)",
             "enable_relevance_help": "If disabled, fields and charts related to expense relevance classification will be hidden.",

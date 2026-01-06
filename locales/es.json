@@ -168,6 +168,11 @@
     },
     "historico": {
         "title": "📅 Análisis Anual",
+        "period_selector": "📆 Ver datos de",
+        "full_year": "Año completo",
+        "chart_click_hint": "💡 Haz clic en una barra para ver el detalle de ese mes",
+        "month_summary": "📊 Resumen del Mes",
+        "back_to_year": "← Volver a vista anual",
         "year_selector": "📆 Seleccionar Año",
         "no_data": "No hay datos registrados aún.",
         "no_entries": "No hay entradas registradas para {year}.",
@@ -239,7 +244,21 @@
             "import": "📥 Importar Legacy",
             "cleanup": "🗑️ Limpiar BD",
             "categories": "🏷️ Gestión Categorías",
-            "config": "⚙️ Configuración"
+            "config": "⚙️ Configuración",
+            "defaults": "📋 Valores por Defecto"
+        },
+        "defaults": {
+            "title": "📋 Valores por Defecto por Categoría",
+            "info": "Configura valores por defecto para agilizar la entrada de datos. Estos valores se aplicarán automáticamente al seleccionar cada categoría en el formulario Quick Add.",
+            "columns": {
+                "type": "Tipo",
+                "category": "Categoría",
+                "concept": "Concepto Default",
+                "amount": "Importe Default",
+                "relevance": "Relevancia Default"
+            },
+            "button": "💾 Guardar Valores por Defecto",
+            "success": "✅ Valores por defecto guardados correctamente"
         },
         "export": {
             "title": "📤 Exportar Entradas a CSV",
@@ -308,6 +327,7 @@
         },
         "config": {
             "title": "⚙️ Configuración del Sistema",
+            "currency_label": "Seleccionar Divisa",
             "section_features_title": "#### 🛠️ Características / Features",
             "enable_relevance_label": "Habilitar Análisis de Relevancia (NE/LI/SUP/TON)",
             "enable_relevance_help": "Si se desactiva, se ocultarán los campos y gráficos relacionados con la clasificación de gastos por relevancia.",

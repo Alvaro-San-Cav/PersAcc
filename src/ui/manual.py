@@ -19,13 +19,142 @@ def render_manual():
     
     ### Características Principales
     
-    - ✅ **Cierre de Mes Automático** - Wizard que calcula retenciones y abre el siguiente mes
-    - ✅ **Retenciones Configurables** - Define % de ahorro sobre remanente y nómina
-    - ✅ **Clasificación de Gastos** - Sistema NE/LI/SUP/TON para analizar hábitos
-    - ✅ **Tabla Editable** - Modifica movimientos con validación de meses cerrados
-    - ✅ **Dashboard Histórico** - KPIs anuales y evolución mensual
-    - ✅ **Multi-idioma** - Español e Inglés
-    - ✅ **Multi-divisa** - Configura tu moneda (€, $, £, etc.)
+    -  **Cierre de Mes Automático** - Wizard que calcula retenciones y abre el siguiente mes
+    -  **Retenciones Configurables** - Define % de ahorro sobre remanente y nómina
+    -  **Clasificación de Gastos** - Sistema NE/LI/SUP/TON para analizar hábitos
+    -  **Ordenamiento Inteligente** - Categorías se ordenan por uso histórico
+    -  **Conceptos Automáticos** - Auto-completa conceptos según categoría
+    -  **Cuenta de Consecuencias** - Reglas automáticas para costes ocultos
+    -  **Tabla Editable** - Modifica movimientos con validación de meses cerrados
+    -  **Dashboard Histórico** - KPIs anuales y evolución mensual
+    -  **Multi-idioma** - Español e Inglés
+    -  **Multi-divisa** - Configura tu moneda (€, $, £, etc.)
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # AÑADIR MOVIMIENTOS
+    # ============================================================================
+    st.markdown("""
+    ## ➕ Añadir Movimientos
+    
+    ### Quick Add (Sidebar)
+    
+    El formulario rápido en la barra lateral permite registrar gastos en segundos:
+    
+    1. **Fecha** - Selecciona el día del movimiento
+       > 💡 **Tip**: Si seleccionas un mes diferente al actual en la navegación principal, la fecha por defecto será el día 1 de ese mes.
+    
+    2. **Tipo** - Selecciona entre:
+       - **Gasto** - Cualquier salida de dinero
+       - **Ingreso** - Entradas de dinero (salarios, regalos, etc.)
+       - **Inversión** - Ahorros o inversiones
+       - **Traspaso Entrada/Salida** - Movimientos entre cuentas
+    
+    3. **Categoría** - Elige la categoría apropiada
+       > 🌟 **NUEVO**: Las categorías se ordenan inteligentemente según tu historial:
+       > - **Primero**: Categorías más usadas en este mes en años anteriores
+       > - **Segundo**: Categorías más usadas este año
+       > - **Tercero**: Orden alfabético
+    
+    4. **Concepto** - Describe el movimiento
+       > 🌟 **NUEVO**: El concepto se auto-completa si has configurado un valor por defecto para esa categoría.
+       > Configúralo en: **Utilidades → Configuración → Conceptos default**
+    
+    5. **Relevancia** (solo para gastos) - Clasifica la calidad del gasto
+    
+    6. **Importe** - Introduce la cantidad
+    
+    7. **Guardar** - Click en el botón para registrar
+    
+    ### Tabla Editable (Ledger)
+    
+    En la pestaña "Ledger" puedes editar movimientos existentes:
+    
+    - ✏️ **Edición inline**: Click en cualquier celda para modificar categoría, concepto, importe o relevancia
+    - 🗑️ **Eliminación múltiple**: Selecciona varias filas y elimínalas de golpe
+    - 🔒 **Protección**: Los meses cerrados están bloqueados contra edición
+    
+    > ⚠️ **Importante**: No puedes editar ni eliminar entradas de meses cerrados.
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # RELEVANCIA DEL GASTO
+    # ============================================================================
+    st.markdown("""
+    ## 🎯 Relevancia del Gasto
+    
+    Clasifica cada gasto para analizar tu comportamiento de consumo:
+    
+    | Código | Significado | Ejemplos |
+    |--------|-------------|----------|
+    | **NE** | Necesario | Comida, alquiler, facturas, transporte |
+    | **LI** | Me gusta | Cenas con amigos, gym, hobbies, ocio |
+    | **SUP** | Superfluo | Ropa extra, decoración, caprichos |
+    | **TON** | Tontería | Compras impulsivas, suscripciones no usadas |
+    
+    ### Objetivo
+    
+    Analizar qué % de tus gastos va a cada categoría. **Distribución ideal**:
+    - NE: 50-60%
+    - LI: 20-30%
+    - SUP: 10-15%
+    - TON: < 5%
+    
+    > 💡 **Tip**: Puedes desactivar el análisis de relevancia en **Configuración** si no lo usas.
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # CUENTA DE CONSECUENCIAS
+    # ============================================================================
+    st.markdown("""
+    ## 🧮 Cuenta de Consecuencias
+    
+    > 🌟 **Funcionalidad avanzada**: Rastrea costes ocultos automáticamente.
+    
+    ### ¿Qué es?
+    
+    Un sistema de reglas que aplica automáticamente "consecuencias" (costes adicionales) a tus gastos durante el cierre de mes.
+    
+    ### Casos de uso
+    
+    **Ejemplo 1: Impuestos**
+    - Regla: Todos los gastos **SUP** tienen un 10% de "impuesto psicológico"
+    - Efecto: Si gastas 100€ en SUP, el sistema contabiliza 10€ extra de consecuencia
+    
+    **Ejemplo 2: Penalización por tonterías**
+    - Regla: Cada gasto **TON** genera un 50% de penalización
+    - Efecto: Incentiva reducir gastos innecesarios
+    
+    ### Configuración
+    
+    1. **Activa la funcionalidad**: **Utilidades → Configuración → Cuenta de Consecuencias**
+    2. **Crea reglas**: **Utilidades → Consecuencias**
+    
+    Cada regla tiene:
+    - **Nombre**: Identificador de la regla
+    - **Filtros** (opcionales):
+      - Relevancia (NE/LI/SUP/TON)
+      - Categoría específica
+      - Concepto (contiene texto)
+    - **Acción**:
+      - **Porcentaje**: X% del gasto filtrado
+      - **Cantidad fija**: X€ por cada gasto que cumpla el filtro
+    
+    ### ¿Cuándo se aplica?
+    
+    Al ejecutar el **Cierre de Mes**, el sistema:
+    1. Evalúa todas las reglas activas
+    2. Calcula las consecuencias totales
+    3. Crea una entrada de **Inversión** automática con ese importe
+    4. Puedes verlo en el resumen del cierre
+    
+    > 💡 **Tip**: Usa esta funcionalidad para forzar ahorro extra basado en tus hábitos.
     """)
     
     st.markdown("---")
@@ -56,69 +185,21 @@ def render_manual():
        - **% Retención Remanente**: Del dinero sobrante antes del salario
        - **% Retención Salario**: Del nuevo salario recibido
     
-    5. **Ejecuta el cierre** - El sistema:
-       - Crea entradas de inversión automáticas
+    5. **Revisa las consecuencias** (si está activado):
+       - El sistema muestra el total de consecuencias calculado según tus reglas
+       - Esto se sumará automáticamente como inversión
+    
+    6. **Ejecuta el cierre** - El sistema:
+       - Crea entradas de inversión automáticas (retenciones + consecuencias)
        - Genera el salario como ingreso en el nuevo mes
+       - Marca el mes como CERRADO e inmutable
        - Cambia automáticamente al mes siguiente
     
     ### Resultado
     
     Mes cerrado e inmutable + próximo mes listo con saldo inicial correcto.
-    """)
     
-    st.markdown("---")
-    
-    # ============================================================================
-    # AÑADIR MOVIMIENTOS
-    # ============================================================================
-    st.markdown("""
-    ## ➕ Añadir Movimientos
-    
-    ### Quick Add (Sidebar)
-    
-    El formulario rápido en la barra lateral permite registrar gastos en segundos:
-    
-    1. Selecciona el **tipo** (Gasto, Ingreso, Inversión, Traspaso)
-    2. Elige la **categoría**
-    3. Escribe el **concepto**
-    4. Selecciona **relevancia** (solo para gastos)
-    5. Indica **fecha** e **importe**
-    6. Click en **Guardar**
-    
-    > 💡 **Tip**: Si seleccionas un mes diferente al actual, la fecha por defecto será el día 1 de ese mes.
-    
-    ### Tabla Editable
-    
-    En la pestaña "Ledger" puedes editar movimientos existentes:
-    - Modificar categoría, concepto, importe y relevancia
-    - Seleccionar y eliminar múltiples entradas
-    - Los meses cerrados están protegidos contra edición
-    """)
-    
-    st.markdown("---")
-    
-    # ============================================================================
-    # RELEVANCIA DEL GASTO
-    # ============================================================================
-    st.markdown("""
-    ## 🎯 Relevancia del Gasto
-    
-    Clasifica cada gasto para analizar tu comportamiento:
-    
-    | Código | Significado | Ejemplos |
-    |--------|-------------|----------|
-    | **NE** | Necesario | Comida, alquiler, facturas |
-    | **LI** | Me gusta | Cenas con amigos, gym, hobbies |
-    | **SUP** | Superfluo | Ropa extra, decoración |
-    | **TON** | Tontería | Compras impulsivas, suscripciones no usadas |
-    
-    ### Objetivo
-    
-    Analizar qué % de tus gastos va a cada categoría. Ideal:
-    - NE: 50-60%
-    - LI: 20-30%
-    - SUP: 10-15%
-    - TON: < 5%
+    > 💡 **Tip**: Puedes desactivar las retenciones automáticas en **Configuración** si prefieres gestionarlas manualmente.
     """)
     
     st.markdown("---")
@@ -133,14 +214,44 @@ def render_manual():
     
     ### Opciones disponibles
     
+    #### 🌐 Idioma & Divisa
+    
+    | Ajuste | Opciones |
+    |--------|----------|
+    | **Idioma** | Español, English |
+    | **Divisa** | EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL |
+    
+    #### 🎛️ Funcionalidades (Toggles)
+    
+    > 🌟 **NUEVO**: Activa/desactiva funcionalidades según tus necesidades
+    
+    | Toggle | Descripción |
+    |--------|-------------|
+    | **Análisis de Relevancia** | Sistema NE/LI/SUP/TON |
+    | **Retenciones Automáticas** | Inversiones automáticas en cierre |
+    | **Cuenta de Consecuencias** | Sistema de reglas avanzado |
+    
+    #### 💰 Retenciones
+    
     | Ajuste | Descripción |
     |--------|-------------|
-    | **Idioma** | Español o Inglés |
-    | **Divisa** | EUR, USD, GBP, y más |
-    | **% Retención Remanente** | Valor por defecto para el wizard |
-    | **% Retención Salario** | Valor por defecto para el wizard |
-    | **Método de Cierre** | Antes o después de cobrar nómina |
-    | **Conceptos default** | Texto sugerido por categoría |
+    | **% Retención Remanente** | Valor por defecto para el wizard (0-100%) |
+    | **% Retención Salario** | Valor por defecto para el wizard (0-100%) |
+    
+    #### 📊 Método de Cierre
+    
+    | Método | Descripción |
+    |--------|-------------|
+    | **Antes de salario** | Introduces el saldo ANTES de cobrar la nómina (recomendado) |
+    | **Después de salario** | Introduces el saldo DESPUÉS de cobrar |
+    
+    #### 📝 Conceptos default
+    
+    > 🌟 **NUEVO**: Define conceptos automáticos por categoría
+    
+    - Para cada categoría, puedes configurar un texto que se auto-completa al seleccionarla
+    - Ejemplo: Si configuras "Nómina mensual" para "Salario", ese texto aparecerá automáticamente al elegir esa categoría
+    - Ahorra tiempo en movimientos recurrentes
     
     ### Archivo de configuración
     
@@ -156,34 +267,104 @@ def render_manual():
     ## 🔧 Utilidades
     
     ### Exportar CSV
-    Descarga todas las entradas del LEDGER en formato CSV para backup.
+    Descarga todas las entradas del LEDGER en formato CSV para backup o análisis externo.
     
     ### Importar Legacy
-    Importa datos desde archivos CSV (gastos, ingresos, inversiones).
+    Importa datos desde archivos CSV antiguos:
+    - **Gastos**: DATE, CONCEPT, CATEGORY, RELEVANCE, AMOUNT
+    - **Ingresos**: DATE, CONCEPT, AMOUNT
+    - **Inversiones**: DATE, CONCEPT, AMOUNT, CATEGORY
     
     ### Limpiar BD
-    - Borrar entradas y cierres (mantiene categorías)
-    - Reset total (regenera todo desde cero)
+    - **Opción 1**: Borrar entradas y cierres (mantiene categorías)
+    - **Opción 2**: Reset total (regenera todo desde cero)
+    
+    > ⚠️ **Importante**: Estas acciones son irreversibles. Exporta un backup antes.
     
     ### Gestión Categorías
-    Añade, edita o elimina categorías. Las que tienen historial se archivan en lugar de borrarse.
+    - Añade, edita o elimina categorías
+    - Las categorías con historial se archivan en lugar de borrarse
+    - Puedes cambiar el tipo de movimiento (GASTO→INVERSIÓN, etc.)
+    
+    ### Consecuencias
+    > Requiere activar en Configuración
+    
+    Gestiona tus reglas de consecuencias:
+    - Crea/edita/elimina reglas
+    - Activa/desactiva reglas específicas
+    - Los cambios se aplican en el próximo cierre de mes
     """)
     
     st.markdown("---")
     
     # ============================================================================
-    # TIPS
+    # DASHBOARD Y ANÁLISIS
     # ============================================================================
     st.markdown("""
-    ## 💡 Tips
+    ## 📊 Dashboard y Análisis
     
-    1. **Registra gastos diariamente** - 2 minutos por la mañana
-    2. **Revisa semanalmente** - Corrige categorías si es necesario
-    3. **Cierra al recibir nómina** - No esperes al día 1
-    4. **Exporta mensualmente** - Mantén un backup en la nube
-    5. **Usa conceptos específicos** - "Mercadona" en lugar de "Compra"
+    ### Visión Mensual
+    
+    La pantalla principal muestra:
+    - **KPIs del mes**: Ingresos, gastos, inversión, saldo
+    - **Tabla de movimientos**: Editable (si el mes está abierto)
+    - **Análisis de relevancia**: Distribución NE/LI/SUP/TON
+    
+    ### Histórico
+    
+    Accede desde **Historial** para ver:
+    
+    #### 📈 Visión Global
+    - KPIs acumulados del año
+    - Evolución mensual (gráfico de áreas)
+    - Comparativa año actual vs promedio histórico
+    
+    #### 🔍 Análisis Profundo
+    - Top gastos del año
+    - Evolución por categoría
+    - Análisis de palabras más usadas en conceptos
+    - Métricas curiosas (gasto promedio por día, etc.)
+    
+    #### 📋 Datos Detallados
+    - Tabla completa de movimientos del año
+    - Filtrable y exportable
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # TIPS Y MEJORES PRÁCTICAS
+    # ============================================================================
+    st.markdown("""
+    ## 💡 Tips y Mejores Prácticas
+    
+    ### 📱 Uso Diario
+    1. **Registra gastos diariamente** - 2 minutos por la mañana con el café
+    2. **Usa conceptos específicos** - "Mercadona - Frutas" mejor que "Compra"
+    3. **Aprovecha el auto-completado** - Configura conceptos default para ahorrar tiempo
+    
+    ### 📅 Uso Semanal
+    1. **Revisa el dashboard** - Verifica que todo esté bien categorizado
+    2. **Corrige errores** - Usa la tabla editable si te equivocaste
+    
+    ### 🗓️ Uso Mensual
+    1. **Cierra al recibir nómina** - No esperes al día 1 del mes siguiente
+    2. **Exporta backup** - Descarga CSV antes de cerrar
+    3. **Revisa análisis de relevancia** - Ajusta hábitos si es necesario
+    
+    ### 🎯 Optimización
+    1. **Ajusta las retenciones** - Según tus objetivos de ahorro
+    2. **Experimenta con consecuencias** - Crea reglas que te motiven a mejorar
+    3. **Desactiva lo que no uses** - Simplifica desactivando funciones innecesarias
+    
+    ### 🔒 Seguridad
+    1. **Backup regular** - La base de datos está en `data/finanzas.db`
+    2. **Control de versiones** - Considera usar Git para trackear cambios
+    3. **Portabilidad** - Toda la configuración está en ficheros locales
     
     ---
     
-    **Versión**: 1.2 | **Stack**: Streamlit + SQLite + Python
+    **Versión**: 2.0 | **Stack**: Streamlit + SQLite + Python
+    
+    *¿Dudas o sugerencias? Abre un issue en el repositorio.*
     """)

@@ -59,8 +59,9 @@ def render_utilidades():
     # Navegación persistente con Radio Buttons en lugar de Tabs
     tabs_map = {
         t('utilidades.tabs.config'): 'config',
+        t('utilidades.tabs.defaults'): 'defaults',  # Nueva tab de valores por defecto
         t('utilidades.tabs.categories'): 'categories',
-        t('consequences.title'): 'consequences', # Nuevo Tab
+        t('consequences.title'): 'consequences',
         t('utilidades.tabs.manual'): 'manual',
         t('utilidades.tabs.export'): 'export',
         t('utilidades.tabs.import'): 'import',
@@ -465,15 +466,13 @@ def render_utilidades():
             if "id" not in df_rules.columns:
                 df_rules["id"] = None
 
+            # Obtener si relevancia está habilitada
+            enable_relevance = config_data.get('enable_relevance', True)
+            
             column_config = {
                 "id": None, # Oculto
                 "active": st.column_config.CheckboxColumn(t('consequences.table_columns.active'), width="small", default=True),
                 "name": st.column_config.TextColumn(t('consequences.table_columns.name'), required=True, width="medium"),
-                "filter_relevance": st.column_config.SelectboxColumn(
-                    t('consequences.table_columns.filter_rel'), 
-                    options=["", "NE", "LI", "SUP", "TON"],
-                    required=False, width="small"
-                ),
                 "filter_category": st.column_config.SelectboxColumn(
                     t('consequences.table_columns.filter_cat'),
                     options=[""] + [c.nombre for c in get_all_categorias()],
@@ -491,6 +490,17 @@ def render_utilidades():
                     format=f"{get_currency_symbol()} %.2f"
                 )
             }
+            
+            # Solo mostrar columna de relevancia si está habilitada
+            if enable_relevance:
+                column_config["filter_relevance"] = st.column_config.SelectboxColumn(
+                    t('consequences.table_columns.filter_rel'), 
+                    options=["", "NE", "LI", "SUP", "TON"],
+                    required=False, width="small"
+                )
+            else:
+                # Ocultar columna de relevancia
+                column_config["filter_relevance"] = None
             
             edited_df = st.data_editor(
                 df_rules,
@@ -555,19 +565,8 @@ def render_utilidades():
             default_sal = st.session_state.get('config_pct_salario', 20)
             metodo_saldo = st.session_state.get('config_metodo_saldo', 'antes_salario')
             enable_relevance = st.session_state.get('config_enable_relevance', True)
-            metodo_saldo = st.session_state.get('config_metodo_saldo', 'antes_salario')
-            enable_relevance = st.session_state.get('config_enable_relevance', True)
             enable_retentions = st.session_state.get('config_enable_retentions', True)
             enable_consequences = st.session_state.get('config_enable_consequences', False)
-            
-            # Recopilar conceptos desde todos los inputs
-            nuevos_conceptos = {}
-            categorias = get_all_categorias()
-            for cat in categorias:
-                cat_key = cat.nombre.lower().replace(" ", "_")
-                input_key = f"config_concepto_{cat_key}"
-                if input_key in st.session_state:
-                    nuevos_conceptos[cat_key] = st.session_state[input_key]
             
             # Actualizar configuración
             current_lang = get_language()
@@ -585,7 +584,6 @@ def render_utilidades():
             config['cierre'] = {
                 'metodo_saldo': metodo_saldo
             }
-            config['conceptos_default'] = nuevos_conceptos
             
             # Guardar a archivo
             save_config(config)
@@ -641,7 +639,7 @@ def render_utilidades():
         current_index = currency_list.index(current_currency) if current_currency in currency_list else 0
         
         divisa_seleccionada = st.selectbox(
-            t('utilidades.config.currency_label') if 'utilidades.config.currency_label' in t('utilidades.config.currency_label') else "Select Currency / Seleccionar Divisa",
+            t('utilidades.config.currency_label'),
             options=currency_list,
             format_func=lambda x: CURRENCIES.get(x, x),
             index=current_index,
@@ -718,38 +716,121 @@ def render_utilidades():
             horizontal=True
         )
         
-        st.markdown("---")
+    # ========================
+    # TAB: VALORES POR DEFECTO
+    # ========================
+    if selected_tab_label == t('utilidades.tabs.defaults'):
+        st.markdown(f"### {t('utilidades.defaults.title')}")
+        st.info(t('utilidades.defaults.info'))
         
-        # SECCIÓN 2: Conceptos por defecto
-        st.markdown(t('utilidades.config.section2_title'))
-        st.info(t('utilidades.config.section2_info'))
+        # Cargar configuración y categorías
+        from src.config import load_config, save_config
+        config = load_config()
+        enable_relevance = config.get('enable_relevance', True)
         
         conceptos = config.get('conceptos_default', {})
+        importes = config.get('importes_default', {})
+        relevancias = config.get('relevancias_default', {})
         
-        # Cargar todas las categorías desde DB
         cats = get_all_categorias()
         cats.sort(key=lambda x: (x.tipo_movimiento.value, x.nombre))
         
-        # Mostrar inputs para cada categoría
-        nuevos_conceptos = {}
-        
-        # Agrupar por tipo para mejor organización
-        current_tipo = None
+        # Preparar datos para el editor
+        table_data = []
         for cat in cats:
-            if cat.tipo_movimiento != current_tipo:
-                current_tipo = cat.tipo_movimiento
-                st.markdown(f"**{current_tipo.value}**")
+            cat_key = cat.nombre.lower().replace(" ", "_")
+            is_gasto = cat.tipo_movimiento == TipoMovimiento.GASTO
             
-            # Usar nombre en minúsculas como clave
-            key = cat.nombre.lower().replace(" ", "_")
-            valor_actual = conceptos.get(key, "")
+            row_data = {
+                "cat_key": cat_key,
+                "tipo": cat.tipo_movimiento.value,
+                "categoria": cat.nombre,
+                "concepto": conceptos.get(cat_key, ""),
+                "importe": importes.get(cat_key, 0.0),
+            }
             
-            nuevos_conceptos[key] = st.text_input(
-                f"📝 {cat.nombre}",
-                value=valor_actual,
-                placeholder=t('utilidades.config.input_placeholder', cat=cat.nombre),
-                key=f"config_concepto_{key}",
-                label_visibility="visible"
+            # Solo incluir relevancia si está habilitada
+            if enable_relevance:
+                row_data["relevancia"] = relevancias.get(cat_key, "") if is_gasto else "-"
+            
+            table_data.append(row_data)
+        
+        # Crear DataFrame
+        df = pd.DataFrame(table_data)
+        
+        # Configurar editor con columnas apropiadas
+        column_config = {
+            "cat_key": None,  # Oculto
+            "tipo": st.column_config.TextColumn(
+                t('utilidades.defaults.columns.type'), 
+                disabled=True,
+                width="small"
+            ),
+            "categoria": st.column_config.TextColumn(
+                t('utilidades.defaults.columns.category'), 
+                disabled=True,
+                width="medium"
+            ),
+            "concepto": st.column_config.TextColumn(
+                t('utilidades.defaults.columns.concept'),
+                width="large"
+            ),
+            "importe": st.column_config.NumberColumn(
+                t('utilidades.defaults.columns.amount'),
+                min_value=0.0,
+                step=0.01,
+                format="%.2f",
+                width="small"
+            )
+        }
+        
+        # Solo mostrar columna de relevancia si está habilitada
+        if enable_relevance:
+            column_config["relevancia"] = st.column_config.SelectboxColumn(
+                t('utilidades.defaults.columns.relevance'),
+                options=["", "NE", "LI", "SUP", "TON", "-"],
+                width="small",
+                help="Solo aplica para categorías de tipo GASTO"
             )
         
-
+        edited_df = st.data_editor(
+            df,
+            column_config=column_config,
+            hide_index=True,
+            use_container_width=True,
+            key="defaults_editor",
+            num_rows="fixed"  # No permitir añadir/borrar filas
+        )
+        
+        if st.button(t('utilidades.defaults.button'), type="primary", use_container_width=True):
+            try:
+                nuevos_conceptos = {}
+                nuevos_importes = {}
+                nuevas_relevancias = {}
+                
+                for _, row in edited_df.iterrows():
+                    cat_key = row['cat_key']
+                    
+                    # Guardar concepto si no está vacío
+                    if row['concepto'] and str(row['concepto']).strip():
+                        nuevos_conceptos[cat_key] = str(row['concepto']).strip()
+                    
+                    # Guardar importe si es > 0
+                    if row['importe'] and float(row['importe']) > 0:
+                        nuevos_importes[cat_key] = float(row['importe'])
+                    
+                    # Guardar relevancia solo si está habilitada y es válida
+                    if enable_relevance and 'relevancia' in row and row['relevancia'] and row['relevancia'] not in ["", "-"]:
+                        nuevas_relevancias[cat_key] = str(row['relevancia'])
+                
+                config['conceptos_default'] = nuevos_conceptos
+                config['importes_default'] = nuevos_importes
+                config['relevancias_default'] = nuevas_relevancias
+                
+                save_config(config)
+                
+                st.session_state['notify_success'] = t('utilidades.defaults.success')
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error: {e}")

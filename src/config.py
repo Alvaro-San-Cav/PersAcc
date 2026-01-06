@@ -27,7 +27,9 @@ DEFAULT_CONFIG = {
     "conceptos_default": {
         "salario": "Nómina mensual",
         "alcohol": "Cerveza/Copas"
-    }
+    },
+    "importes_default": {},  # category_key -> default amount (float)
+    "relevancias_default": {}  # category_key -> default relevance code (NE, LI, SUP, TON)
 }
 
 
