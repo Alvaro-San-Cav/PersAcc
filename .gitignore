@@ -3,28 +3,51 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
 
-# Environment
+# Virtual Environment
 .env
 .venv
 venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE / Editor
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
 
 # Streamlit
 .streamlit/secrets.toml
+.streamlit/config.toml
 
-# Project Specific
+# Project Specific - Data
 data/finanzas.db
 data/config.json
 data/*.db
+data/*.db-journal
+data/*.db-shm
+data/*.db-wal
+
+# Temporary Files
 temp_import.csv
+*.tmp
+*.bak
 *.log
 
+# Artifacts (brain directory from AI coding assistant)
+.gemini/
 
 # Legacy Tools
 tools/
@@ -33,4 +56,24 @@ tools/
 build/
 dist/
 *.spec
+*.exe
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Jupyter Notebooks (if any)
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+.dockerignore
+docker-compose.override.yml
