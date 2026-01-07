@@ -26,7 +26,7 @@ from src.business_logic import (
     calculate_curious_metrics
 )
 from src.config import format_currency, get_currency_symbol, load_config
-from src.i18n import t
+from src.i18n import t, get_salary_keywords
 from src.llm_service import (
     is_llm_enabled, get_llm_config, analyze_financial_period
 )
@@ -98,14 +98,15 @@ def render_historico():
     st.markdown("---")
     
     # Obtener datos según selección
-    if mes_sel:
-        # Vista de mes específico
-        entries = get_ledger_by_month(mes_sel)
-        render_month_view(entries, mes_sel, anio_sel)
-    else:
-        # Vista de año completo
-        entries = get_ledger_by_year(anio_sel)
-        render_year_view(entries, anio_sel)
+    with st.spinner(t('historico.loading_data')):
+        if mes_sel:
+            # Vista de mes específico
+            entries = get_ledger_by_month(mes_sel)
+            render_month_view(entries, mes_sel, anio_sel)
+        else:
+            # Vista de año completo
+            entries = get_ledger_by_year(anio_sel)
+            render_year_view(entries, anio_sel)
 
 
 def render_month_view(entries, mes_sel, anio_sel):
@@ -327,6 +328,48 @@ def render_year_view(entries, anio_sel):
             <div class="kpi-value">{kpis['pct_ahorro']:.1f}%</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    # KPIs SECUNDARIOS (PROMEDIOS)
+    st.markdown("---")
+    st.markdown(f"**{t('historico.averages.title')}**")
+    
+    # Calcular meses activos para promedios correctos
+    meses_activos = len(set(e.mes_fiscal for e in entries))
+    if meses_activos == 0: meses_activos = 1
+    
+    avg_ingresos = kpis['total_ingresos'] / meses_activos
+    avg_gastos = kpis['total_gastos'] / meses_activos
+    
+    # Calcular salario medio
+    # Obtener palabras clave de salario desde i18n
+    salary_keywords = get_salary_keywords()
+    
+    # Buscar categoría Salario por si acaso
+    current_cats = get_all_categorias()
+    id_salario = next((c.id for c in current_cats if any(kw in c.nombre.lower() for kw in salary_keywords)), None)
+    
+    def es_salario(entry):
+        # Criterio 1: Es de la categoría Salario
+        if id_salario and entry.categoria_id == id_salario:
+            return True
+        # Criterio 2: El concepto contiene palabras clave
+        concepto = (entry.concepto or "").lower()
+        return any(kw in concepto for kw in salary_keywords)
+    
+    total_salario = sum(e.importe for e in entries if es_salario(e))
+    
+    avg_salario = total_salario / meses_activos
+    
+    col_a1, col_a2, col_a3 = st.columns(3)
+    
+    with col_a1:
+        st.metric(t('historico.averages.income'), format_currency(avg_ingresos, 0))
+    
+    with col_a2:
+        st.metric(t('historico.averages.expenses'), format_currency(avg_gastos, 0))
+        
+    with col_a3:
+        st.metric(t('historico.averages.salary'), format_currency(avg_salario, 0))
     
     st.markdown("---")
     

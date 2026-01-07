@@ -10,8 +10,8 @@ Centraliza valores mágicos y configuraciones para facilitar mantenimiento.
 
 # Porcentajes de retención por defecto
 # Porcentajes de retención por defecto
-DEFAULT_PCT_RETENCION_REMANENTE = 0.0
-DEFAULT_PCT_RETENCION_SALARIO = 0.20  # 20%
+DEFAULT_PCT_RETENCION_REMANENTE = 0.20
+DEFAULT_PCT_RETENCION_SALARIO = 0.30  # 30%
 
 # ============================================================================
 # CATEGORÍAS ESPECIALES
@@ -28,6 +28,7 @@ CATEGORIA_INVERSION_EXTRA = "Inversion extra"
 # ============================================================================
 
 # Palabras que identifican una nómina en el concepto
+# DEPRECATED: Usar get_salary_keywords() de src.i18n para soporte multiidioma
 NOMINA_KEYWORDS = ["nomina", "nómina", "salario", "sueldo", "paga"]
 
 # Stop words para análisis de texto en español

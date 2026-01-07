@@ -15,8 +15,9 @@ import json
 import requests
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
+from dataclasses import dataclass, field
 from collections import defaultdict
 
 from . import llm_prompts
@@ -62,6 +63,78 @@ MODEL_TIERS = {
         "pull_command": "ollama pull llama3"
     }
 }
+
+# ============================================================================
+# SEARCH CONTEXT & UTILITIES
+# ============================================================================
+
+@dataclass
+class SearchContext:
+    """Tracks conversation context for better multi-turn understanding and debugging."""
+    tool_name: Optional[str] = None
+    params: Dict[str, Any] = field(default_factory=dict)
+    message: str = ""
+    timestamp: datetime = field(default_factory=datetime.now)
+    extracted_by: str = "none"  # "llm", "regex", "default"
+    validation_errors: List[str] = field(default_factory=list)
+    season_detected: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "tool_name": self.tool_name,
+            "params": self.params,
+            "message": self.message,
+            "timestamp": self.timestamp.isoformat(),
+            "extracted_by": self.extracted_by,
+            "validation_errors": self.validation_errors,
+            "season_detected": self.season_detected
+        }
+
+
+# Season to months mapping (Northern Hemisphere - Spain)
+SEASON_TO_MONTHS = {
+    "invierno": [12, 1, 2],
+    "primavera": [3, 4, 5],
+    "verano": [6, 7, 8],
+    "otoño": [9, 10, 11],
+    "otono": [9, 10, 11],  # Without accent
+    "winter": [12, 1, 2],
+    "spring": [3, 4, 5],
+    "summer": [6, 7, 8],
+    "fall": [9, 10, 11],
+    "autumn": [9, 10, 11]
+}
+
+
+def get_current_season() -> str:
+    """Returns current season name in Spanish."""
+    month = datetime.now().month
+    if month in [12, 1, 2]:
+        return "invierno"
+    elif month in [3, 4, 5]:
+        return "primavera"
+    elif month in [6, 7, 8]:
+        return "verano"
+    else:
+        return "otoño"
+
+
+def detect_season_in_text(text: str) -> Optional[str]:
+    """Detects season keywords in text, returns canonical name."""
+    text_lower = text.lower()
+    for season in SEASON_TO_MONTHS.keys():
+        if season in text_lower:
+            # Return canonical Spanish name
+            if season in ["winter", "invierno"]:
+                return "invierno"
+            elif season in ["spring", "primavera"]:
+                return "primavera"
+            elif season in ["summer", "verano"]:
+                return "verano"
+            elif season in ["fall", "autumn", "otoño", "otono"]:
+                return "otoño"
+    return None
 
 
 def check_ollama_running() -> bool:
@@ -112,21 +185,22 @@ def check_model_available(model_name: str) -> bool:
     return any(model_name in model for model in available)
 
 
-def generate_quick_summary(income: float, expenses: float, balance: float, lang: str = "es") -> str:
+def generate_quick_summary(income: float, expenses: float, balance: float, lang: str = "es", expense_items: list = None) -> str:
     """
-    Generate a quick, witty one-liner summary about current month status.
+    Generate a quick, witty commentary about current month finances.
     
     Args:
         income: Total income so far  
         expenses: Total expenses so far
         balance: Current balance
         lang: Language ('es' or 'en')
+        expense_items: Optional list of expense dicts with 'categoria', 'concepto', 'importe'
     
     Returns:
-        A short, funny summary (max 150 chars)
+        A short, funny commentary (1-2 sentences)
     """
-    # DEBUG MODE: Return messages instead of empty
-    DEBUG = True
+    # DEBUG MODE: Set to False for production
+    DEBUG = False
     
     if not is_llm_enabled():
         return "[DEBUG: LLM no habilitado]" if DEBUG else ""
@@ -147,41 +221,69 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
         if model_name not in available_models:
             return f"[DEBUG: Modelo '{model_name}' no encontrado. Disponibles: {', '.join(available_models[:3])}]" if DEBUG else ""
         
-        # Build ultra-short prompt
-        if lang == "es":
-            prompt = f"""Eres un asesor financiero gracioso. Resume en UNA SOLA FRASE corta y divertida (máximo 20 palabras) cómo va el mes:
-Ingresos: {income:.2f}€
-Gastos: {expenses:.2f}€  
-Balance: {balance:.2f}€
-
-Responde SOLO la frase, sin intro. Sé directo y usa emojis."""
-        else:
-            prompt = f"""You're a witty financial advisor. Summarize in ONE SHORT funny sentence (max 20 words) how the month is going:
-Income: €{income:.2f}
-Expenses: €{expenses:.2f}
-Balance: €{balance:.2f}
-
-Just the sentence, no intro. Be direct and use emojis."""
+        # Build expense details text
+        expense_text = ""
+        if expense_items:
+            top_expenses = sorted(expense_items, key=lambda x: x.get('importe', 0), reverse=True)[:5]
+            expense_lines = [f"- {e.get('concepto', 'Gasto')}: {e.get('importe', 0):.2f}€ ({e.get('categoria', '')})" for e in top_expenses]
+            expense_text = "\n".join(expense_lines)
         
-        # Special handling for Qwen3 models
-        if 'qwen' in model_name.lower():
-            prompt = f"""<|im_start|>system
-Eres un asesor financiero gracioso y conciso.<|im_end|>
-<|im_start|>user
-{prompt}<|im_end|>
-<|im_start|>assistant
-"""
+        # Build prompt with more commentary focus
+        if lang == "es":
+            prompt = f"""Eres un asesor financiero con sentido del humor. Analiza estos datos del mes y haz un comentario gracioso pero útil (2-3 frases, máximo 50 palabras).
+
+Resumen del mes:
+- Ingresos: {income:.2f}€
+- Gastos totales: {expenses:.2f}€  
+- Balance: {balance:.2f}€
+
+Principales gastos:
+{expense_text if expense_text else "Sin gastos registrados"}
+
+Instrucciones:
+- Haz comentarios ingeniosos sobre los gastos específicos si los hay
+- Usa máximo 1-2 emojis, no más
+- Sé directo y conciso
+- No uses introducciones como "Vaya" o "Bueno"
+- Responde SOLO el comentario, nada más"""
+        else:
+            prompt = f"""You're a financial advisor with a sense of humor. Analyze this month's data and make a witty but useful comment (2-3 sentences, max 50 words).
+
+Month summary:
+- Income: €{income:.2f}
+- Total expenses: €{expenses:.2f}
+- Balance: €{balance:.2f}
+
+Top expenses:
+{expense_text if expense_text else "No expenses recorded"}
+
+Instructions:
+- Make witty comments about specific expenses if available
+- Use maximum 1-2 emojis, no more
+- Be direct and concise
+- Don't use introductions like "Well" or "So"
+- Reply ONLY with the comment, nothing else"""
+        
+        # Check if this is a Qwen model (needs think: false to disable thinking mode)
+        is_qwen = 'qwen' in model_name.lower()
+        
+        # Build options
+        options = {
+            "temperature": 0.9,
+            "num_predict": 200,  # More tokens for longer commentary
+            "num_ctx": 1024,
+        }
         
         payload = {
             "model": model_name,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "temperature": 0.9,
-                "num_predict": 100,
-                "num_ctx": 512,
-            }
+            "options": options
         }
+        
+        # For Qwen3 models, add think: false at root level (not inside options)
+        if is_qwen:
+            payload["think"] = False
         
         response = requests.post(OLLAMA_API_URL, json=payload, timeout=15)
         
@@ -192,11 +294,18 @@ Eres un asesor financiero gracioso y conciso.<|im_end|>
             # Limpiar y limitar longitud
             if text:
                 text = text.split('\n')[0].strip()
+                # Remove quotes if present
+                if text.startswith('"') and text.endswith('"'):
+                    text = text[1:-1]
                 if len(text) > 200:
                     text = text[:197] + "..."
                 return text
             else:
-                return f"[DEBUG: Respuesta vacía de Ollama con modelo {model_name}]" if DEBUG else ""
+                # Debug: show thinking content if available (v2 - with think:False)
+                if result.get("thinking"):
+                    thinking_preview = result.get("thinking", "")[:150]
+                    return f"[v2 think:False={is_qwen}] thinking={thinking_preview}" if DEBUG else ""
+                return f"[v2] Respuesta vacía" if DEBUG else ""
         else:
             return f"[DEBUG: Error HTTP {response.status_code} de Ollama]" if DEBUG else ""
         
@@ -284,33 +393,34 @@ def analyze_financial_period(
     # Prepend language instruction to prompt
     full_prompt = f"{system_instruction}\n\n{prompt}"
     
-    # Special handling for Qwen3 models - they require chat template format
-    if 'qwen' in model_name.lower():
-        full_prompt = f"""<|im_start|>system
-Eres un experto asesor financiero personal. Analiza datos financieros y proporciona recomendaciones estratégicas claras y accionables.<|im_end|>
-<|im_start|>user
-{full_prompt}<|im_end|>
-<|im_start|>assistant
-"""
+    # Check if this is a Qwen model
+    is_qwen = 'qwen' in model_name.lower()
     
     # Log prompt size for debugging
     logger.info(f"Prompt size: {len(full_prompt)} chars, movements: {len(movements) if movements else 0}")
     
     # Call Ollama API
     try:
+        # Build options
+        options = {
+            "temperature": 0.8,
+            "top_p": 0.95,
+            "num_predict": max_tokens,
+            "num_ctx": 4096,
+            "num_thread": 8,
+            "repeat_penalty": 1.1
+        }
+        
         payload = {
             "model": model_name,
             "prompt": full_prompt,
             "stream": False,
-            "options": {
-                "temperature": 0.8,
-                "top_p": 0.95,
-                "num_predict": max_tokens,
-                "num_ctx": 4096,
-                "num_thread": 8,
-                "repeat_penalty": 1.1
-            }
+            "options": options
         }
+        
+        # For Qwen3 models, add think: false at root level (not inside options)
+        if is_qwen:
+            payload["think"] = False
         
         # No añadimos stop sequences para evitar cortar respuestas prematuramente
         
@@ -569,4 +679,633 @@ def get_model_info(model_tier: str = "light") -> Dict[str, Any]:
         Dictionary with model information
     """
     return MODEL_TIERS.get(model_tier, MODEL_TIERS["light"])
+
+
+def _validate_and_normalize_params(
+    tool_name: str,
+    params: Dict[str, Any],
+    user_message: str
+) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Validates and normalizes parameters with current date context.
+    
+    Args:
+        tool_name: Name of the tool being called
+        params: Raw parameters extracted by LLM or regex
+        user_message: Original user message for season detection
+        
+    Returns:
+        Tuple of (normalized_params, validation_errors)
+    """
+    normalized = params.copy()
+    errors = []
+    now = datetime.now()
+    
+    # Detect season in the message
+    season_detected = detect_season_in_text(user_message)
+    
+    # Handle season-based queries
+    if season_detected and "year" in normalized:
+        season_year = normalized["year"]
+        season_months = SEASON_TO_MONTHS[season_detected]
+        
+        # For winter, if year is mentioned as 2025 but we're in 2026,
+        # it means winter 2024-2025 (Dec 2024, Jan-Feb 2025)
+        if season_detected == "invierno" and season_year < now.year:
+            # Winter spans two years: Dec of (year-1) and Jan-Feb of year
+            # We'll adjust the year to query the correct range
+            # For now, set year to the latter year (Jan-Feb)
+            logger.info(f"Season '{season_detected}' detected for year {season_year}. "
+                       f"Winter spans {season_year-1}-{season_year}.")
+            # Don't set month filter - let the tool handle all winter months
+            # Remove month if present to avoid conflicts
+            if "month" in normalized:
+                del normalized["month"]
+        
+        logger.info(f"Season detected: {season_detected} → months {season_months}")
+    
+    # Validate year parameter
+    if "year" in normalized:
+        year = normalized["year"]
+        
+        # Check if year is in the future
+        if year > now.year:
+            errors.append(f"No puedo consultar datos del futuro (año {year}). "
+                         f"El año actual es {now.year}.")
+        
+        # Check if year is too far in the past (before 2000)
+        if year < 2000:
+            errors.append(f"El año {year} parece incorrecto. ¿Quisiste decir {now.year}?")
+    
+    # Validate month parameter
+    if "month" in normalized:
+        month = normalized["month"]
+        
+        # Check valid range
+        if not (1 <= month <= 12):
+            errors.append(f"Mes inválido: {month}. Debe estar entre 1 y 12.")
+        
+        # Check if month is in the future for current year
+        if "year" in normalized and normalized["year"] == now.year:
+            if month > now.month:
+                errors.append(f"No puedo consultar datos del futuro (mes {month}/{now.year}). "
+                             f"Estamos en {now.month}/{now.year}.")
+    
+    # Validate concept (if present)
+    if "concept" in normalized:
+        concept = normalized["concept"].strip()
+        if len(concept) < 2:
+            errors.append(f"El concepto de búsqueda '{concept}' es demasiado corto. "
+                         "Intenta con al menos 2 caracteres.")
+        # Normalize concept: remove extra spaces
+        normalized["concept"] = " ".join(concept.split())
+    
+    # Validate limit (for get_top_expenses)
+    if "limit" in normalized:
+        limit = normalized["limit"]
+        if not isinstance(limit, int) or limit < 1:
+            errors.append(f"Límite inválido: {limit}. Debe ser un número positivo.")
+            normalized["limit"] = 10  # Default
+        elif limit > 100:
+            errors.append(f"Límite muy alto: {limit}. Ajustado a 100.")
+            normalized["limit"] = 100
+    
+    return normalized, errors
+
+
+def _llm_extract_tool_and_params(user_message: str, available_tools: List[Dict[str, Any]], context: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
+    """
+    Usa el LLM para extraer la herramienta y parámetros de la pregunta del usuario.
+    
+    Returns:
+        Dict con {tool_name: str, params: Dict} o None si falla
+    """
+    if not check_ollama_running():
+        logger.warning("Ollama not running, falling back to regex extraction")
+        return None
+    
+    llm_config = get_llm_config()
+    model_name = llm_config.get('model_tier', 'phi3')
+    
+    # Construir descripción de herramientas
+    tools_desc = []
+    for tool in available_tools:
+        params_desc = ", ".join([f"{k} ({v.get('type', 'any')})" for k, v in tool.get('parameters', {}).get('properties', {}).items()])
+        tools_desc.append(f"- {tool['name']}: {tool.get('description', '')} | Parámetros: {params_desc}")
+    
+    tools_text = "\n".join(tools_desc)
+    
+    # Contexto previo
+    context_text = ""
+    if context:
+        context_text = f"\nCONTEXTO PREVIO:\n- Herramienta anterior: {context.get('tool', 'ninguna')}\n- Parámetros: {context.get('params', {})}\n"
+    
+    # TEMPORAL CONTEXT - Critical for date understanding
+    now = datetime.now()
+    current_season = get_current_season()
+    
+    # Información sobre estaciones para este año específico
+    season_info = (
+        f"- Invierno {now.year-1}-{now.year}: Diciembre {now.year-1}, Enero-Febrero {now.year}\n"
+        f"- Primavera {now.year}: Marzo, Abril, Mayo\n"
+        f"- Verano {now.year}: Junio, Julio, Agosto\n"
+        f"- Otoño {now.year}: Septiembre, Octubre, Noviembre\n"
+        f"- Invierno {now.year}-{now.year+1}: Diciembre {now.year}, Enero-Febrero {now.year+1}"
+    )
+    
+    # Prompt
+    prompt = f"""Eres un asistente financiero que analiza preguntas sobre finanzas personales.
+
+HERRAMIENTAS DISPONIBLES:
+{tools_text}
+
+PREGUNTA DEL USUARIO:
+"{user_message}"
+{context_text}
+CONTEXTO TEMPORAL CRÍTICO (presta mucha atención a esto):
+- Fecha actual COMPLETA: {now.strftime('%Y-%m-%d')} ({now.strftime('%d de %B de %Y')})
+- Año actual: {now.year}
+- Mes actual: {now.month} ({now.strftime('%B')})
+- Estación actual: {current_season}
+- Día del mes: {now.day}
+
+ESTACIONES DEL AÑO (hemisferio norte):
+{season_info}
+
+REGLAS DE INTERPRETACIÓN TEMPORAL:
+1. Si mencionan "invierno de 2025" y estamos en 2026, se refieren al PASADO (dic 2024 - feb 2025)
+2. Si mencionan "este mes", usar mes={now.month} y year={now.year}
+3. Si mencionan "este año", usar year={now.year}
+4. Si mencionan una estación + año, mapear a los meses correctos de esa estación
+5. NUNCA extraigas fechas futuras - validar que year <= {now.year}
+
+INSTRUCCIONES:
+1. Identifica la herramienta más apropiada para responder la pregunta
+2. Extrae TODOS los parámetros necesarios del mensaje del usuario
+3. Si la pregunta parece ser un follow-up y hay contexto previo, hereda los parámetros temporales (year, month) si no se especifican nuevos
+4. Si ninguna herramienta es apropiada (ej: pregunta off-topic), retorna {{"tool": null}}
+
+IMPORTANTE: Retorna SOLO un objeto JSON válido en este formato exacto (sin explicaciones adicionales):
+{{"tool": "nombre_herramienta", "params": {{"param1": valor1, "param2": "valor2"}}}}
+
+Ejemplo 1:
+Pregunta: "cuanto gasté en pan este mes?"
+Respuesta: {{"tool": "search_expenses_by_concept", "params": {{"concept": "pan", "year": {now.year}, "month": {now.month}}}}}
+
+Ejemplo 2:
+Pregunta: "cuanto gasté en ubers en invierno de 2025" (cuando estamos en {now.year})
+Respuesta: {{"tool": "search_expenses_by_concept", "params": {{"concept": "uber", "year": 2025}}}}
+
+Ejemplo 3:
+Pregunta: "pero cuantos son de navidad?" (con contexto year=2024)
+Respuesta: {{"tool": "search_expenses_by_concept", "params": {{"concept": "navidad", "year": 2024}}}}
+
+Tu respuesta:"""
+
+    try:
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,  # Baja temperatura para respuestas consistentes
+                "num_predict": 200
+            }
+        }
+        
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=15)
+        
+        if response.status_code == 200:
+            result = response.json()
+            text = result.get("response", "").strip()
+            
+            # Extraer JSON de la respuesta
+            # El LLM podría incluir texto antes/después del JSON
+            import re
+            json_match = re.search(r'\{.*\}', text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                extracted = json.loads(json_str)
+                
+                logger.info(f"LLM extracted: {extracted}")
+                return extracted
+            else:
+                logger.warning(f"No JSON found in LLM response: {text}")
+                return None
+    except Exception as e:
+        logger.error(f"Error in LLM extraction: {e}")
+        return None
+
+
+def _llm_format_response(user_message: str, tool_result: str) -> str:
+    """
+    Usa el LLM para formatear el resultado de la herramienta en lenguaje natural.
+    
+    Returns:
+        Respuesta formateada o el resultado original si falla
+    """
+    if not check_ollama_running():
+        return tool_result
+    
+    llm_config = get_llm_config()
+    model_name = llm_config.get('model_tier', 'phi3')
+    
+    prompt = f"""Eres un asistente financiero amigable y profesional.
+
+PREGUNTA ORIGINAL DEL USUARIO:
+"{user_message}"
+
+RESULTADO DE LA BÚSQUEDA:
+{tool_result}
+
+INSTRUCCIONES CRÍTICAS:
+1. VERIFICA que el resultado responda a la pregunta original
+2. Si el resultado NO coincide con la pregunta (ej: preguntaron por "helados" pero el resultado da totales generales), DI EXPLÍCITAMENTE que hubo un error y explica qué salió mal
+3. Si el resultado es correcto, conviértelo en una respuesta natural y conversacional
+4. Usa emojis apropiados (💰, 📊, 🔍, 💸, etc.) pero con moderación
+5. Sé conciso pero informativo
+6. Si el resultado indica que no se encontró nada, sugiere alternativas o reformular la pregunta
+7. Mantén un tono profesional pero cercano
+
+IMPORTANTE: Si detectas que el resultado no tiene sentido con la pregunta, empieza tu respuesta con:
+"⚠️ Parece que hubo un problema con la búsqueda..."
+
+Tu respuesta:"""
+
+    try:
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 300
+            }
+        }
+        
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=20)
+        
+        if response.status_code == 200:
+            result = response.json()
+            text = result.get("response", "").strip()
+            
+            if text:
+                logger.info(f"LLM formatted response successfully")
+                return text
+            else:
+                return tool_result
+    except Exception as e:
+        logger.error(f"Error in LLM formatting: {e}")
+        return tool_result
+
+
+def chat_with_tools(user_message: str, available_tools: List[Dict[str, Any]], context: Dict[str, Any] = None) -> str:
+    """
+    Procesa un mensaje del usuario con acceso a herramientas/funciones.
+    
+    Esta es una implementación simplificada que:
+    1. Analiza la pregunta del usuario
+    2. Determina qué herramienta(s) usar
+    3. Ejecuta las herramientas necesarias
+    4. Genera una respuesta natural basada en los resultados
+    
+    Args:
+        user_message: Mensaje/pregunta del usuario
+        available_tools: Lista de herramientas disponibles con sus definiciones
+        context: Contexto de la conversación previa (opcional)
+        
+    Returns:
+        Respuesta del asistente
+    """
+    if not is_llm_enabled():
+        return "El servicio de LLM no está habilitado. Por favor, actívalo en Utilidades > Configuración de IA."
+    
+    # Initialize search context
+    search_ctx = SearchContext(message=user_message)
+    
+    try:
+        # PASO 1: Extraer herramienta y parámetros usando LLM
+        llm_extraction = _llm_extract_tool_and_params(user_message, available_tools, context)
+        
+        if llm_extraction and llm_extraction.get('tool'):
+            # LLM extraction exitosa
+            tool_name = llm_extraction.get('tool')
+            params = llm_extraction.get('params', {})
+            search_ctx.extracted_by = "llm"
+            
+            # Si tool es null, es una pregunta off-topic
+            if tool_name is None or tool_name == "null":
+                return (
+                    "🤖 Soy el asistente financiero de **PersAcc**. No tengo información sobre eso, "
+                    "pero puedo ayudarte con tus finanzas personales.\n\n"
+                    "**Prueba preguntas como:**\n"
+                    "- ¿Cuánto gasté en restaurantes este mes?\n"
+                    "- ¿Cuáles son mis mayores gastos del 2024?\n"
+                    "- ¿Cuál es mi tasa de ahorro?\n"
+                    "- Busca gastos de *[concepto]*"
+                )
+            
+            # Buscar la herramienta
+            tool_to_use = next((t for t in available_tools if t['name'] == tool_name), None)
+            
+            if not tool_to_use:
+                logger.warning(f"LLM returned unknown tool: {tool_name}")
+                # Fallback a método antiguo
+                tool_to_use = _select_tool(user_message, available_tools)
+                params = _extract_parameters(user_message, tool_to_use, context) if tool_to_use else {}
+                search_ctx.extracted_by = "regex_fallback"
+        else:
+            # Fallback a método antiguo si LLM falla
+            logger.info("Falling back to regex-based extraction")
+            tool_to_use = _select_tool(user_message, available_tools)
+            search_ctx.extracted_by = "regex"
+            
+            if not tool_to_use:
+                return (
+                    "🤖 Soy el asistente financiero de **PersAcc**. No tengo información sobre eso, "
+                    "pero puedo ayudarte con tus finanzas personales.\n\n"
+                    "**Prueba preguntas como:**\n"
+                    "- ¿Cuánto gasté en restaurantes este mes?\n"
+                    "- ¿Cuáles son mis mayores gastos del 2024?\n"
+                    "- ¿Cuál es mi tasa de ahorro?\n"
+                    "- Busca gastos de *[concepto]*"
+                )
+            
+            params = _extract_parameters(user_message, tool_to_use, context)
+        
+        # PASO 1.5: Validar y normalizar parámetros
+        search_ctx.tool_name = tool_to_use['name']
+        search_ctx.season_detected = detect_season_in_text(user_message)
+        
+        validated_params, validation_errors = _validate_and_normalize_params(
+            tool_to_use['name'],
+            params,
+            user_message
+        )
+        
+        search_ctx.params = validated_params
+        search_ctx.validation_errors = validation_errors
+        
+        # Si hay errores críticos de validación, retornar mensaje de error
+        if validation_errors:
+            error_msg = "⚠️ **Problemas con tu consulta:**\n\n"
+            for i, error in enumerate(validation_errors, 1):
+                error_msg += f"{i}. {error}\n"
+            error_msg += "\n Por favor, reformula tu pregunta."
+            
+            # Guardar trace para debugging
+            import streamlit as st
+            st.session_state['last_search_trace'] = search_ctx.to_dict()
+            
+            return error_msg
+        
+        # PASO 2: Ejecutar la herramienta
+        tool_function = tool_to_use["function"]
+        raw_result = tool_function(**validated_params)
+        
+        # Guardar contexto para preguntas de seguimiento
+        import streamlit as st
+        st.session_state['last_search_context'] = {
+            'tool': tool_to_use['name'],
+            'params': validated_params,
+            'message': user_message
+        }
+        
+        # Guardar trace completo para debugging
+        st.session_state['last_search_trace'] = search_ctx.to_dict()
+        
+        # PASO 3: Formatear respuesta usando LLM
+        formatted_result = _llm_format_response(user_message, raw_result)
+        
+        return formatted_result
+        
+    except Exception as e:
+        logger.error(f"Error in chat_with_tools: {e}")
+        
+        # Guardar error trace
+        import streamlit as st
+        search_ctx.validation_errors.append(f"Error de ejecución: {str(e)}")
+        st.session_state['last_search_trace'] = search_ctx.to_dict()
+        
+        return f"Lo siento, hubo un error al procesar tu consulta: {str(e)}"
+
+
+def _select_tool(user_message: str, available_tools: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    Selecciona la herramienta más apropiada basándose en el mensaje del usuario.
+    
+    Esta es una implementación basada en palabras clave (simple pero efectiva).
+    En una versión más avanzada, se usaría el LLM para seleccionar la herramienta.
+    """
+    message_lower = user_message.lower()
+    import re
+    
+    # PRIORITY 0: Detectar si mencionan una CATEGORÍA conocida
+    known_categories = [
+        "transporte", "restaurante", "restaurantes", "ocio", "comida", 
+        "casa", "vivienda", "salud", "deporte", "viajes", "ropa", 
+        "tecnologia", "tecnología", "educacion", "educación", "regalo", "regalos",
+        "alcohol", "entretenimiento", "suscripc"
+    ]
+    
+    for category in known_categories:
+        pattern = r'\b' + re.escape(category) + r'\b'
+        if re.search(pattern, message_lower):
+            logger.info(f"Category detected: '{category}' → search_expenses_by_category")
+            return next((t for t in available_tools if t["name"] == "search_expenses_by_category"), None)
+    
+    # PRIORITY 1: Si mencionan un concepto específico (NO categoría)
+    
+    # Patrones que indican búsqueda de concepto específico
+    concept_indicators = [
+        r'en\s+(\w+)',  # "en helados", "en uber"
+        r'de\s+(\w+)',  # "de restaurantes"
+        r'para\s+(\w+)',  # "para regalos"
+        r'gast[eéo]\s+en\s+(\w+)',  # "gasté en X", "gasto en Y"
+    ]
+    
+    has_specific_concept = False
+    for pattern in concept_indicators:
+        match = re.search(pattern, message_lower)
+        if match:
+            # Check if what follows "en/de/para" is not a time word
+            word_after = match.group(1)
+            time_words = ["enero", "febrero", "marzo", "abril", "mayo", "junio", 
+                         "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+                         "invierno", "primavera", "verano", "otoño", "este", "esta", "el"]
+            # También verificar que no sea categoría conocida
+            known_categories_check = ["transporte", "restaurante", "ocio", "comida", "casa", "salud", "deporte", "viajes", "ropa", "alcohol"]
+            if word_after not in time_words and word_after not in known_categories_check:
+                has_specific_concept = True
+                break
+    
+    # Si hay concepto específico, usar search_expenses_by_concept
+    if has_specific_concept:
+        return next((t for t in available_tools if t["name"] == "search_expenses_by_concept"), None)
+    
+    # PRIORITY 2: Mapeo de palabras clave a herramientas específicas
+    keyword_mapping = {
+        "search_expenses_by_category": [" categoría", " categoria", " restaurante ", " ocio ", " transporte ", " alcohol ", " comida "],
+        "get_top_expenses": ["mayor", "mayores", "top", "más grande", "mas grande", "principales", "top "],
+        "get_category_breakdown": ["desglose", "distribución", "distribucion", "por categoría", "por categoria"],
+        "get_savings_rate": ["tasa de ahorro", "ahorro", " inversión", " inversion", "ahorrado", "invertido"],
+        # get_total_by_type solo si es MUY genérico
+        "get_total_by_type": ["total de gastos", "total de ingresos", "cuanto gaste en total", "suma de gastos"]
+    }
+    
+    # Buscar herramienta por palabras clave (excluyendo search_expenses_by_concept que ya se chequeó)
+    for tool in available_tools:
+        tool_name = tool["name"]
+        if tool_name == "search_expenses_by_concept":
+            continue  # Ya se chequeó arriba
+        
+        keywords = keyword_mapping.get(tool_name, [])
+        
+        if any(keyword in message_lower for keyword in keywords):
+            return tool
+    
+    # PRIORITY 3: Fallback a search_expenses_by_concept para cualquier pregunta de gasto
+    # con palabras clave generales
+    if any(word in message_lower for word in ["gast", "compra", "pag", "cuanto", "cuánto"]):
+        return next((t for t in available_tools if t["name"] == "search_expenses_by_concept"), None)
+    
+    return None
+
+
+def _extract_parameters(user_message: str, tool: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Extrae parámetros del mensaje del usuario para la herramienta seleccionada.
+    
+    Esta es una implementación basada en regex y palabras clave.
+    Si hay contexto previo, hereda parámetros cuando la pregunta es de seguimiento.
+    """
+    import re
+    from datetime import datetime
+    
+    params = {}
+    message_lower = user_message.lower()
+    
+    # Detectar si es una pregunta de seguimiento (corta, sin año/mes explícito)
+    is_followup = False
+    if context and len(user_message.split()) < 6:  # Pregunta corta
+        followup_indicators = ["pero", "y ", "solo", "cuantos", "cuales", "que", "ahora"]
+        if any(ind in message_lower for ind in followup_indicators):
+            is_followup = True
+    
+    # Extraer año
+    year_match = re.search(r'\b(20\d{2})\b', user_message)
+    if year_match:
+        params["year"] = int(year_match.group(1))
+    
+    # Extraer mes
+    meses = {
+        "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+        "julio": 7, "agosto": 8, "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12
+    }
+    for mes_nombre, mes_num in meses.items():
+        if mes_nombre in message_lower:
+            params["month"] = mes_num
+            break
+    
+    # Detectar referencias temporales
+    now = datetime.now()
+    
+    if "esta semana" in message_lower or "semana actual" in message_lower:
+        # Para simplificar, usar mes actual
+        params["year"] = now.year
+        params["month"] = now.month
+    elif "este mes" in message_lower or "mes actual" in message_lower:
+        params["year"] = now.year
+        params["month"] = now.month
+    elif "este año" in message_lower or "año actual" in message_lower:
+        params["year"] = now.year
+    elif "año pasado" in message_lower or "el año pasado" in message_lower or "last year" in message_lower or "el año anterior" in message_lower:
+        # Año pasado = current year - 1
+        params["year"] = now.year - 1
+        logger.info(f"Detected 'año pasado' → year={now.year - 1}")
+    elif "mes pasado" in message_lower:
+        last_month = now.month - 1
+        params["month"] = 12 if last_month == 0 else last_month
+        params["year"] = now.year if last_month > 0 else now.year - 1
+    
+    # Si es follow-up y no encontramos año/mes, heredar del contexto
+    if is_followup and context:
+        prev_params = context.get('params', {})
+        if 'year' not in params and 'year' in prev_params:
+            params['year'] = prev_params['year']
+        if 'month' not in params and 'month' in prev_params:
+            params['month'] = prev_params['month']
+    
+    # Parámetros específicos por herramienta
+    tool_name = tool["name"]
+    
+    if tool_name == "search_expenses_by_concept":
+        # Extraer concepto - buscar palabras clave después de preposiciones
+        concept_patterns = [
+            r'(?:gast[eéó]|compré?|pagué?)\s+en\s+([^?,.\d]+)',  # "gasté en helados"
+            r'en\s+([^?,.\d]+?)\s+(?:el|este|este|año|mes)',  # "en helados el año pasado"
+            r'en\s+([^?,.\d]+)',  # "en helados"
+            r'de\s+([^?,.\d]+)',  # "de restaurantes"
+            r'para\s+([^?,.\d]+)',  # "para regalos"
+        ]
+        
+        # Time/stop words to exclude from concept
+        time_words = {"enero", "febrero", "marzo", "abril", "mayo", "junio",
+                     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+                     "invierno", "primavera", "verano", "otoño", "este", "esta", "año", "mes",
+                     "el", "la", "los", "las", "pasado", "actual", "anterior"}
+        
+        for pattern in concept_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                raw_concept = match.group(1).strip()
+                # Clean concept: remove articles and time words
+                concept_words = raw_concept.split()
+                cleaned_words = [w for w in concept_words if w not in time_words and len(w) > 1]
+                
+                if cleaned_words:
+                    concept = " ".join(cleaned_words)
+                    params["concept"] = concept
+                    logger.info(f"Extracted concept: '{concept}' from pattern: {pattern}")
+                    break
+        
+        # Fallback: si no se extrajo concepto con regex, limpiar palabras clave y usar el resto
+        if "concept" not in params:
+            # Remove common query words
+            clean_msg = re.sub(r'\b(cuanto|cuánto|me|costo|costó|cuesta|vale|precio|que|qué|el|la|encuentra|busca|gastos?|de|en|un|una|del|al|año|pasado|este|esta|mes)\b', '', message_lower)
+            potential_concept = clean_msg.strip()
+            if potential_concept and len(potential_concept) > 1:
+                params["concept"] = potential_concept
+                logger.info(f"Fallback concept extraction: '{potential_concept}'")
+    
+    elif tool_name == "search_expenses_by_category":
+        # Extraer nombre de categoría
+        category_keywords = ["restaurante", "ocio", "transporte", "alcohol", "comida", "casa", "salud"]
+        for keyword in category_keywords:
+            if keyword in message_lower:
+                params["category_name"] = keyword.capitalize()
+                break
+    
+    elif tool_name == "get_total_by_type":
+        # Determinar tipo de movimiento
+        if any(word in message_lower for word in ["gast", "gasto", "gastos"]):
+            params["movement_type"] = "GASTO"
+        elif any(word in message_lower for word in ["ingres", "ingreso", "ingresos", "cobr"]):
+            params["movement_type"] = "INGRESO"
+        elif any(word in message_lower for word in ["inver", "inversion", "inversiones", "ahorr"]):
+            params["movement_type"] = "INVERSION"
+        else:
+            # Default a GASTO si no se especifica (más común en preguntas de "cuánto")
+            params["movement_type"] = "GASTO"
+    
+    elif tool_name == "get_top_expenses":
+        # Extraer límite si se menciona
+        limit_match = re.search(r'\b(\d+)\b', user_message)
+        if limit_match:
+            params["limit"] = int(limit_match.group(1))
+        else:
+            params["limit"] = 10
+    
+    return params
+
 

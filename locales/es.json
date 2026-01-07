@@ -3,7 +3,139 @@
         "ledger": "📊 Ledger",
         "cierre": "🔒 Cierre de Mes",
         "historico": "📅 Histórico",
+        "proyecciones": "🔮 Proyecciones",
+        "chat_search": "💬 Chat Search",
         "utilidades": "🔧 Utilidades"
+    },
+    "loading_tips": [
+        "💡 Cargando tus datos financieros...",
+        "📊 Preparando análisis inteligentes...",
+        "🚀 Optimizando proyecciones...",
+        "🔍 Indexando histórico de movimientos...",
+        "💰 Recuerda: pequeños ahorros, grandes resultados",
+        "📈 Cada gasto registrado es un paso hacia el control financiero",
+        "🧠 El conocimiento es poder, especialmente en finanzas",
+        "💪 Capitalismo, Ahorro y Trabajo duro"
+    ],
+    "proyecciones": {
+        "title": "🔮 Proyecciones Financieras",
+        "no_data": "No hay datos históricos suficientes para generar proyecciones.",
+        "no_data_hint": "Añade al menos 3 meses de movimientos para activar las predicciones.",
+        "from_year": "📅 Desde año",
+        "to_year": "📅 Hasta año",
+        "calculating": "Calculando proyecciones con ML...",
+        "salary_section": "Proyección de Salarios",
+        "investment_section": "Proyección de Inversión",
+        "expenses_section": "Proyección de Gastos",
+        "insights_section": "Insights y Recomendaciones",
+        "trend": "Tendencia",
+        "trend_up": "Alcista",
+        "trend_down": "Bajista",
+        "trend_stable": "Estable",
+        "trend_unknown": "Sin datos",
+        "avg_salary_current": "Salario Medio (año actual)",
+        "avg_expenses_current": "Gasto Medio (año actual)",
+        "confidence": "Confianza",
+        "yearly_breakdown": "📋 Desglose Anual",
+        "salary": "Salario",
+        "investment": "Inversión",
+        "expenses": "Gastos",
+        "savings_rate": "Tasa de Ahorro",
+        "projected_annual": "Proyección {year}",
+        "total_projected": "Total Proyectado",
+        "expected_delta": "Delta Esperado",
+        "year_col": "Año",
+        "monthly_avg_suffix": "Media Mensual",
+        "annual_total_suffix": "Total Anual",
+        "interannual_growth": "Crecimiento Interanual",
+        "confidence_explanation": "La confianza se basa en R² (coeficiente de determinación) del modelo de regresión lineal. Un valor alto indica que los datos históricos siguen un patrón predecible.",
+        "current_year_avg_explanation": "El salario medio del año actual se calcula como el promedio mensual proyectado por el modelo basado en tendencias históricas.",
+        "investment_calc_explanation": "Las inversiones se proyectan aplicando la tasa de ahorro media ({rate}%) a los ingresos proyectados, ajustada por la tendencia histórica de ahorro.",
+        "no_growth_detected": "No hay crecimiento significativo",
+        "recent_months_only": "últimos {months} meses",
+        "no_insights": "Acumula más datos para generar insights automáticos.",
+        "insights": {
+            "income_trend_positive": {
+                "title": "Tendencia de ingresos positiva",
+                "message": "Tus ingresos crecen ~{increase}€/año. Proyección basada en {months} meses de datos. Confianza del modelo: {confidence}%."
+            },
+            "income_trend_negative": {
+                "title": "Alerta: Ingresos en descenso",
+                "message": "Se detecta una caída de ~{decrease}€/año en tus ingresos. Revisa si hay cambios en tu situación laboral o fuentes de ingreso."
+            },
+            "income_trend_stable": {
+                "title": "Ingresos estables",
+                "message": "Tus ingresos se mantienen estables en torno a {avg}€/mes. No hay cambios significativos proyectados."
+            },
+            "savings_rate_exceptional": {
+                "title": "Tasa de ahorro excepcional",
+                "message": "Inviertes el {rate}% de tus ingresos. Esto te sitúa en el top de ahorradores. A este ritmo, en 5 años habrás acumulado un fondo considerable."
+            },
+            "savings_rate_excellent": {
+                "title": "Excelente tasa de ahorro",
+                "message": "Con un {rate}% de tasa de inversión, estás construyendo patrimonio de forma sólida. Mantén este ritmo."
+            },
+            "savings_rate_good": {
+                "title": "Buena tasa de ahorro",
+                "message": "Inviertes el {rate}%. Para llegar al objetivo del 20%, necesitarías aumentar ~{deficit}pp más."
+            },
+            "savings_rate_improvable": {
+                "title": "Tasa de ahorro mejorable",
+                "message": "Solo inviertes el {rate}% de tus ingresos. Revisa tus gastos superfluos para aumentar la inversión."
+            },
+            "savings_rate_none": {
+                "title": "Sin inversión detectada",
+                "message": "No se detectan inversiones en tu historial. Considera destinar al menos un 10% de tus ingresos a ahorro/inversión."
+            },
+            "expense_skyrocketing": {
+                "title": "Gasto disparado: {category}"
+            },
+            "expense_increasing": {
+                "title": "Gasto en aumento: {category}"
+            },
+            "expense_growing": {
+                "message": "Esta categoría crece un {pct}% mensual (media: {avg}€/mes). Si la tendencia continúa, duplicará en ~{doubling_time} meses."
+            },
+            "expense_decreasing": {
+                "title": "Reducción en: {category}",
+                "message": "Has reducido gastos en esta categoría un {pct}% mensual. ¡Buen control!"
+            },
+            "expense_ratio_high": {
+                "title": "Gastos muy elevados",
+                "message": "Tus gastos representan el {ratio}% de tus ingresos. Margen muy ajustado para imprevistos."
+            },
+            "expense_ratio_excellent": {
+                "title": "Control de gastos excelente",
+                "message": "Solo gastas el {ratio}% de tus ingresos. Gran capacidad de ahorro."
+            },
+            "accumulating_data": {
+                "title": "Acumulando datos",
+                "message": "Tienes {entries} entradas registradas. Con más datos históricos (3+ meses), las predicciones serán más precisas."
+            },
+            "insufficient_data_error": "Datos insuficientes (mínimo 3 meses)"
+        }
+    },
+    "chat_search": {
+        "title": "💬 Chat Search - Asistente Financiero",
+        "subtitle": "Pregunta sobre tus finanzas y obtendrás respuestas basadas en tus datos reales",
+        "input_placeholder": "Escribe tu pregunta... Ej: ¿Cuánto gasté en restaurantes en 2025?",
+        "send_button": "Enviar",
+        "clear_button": "🗑️ Limpiar chat",
+        "example_questions": "Ejemplos de preguntas",
+        "examples": [
+            "¿Cuánto gasté en el regalo de Mery de reyes de 2025?",
+            "¿Cuánto me gasté en alcohol en 2023?",
+            "¿Cuál fue mi categoría de mayor gasto el mes pasado?",
+            "Muéstrame mis mayores gastos de esta semana",
+            "¿Cuánto he invertido este año?",
+            "¿Cuál es mi tasa de ahorro promedio?"
+        ],
+        "llm_not_configured": "⚠️ El servicio de LLM no está configurado. Ve a Utilidades > Configuración de IA para activarlo.",
+        "thinking": "Pensando...",
+        "error": "Error al procesar la consulta",
+        "no_messages": "Aún no hay mensajes. ¡Haz tu primera pregunta!",
+        "you": "Tú",
+        "assistant": "Asistente"
     },
     "consequences": {
         "title": "⚖️ Reglas Consecuencias",
@@ -167,7 +299,8 @@
         }
     },
     "historico": {
-        "title": "📅 Análisis Anual",
+        "title": "📅 Análisis Histórico",
+        "loading_data": "Cargando datos históricos...",
         "period_selector": "📆 Ver datos de",
         "full_year": "Año completo",
         "chart_click_hint": "💡 Haz clic en una barra para ver el detalle de ese mes",
@@ -184,6 +317,18 @@
             "investment": "💎 Inversión Ejecutada",
             "savings_percent": "📈 % Ahorro"
         },
+        "averages": {
+            "title": "Promedios Mensuales",
+            "income": "Ingreso Medio",
+            "expenses": "Gasto Medio",
+            "salary": "Salario Medio"
+        },
+        "salary_search_keywords": [
+            "salario",
+            "nómina",
+            "nomina",
+            "paga extra"
+        ],
         "tabs": {
             "overview": "📈 Visión Global",
             "analysis": "🔬 Análisis Profundo",

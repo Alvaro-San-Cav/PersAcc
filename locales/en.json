@@ -3,7 +3,139 @@
         "ledger": "📊 Ledger",
         "cierre": "🔒 Month Closing",
         "historico": "📅 History",
+        "proyecciones": "🔮 Projections",
+        "chat_search": "💬 Chat Search",
         "utilidades": "🔧 Utilities"
+    },
+    "loading_tips": [
+        "💡 Loading your financial data...",
+        "📊 Preparing smart insights...",
+        "🚀 Optimizing projections...",
+        "🔍 Indexing transaction history...",
+        "💰 Remember: small savings, big results",
+        "📈 Every tracked expense is a step toward financial control",
+        "🧠 Knowledge is power, especially in finance",
+        "💪 Capitalism, Saving and Hard work"
+    ],
+    "proyecciones": {
+        "title": "🔮 Financial Projections",
+        "no_data": "Not enough historical data to generate projections.",
+        "no_data_hint": "Add at least 3 months of movements to activate predictions.",
+        "from_year": "📅 From year",
+        "to_year": "📅 To year",
+        "calculating": "Calculating ML projections...",
+        "salary_section": "Salary Projection",
+        "investment_section": "Investment Projection",
+        "expenses_section": "Expense Projection",
+        "insights_section": "Insights & Recommendations",
+        "trend": "Trend",
+        "trend_up": "Upward",
+        "trend_down": "Downward",
+        "trend_stable": "Stable",
+        "trend_unknown": "No data",
+        "avg_salary_current": "Avg Salary (current year)",
+        "avg_expenses_current": "Avg Expense (current year)",
+        "confidence": "Confidence",
+        "yearly_breakdown": "📋 Yearly Breakdown",
+        "salary": "Salary",
+        "investment": "Investment",
+        "expenses": "Expenses",
+        "savings_rate": "Savings Rate",
+        "projected_annual": "Projection {year}",
+        "total_projected": "Total Projected",
+        "expected_delta": "Expected Delta",
+        "year_col": "Year",
+        "monthly_avg_suffix": "Monthly Avg",
+        "annual_total_suffix": "Annual Total",
+        "interannual_growth": "Year-over-Year Growth",
+        "confidence_explanation": "Confidence is based on R² (coefficient of determination) from linear regression. A high value indicates historical data follows a predictable pattern.",
+        "current_year_avg_explanation": "Current year average salary is calculated as the monthly average projected by the model based on historical trends.",
+        "investment_calc_explanation": "Investments are projected by applying the average savings rate ({rate}%) to projected income, adjusted for historical savings trends.",
+        "no_growth_detected": "No significant growth detected",
+        "recent_months_only": "last {months} months",
+        "no_insights": "Accumulate more data to generate automatic insights.",
+        "insights": {
+            "income_trend_positive": {
+                "title": "Positive Income Trend",
+                "message": "Your income is growing ~{increase}€/year. Projection based on {months} months of data. Model confidence: {confidence}%."
+            },
+            "income_trend_negative": {
+                "title": "Alert: Income Decreasing",
+                "message": "A drop of ~{decrease}€/year in your income is detected. Check for changes in your employment status or income sources."
+            },
+            "income_trend_stable": {
+                "title": "Stable Income",
+                "message": "Your income remains stable around {avg}€/month. No significant changes projected."
+            },
+            "savings_rate_exceptional": {
+                "title": "Exceptional Savings Rate",
+                "message": "You invest {rate}% of your income. This puts you in the top tier of savers. At this pace, you will accumulate a substantial fund in 5 years."
+            },
+            "savings_rate_excellent": {
+                "title": "Excellent Savings Rate",
+                "message": "With a {rate}% investment rate, you are building wealth solidly. Keep it up."
+            },
+            "savings_rate_good": {
+                "title": "Good Savings Rate",
+                "message": "You invest {rate}%. To reach the 20% target, you would need to increase by ~{deficit}pp more."
+            },
+            "savings_rate_improvable": {
+                "title": "Improvable Savings Rate",
+                "message": "You only invest {rate}% of your income. Review superfluous expenses to increase investment."
+            },
+            "savings_rate_none": {
+                "title": "No Investment Detected",
+                "message": "No investments detected in your history. Consider allocating at least 10% of your income to savings/investment."
+            },
+            "expense_skyrocketing": {
+                "title": "Skyrocketing Expense: {category}"
+            },
+            "expense_increasing": {
+                "title": "Increasing Expense: {category}"
+            },
+            "expense_growing": {
+                "message": "This category is growing by {pct}% monthly (avg: {avg}€/month). If the trend continues, it will double in ~{doubling_time} months."
+            },
+            "expense_decreasing": {
+                "title": "Reduction in: {category}",
+                "message": "You have reduced expenses in this category by {pct}% monthly. Good control!"
+            },
+            "expense_ratio_high": {
+                "title": "Very High Expenses",
+                "message": "Your expenses represent {ratio}% of your income. Very tight margin for unforeseen events."
+            },
+            "expense_ratio_excellent": {
+                "title": "Excellent Expense Control",
+                "message": "You only spend {ratio}% of your income. Great savings capacity."
+            },
+            "accumulating_data": {
+                "title": "Accumulating Data",
+                "message": "You have {entries} registered entries. With more historical data (3+ months), predictions will be more accurate."
+            },
+            "insufficient_data_error": "Insufficient data (minimum 3 months)"
+        }
+    },
+    "chat_search": {
+        "title": "💬 Chat Search - Financial Assistant",
+        "subtitle": "Ask about your finances and get answers based on your real data",
+        "input_placeholder": "Type your question... E.g: How much did I spend on restaurants in 2025?",
+        "send_button": "Send",
+        "clear_button": "🗑️ Clear chat",
+        "example_questions": "Example questions",
+        "examples": [
+            "How much did I spend on Mery's Christmas gift in 2025?",
+            "How much did I spend on alcohol in 2023?",
+            "What was my highest spending category last month?",
+            "Show me my biggest expenses this week",
+            "How much have I invested this year?",
+            "What is my average savings rate?"
+        ],
+        "llm_not_configured": "⚠️ LLM service is not configured. Go to Utilities > AI Configuration to enable it.",
+        "thinking": "Thinking...",
+        "error": "Error processing query",
+        "no_messages": "No messages yet. Ask your first question!",
+        "you": "You",
+        "assistant": "Assistant"
     },
     "consequences": {
         "title": "⚖️ Consequences Rules",
@@ -167,7 +299,8 @@
         }
     },
     "historico": {
-        "title": "📅 Annual Analysis",
+        "title": "📅 Historic Analysis",
+        "loading_data": "Loading historical data...",
         "period_selector": "📆 View data for",
         "full_year": "Full Year",
         "chart_click_hint": "💡 Click on a bar to see that month's details",
@@ -184,6 +317,19 @@
             "investment": "💎 Investment Executed",
             "savings_percent": "📈 % Savings"
         },
+        "averages": {
+            "title": "Monthly Averages",
+            "income": "Avg Income",
+            "expenses": "Avg Expenses",
+            "salary": "Avg Salary"
+        },
+        "salary_search_keywords": [
+            "salary",
+            "payroll",
+            "wage",
+            "pay",
+            "bonus"
+        ],
         "tabs": {
             "overview": "📈 Overview",
             "analysis": "🔬 Deep Analysis",

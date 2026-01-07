@@ -155,3 +155,27 @@ def get_language_flag(lang_code: str) -> str:
         "en": "EN"
     }
     return flags.get(lang_code, "🌐")
+
+
+def get_salary_keywords() -> list:
+    """
+    Obtiene las palabras clave para identificar salarios según el idioma actual.
+    Usa las traducciones definidas en historico.salary_search_keywords.
+    
+    Returns:
+        Lista de palabras clave en minúsculas para búsqueda
+        
+    Examples:
+        >>> get_salary_keywords()  # Con idioma español
+        ['salario', 'nómina', 'nomina', 'paga extra']
+    """
+    keywords = t('historico.salary_search_keywords')
+    
+    # Si la traducción no existe o devuelve la clave, usar valores por defecto multiidioma
+    if isinstance(keywords, str) or not isinstance(keywords, list):
+        # Fallback: usar palabras clave de ambos idiomas
+        return ["salario", "nómina", "nomina", "paga extra", "sueldo", "paga",
+                "salary", "payroll", "wage", "pay", "bonus"]
+    
+    # Convertir todas a minúsculas para búsqueda case-insensitive
+    return [kw.lower() for kw in keywords]

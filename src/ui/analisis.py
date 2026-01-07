@@ -349,35 +349,41 @@ def render_analisis():
             from src.i18n import get_language
             
             if is_llm_enabled():
-                # Debug: mostrar que se está intentando generar
-                with st.spinner("🤖 Generando comentario gracioso..."):
-                    summary = generate_quick_summary(
-                        income=kpis['total_ingresos'],
-                        expenses=kpis['total_gastos'],
-                        balance=kpis['balance_mes'],
-                        lang=get_language()
-                    )
+                # Cache key based only on month - generate once per session
+                cache_key = f"ai_summary_{mes_seleccionado}"
+                
+                # Check if we have a cached summary for this month
+                cached_summary = st.session_state.get('ai_summary_cache', {})
+                
+                if cached_summary.get('key') == cache_key and cached_summary.get('text'):
+                    # Use cached summary
+                    summary = cached_summary['text']
+                else:
+                    # Generate new summary (only once per session per month)
+                    expense_items = []
+                    for e in entries:
+                        if e.tipo_movimiento == TipoMovimiento.GASTO:
+                            expense_items.append({
+                                'categoria': cats_map.get(e.categoria_id, 'Sin categoría'),
+                                'concepto': e.concepto,
+                                'importe': float(e.importe)
+                            })
+                    
+                    with st.spinner("🤖 Generando comentario..."):
+                        summary = generate_quick_summary(
+                            income=kpis['total_ingresos'],
+                            expenses=kpis['total_gastos'],
+                            balance=kpis['balance_mes'],
+                            lang=get_language(),
+                            expense_items=expense_items
+                        )
+                    
+                    # Cache the result for this session
+                    if summary:
+                        st.session_state['ai_summary_cache'] = {'key': cache_key, 'text': summary}
                 
                 if summary:
-                    st.markdown(f"""
-                    <div style="
-                        background: linear-gradient(135deg, rgba(138, 43, 226, 0.1), rgba(75, 0, 130, 0.1));
-                        border-left: 4px solid #8a2be2;
-                        padding: 12px 16px;
-                        border-radius: 8px;
-                        margin-top: 16px;
-                        font-style: italic;
-                        color: #d8d8d8;
-                    ">
-                        🤖 <strong>AI dice:</strong> {summary}
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    # Debug temporal: mostrar si falló la generación
-                    st.caption("💡 Consejo: La IA está activada pero no pudo generar un comentario. Verifica que Ollama esté corriendo.")
-            else:
-                # Debug temporal: avisar que la IA está desactivada
-                st.caption("💡 Activa la IA en Configuración para ver comentarios graciosos aquí.")
+                    st.markdown(f"*{summary}*")
     
     with col_grafico:
         # 1. Gráfico de Gastos por Categoría (Nuevo)
