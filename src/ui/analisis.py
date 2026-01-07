@@ -342,6 +342,42 @@ def render_analisis():
                         st.rerun()
         else:
             st.info(t('analisis.movements.no_movements'))
+        
+        # AI Quick Summary (solo si hay movimientos y es mes actual)
+        if entries and mes_seleccionado == calcular_mes_fiscal(date.today()):
+            from src.llm_service import is_llm_enabled, generate_quick_summary
+            from src.i18n import get_language
+            
+            if is_llm_enabled():
+                # Debug: mostrar que se está intentando generar
+                with st.spinner("🤖 Generando comentario gracioso..."):
+                    summary = generate_quick_summary(
+                        income=kpis['total_ingresos'],
+                        expenses=kpis['total_gastos'],
+                        balance=kpis['balance_mes'],
+                        lang=get_language()
+                    )
+                
+                if summary:
+                    st.markdown(f"""
+                    <div style="
+                        background: linear-gradient(135deg, rgba(138, 43, 226, 0.1), rgba(75, 0, 130, 0.1));
+                        border-left: 4px solid #8a2be2;
+                        padding: 12px 16px;
+                        border-radius: 8px;
+                        margin-top: 16px;
+                        font-style: italic;
+                        color: #d8d8d8;
+                    ">
+                        🤖 <strong>AI dice:</strong> {summary}
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Debug temporal: mostrar si falló la generación
+                    st.caption("💡 Consejo: La IA está activada pero no pudo generar un comentario. Verifica que Ollama esté corriendo.")
+            else:
+                # Debug temporal: avisar que la IA está desactivada
+                st.caption("💡 Activa la IA en Configuración para ver comentarios graciosos aquí.")
     
     with col_grafico:
         # 1. Gráfico de Gastos por Categoría (Nuevo)

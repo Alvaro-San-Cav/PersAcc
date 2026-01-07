@@ -473,3 +473,63 @@ def get_all_meses_fiscales_cerrados(db_path: Path = DEFAULT_DB_PATH) -> List[Cie
         return [_row_to_cierre_mensual(row) for row in rows]
 
 
+# ============================================================================
+# OPERACIONES AI_ANALYSIS
+# ============================================================================
+
+def get_ai_analysis(period_type: str, period_identifier: str, db_path: Path = DEFAULT_DB_PATH) -> Optional[str]:
+    """
+    Obtiene el análisis guardado para un período específico.
+    
+    Args:
+        period_type: "year" o "month"
+        period_identifier: Identificador del período (ej: "2024" o "2024-01")
+        
+    Returns:
+        El texto del análisis si existe, None si no hay análisis guardado
+    """
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT analysis_text FROM AI_ANALYSIS WHERE period_type = ? AND period_identifier = ?",
+            (period_type, period_identifier)
+        ).fetchone()
+        return row["analysis_text"] if row else None
+
+
+def save_ai_analysis(
+    period_type: str, 
+    period_identifier: str, 
+    analysis_text: str,
+    model_used: str = None,
+    lang: str = None,
+    db_path: Path = DEFAULT_DB_PATH
+):
+    """
+    Guarda o actualiza el análisis de IA para un período.
+    
+    Args:
+        period_type: "year" o "month"
+        period_identifier: Identificador del período
+        analysis_text: Texto del análisis generado
+        model_used: Nombre del modelo usado
+        lang: Idioma del análisis
+    """
+    with get_connection(db_path) as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO AI_ANALYSIS 
+               (period_type, period_identifier, analysis_text, created_at, model_used, lang)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (period_type, period_identifier, analysis_text, datetime.now(), model_used, lang)
+        )
+
+
+def delete_ai_analysis(period_type: str, period_identifier: str, db_path: Path = DEFAULT_DB_PATH):
+    """Elimina el análisis guardado para un período."""
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "DELETE FROM AI_ANALYSIS WHERE period_type = ? AND period_identifier = ?",
+            (period_type, period_identifier)
+        )
+
+
+

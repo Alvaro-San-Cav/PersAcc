@@ -3,6 +3,8 @@ Página de Utilidades - PersAcc
 Renderiza la interfaz de utilidades.
 """
 import streamlit as st
+import sys
+import subprocess
 from datetime import date, datetime
 from pathlib import Path
 import csv
@@ -25,7 +27,7 @@ from src.business_logic import (
     calcular_kpis_anuales, get_word_counts, get_top_entries,
     calculate_curious_metrics
 )
-from src.config import get_currency_symbol
+from src.config import get_currency_symbol, load_config, save_config
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
 from src.i18n import t, get_language, set_language, get_language_flag, get_language_name
@@ -197,7 +199,6 @@ def render_utilidades():
                     temp_path.write_text(content, encoding='utf-8')
                     
                     try:
-                        import subprocess
                         # Construir comando base use sys.executable for safety
                         cmd = [sys.executable, "migration.py", str(temp_path)]
                         if is_ingreso:
@@ -290,7 +291,6 @@ def render_utilidades():
                         pass
                 
                 # Regenerar categorías por defecto
-                import subprocess
                 subprocess.run([sys.executable, "setup_db.py"], cwd=str(DEFAULT_DB_PATH.parent.parent), capture_output=True)
                 
                 st.session_state['delete_success'] = t('utilidades.cleanup.option2_success')
@@ -432,7 +432,6 @@ def render_utilidades():
         st.info(t('consequences.info'))
         
         # Cargar configuración y reglas
-        from src.config import load_config, save_config
         config_data = load_config()
         
         if not config_data.get('enable_consequences', False):
@@ -554,7 +553,6 @@ def render_utilidades():
         st.markdown(f"### {t('utilidades.config.title')}")
         
         # Cargar configuración desde archivo
-        from src.config import load_config, save_config
         config = load_config()
         
         
@@ -567,6 +565,7 @@ def render_utilidades():
             enable_relevance = st.session_state.get('config_enable_relevance', True)
             enable_retentions = st.session_state.get('config_enable_retentions', True)
             enable_consequences = st.session_state.get('config_enable_consequences', False)
+            enable_llm = st.session_state.get('config_enable_llm', False)
             
             # Actualizar configuración
             current_lang = get_language()
@@ -577,6 +576,18 @@ def render_utilidades():
             config['enable_relevance'] = enable_relevance
             config['enable_retentions'] = enable_retentions
             config['enable_consequences'] = enable_consequences
+            
+            # Actualizar configuración de LLM
+            if 'llm' not in config:
+                config['llm'] = {}
+            config['llm']['enabled'] = enable_llm
+            
+            # Guardar modelo seleccionado si LLM está habilitado
+            if enable_llm:
+                selected_model = st.session_state.get('config_llm_model')
+                if selected_model:
+                    config['llm']['model_tier'] = selected_model
+            
             config['retenciones'] = {
                 'pct_remanente_default': default_rem,
                 'pct_salario_default': default_sal
@@ -671,6 +682,50 @@ def render_utilidades():
             help=t('utilidades.config.enable_consequences_help'),
             key="config_enable_consequences"
         )
+        
+        enable_llm = st.toggle(
+            t('utilidades.config.enable_llm_label'),
+            value=config.get('llm', {}).get('enabled', False),
+            help=t('utilidades.config.enable_llm_help'),
+            key="config_enable_llm"
+        )
+        
+        # Selector de modelo de Ollama (solo si LLM está habilitado)
+        if enable_llm:
+            from src.llm_service import check_ollama_running, get_available_models
+            
+            st.markdown("##### 🤖 Configuración del Modelo IA")
+            
+            # Verificar si Ollama está corriendo
+            if check_ollama_running():
+                available_models = get_available_models()
+                
+                if available_models:
+                    st.success(f"✅ Ollama detectado con {len(available_models)} modelo(s) disponible(s)")
+                    
+                    current_model = config.get('llm', {}).get('model_tier', 'light')
+                    
+                    # Si el modelo actual no está en la lista, usar el primero disponible
+                    if current_model not in available_models:
+                        default_index = 0
+                    else:
+                        default_index = available_models.index(current_model)
+                    
+                    selected_model = st.selectbox(
+                        t('utilidades.config.llm_model_label'),
+                        options=available_models,
+                        index=default_index,
+                        help=t('utilidades.config.llm_model_help'),
+                        key="config_llm_model"
+                    )
+                else:
+                    st.warning("⚠️ Ollama está corriendo pero no hay modelos instalados.")
+                    st.info(t('utilidades.config.llm_no_models'))
+                    selected_model = config.get('llm', {}).get('model_tier', 'light')
+            else:
+                st.error("❌ Ollama no está corriendo o no está instalado")
+                st.info(t('utilidades.config.llm_not_running'))
+                selected_model = config.get('llm', {}).get('model_tier', 'light')
 
         st.markdown("---")
 
@@ -724,7 +779,6 @@ def render_utilidades():
         st.info(t('utilidades.defaults.info'))
         
         # Cargar configuración y categorías
-        from src.config import load_config, save_config
         config = load_config()
         enable_relevance = config.get('enable_relevance', True)
         

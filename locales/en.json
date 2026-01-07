@@ -234,7 +234,12 @@
                 "concept": "Concept",
                 "amount": "Amount"
             }
-        }
+        },
+        "ai_commentary_title": "🤖 AI Financial Insights",
+        "ai_generate_btn": "Generate Analysis",
+        "ai_regenerate_btn": "Regenerate",
+        "ai_loading": "Analyzing your data...",
+        "ai_error": "Error generating analysis: {error}"
     },
     "utilidades": {
         "title": "🔧 Utilities",
@@ -335,6 +340,12 @@
             "enable_retentions_help": "If disabled, the system will not calculate or suggest investment retentions (salary/remaining) during month closing.",
             "enable_consequences_label": "Enable Consequences Account",
             "enable_consequences_help": "Activates the rule system to penalize specific expenses with additional investment next month.",
+            "enable_llm_label": "Enable AI Analysis (LLM)",
+            "enable_llm_help": "Activates automatic financial analysis with Artificial Intelligence using Ollama. Requires Ollama installed and a model downloaded.",
+            "llm_model_label": "Select AI Model",
+            "llm_model_help": "Choose the Ollama model to use. Larger models offer better quality but require more RAM and are slower.",
+            "llm_no_models": "📚 Download a model with: `ollama pull phi3` or `ollama pull tinyllama`",
+            "llm_not_running": "🚀 Install Ollama from https://ollama.com/download and make sure it's running.",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
             "section_closing_title": "#### 🔒 Month Closing Method",

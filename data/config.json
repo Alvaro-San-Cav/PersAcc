@@ -16,6 +16,11 @@
             "action_value": 1.0
         }
     ],
+    "llm": {
+        "enabled": true,
+        "model_tier": "qwen3:8b",
+        "max_tokens": 1500
+    },
     "retenciones": {
         "pct_remanente_default": 50,
         "pct_salario_default": 50

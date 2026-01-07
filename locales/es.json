@@ -234,7 +234,12 @@
                 "concept": "Concepto",
                 "amount": "Importe"
             }
-        }
+        },
+        "ai_commentary_title": "🤖 Análisis Financiero IA",
+        "ai_generate_btn": "Generar Análisis",
+        "ai_regenerate_btn": "Regenerar",
+        "ai_loading": "Analizando tus datos...",
+        "ai_error": "Error al generar análisis: {error}"
     },
     "utilidades": {
         "title": "🔧 Utilidades",
@@ -335,6 +340,12 @@
             "enable_retentions_help": "Si se desactiva, el sistema no calculará ni sugerirá retenciones de inversión (salario/remanente) durante el cierre de mes.",
             "enable_consequences_label": "Habilitar Cuenta de Consecuencias",
             "enable_consequences_help": "Activa el sistema de reglas para penalizar gastos específicos con inversión adicional el mes siguiente.",
+            "enable_llm_label": "Habilitar Análisis con IA (LLM)",
+            "enable_llm_help": "Activa el análisis financiero automático con Inteligencia Artificial usando Ollama. Requiere tener Ollama instalado y un modelo descargado.",
+            "llm_model_label": "Seleccionar Modelo de IA",
+            "llm_model_help": "Elige el modelo de Ollama a utilizar. Modelos más grandes ofrecen mejor calidad pero requieren más RAM y son más lentos.",
+            "llm_no_models": "📚 Descarga un modelo con: `ollama pull phi3` o `ollama pull tinyllama`",
+            "llm_not_running": "🚀 Instala Ollama desde https://ollama.com/download y asegúrate de que esté ejecutándose.",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
             "section_closing_title": "#### 🔒 Método de Cierre de Mes",

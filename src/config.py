@@ -17,6 +17,11 @@ DEFAULT_CONFIG = {
     "enable_retentions": True, # Activar/desactivar retenciones de inversión automáticas
     "enable_consequences": False, # Activar/desactivar cuenta de consecuencias
     "consequences_rules": [], # Lista de reglas [{id, name, active, filters, action}]
+    "llm": {  # Configuración de IA (LLM)
+        "enabled": False,  # Activar/desactivar análisis con IA
+        "model_tier": "light",  # Modelo a usar: nombre del modelo de Ollama
+        "max_tokens": 2000  # Máximo de tokens en respuestas (suficiente para análisis completo)
+    },
     "retenciones": {
         "pct_remanente_default": 0,
         "pct_salario_default": 20

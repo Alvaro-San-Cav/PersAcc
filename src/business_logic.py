@@ -357,7 +357,6 @@ def ejecutar_cierre_mes(
                     flag_liquidez=False
                 )
                 insert_ledger_entry(entrada_retencion_salario, db_path)
-                insert_ledger_entry(entrada_retencion_salario, db_path)
 
         # 8c. Crear entrada de Inversión por CONSECUENCIAS (si > 0)
         if consequences_amount > 0:

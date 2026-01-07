@@ -90,6 +90,19 @@ def create_tables(conn: sqlite3.Connection):
         )
     """)
     
+    # Table for AI analysis
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS AI_ANALYSIS (
+            period_type TEXT NOT NULL CHECK(period_type IN ('year', 'month')),
+            period_identifier TEXT NOT NULL,
+            analysis_text TEXT NOT NULL,
+            created_at DATETIME NOT NULL,
+            model_used TEXT,
+            lang TEXT,
+            PRIMARY KEY (period_type, period_identifier)
+        )
+    """)
+    
     # Indexes for optimization
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_mes ON LEDGER(mes_fiscal)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_fecha ON LEDGER(fecha_real)")
