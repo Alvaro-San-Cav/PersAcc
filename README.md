@@ -74,16 +74,6 @@ See [**OLLAMA_SETUP.md**](OLLAMA_SETUP.md) for detailed AI configuration.
 
 ## 📸 Screenshots
 
-### AI Search Assistant
-Ask financial questions in natural language and get instant answers with editable search parameters.
-
-![AI Search](assets/search_assistant.png)
-
-### ML Projections
-Machine learning-based forecasts for salaries, investments, and expenses over the next 5 years.
-
-![ML Projections](assets/projections.png)
-
 ### Main Dashboard
 Monthly analysis view with real-time KPIs, editable transactions table, and spending quality chart.
 
