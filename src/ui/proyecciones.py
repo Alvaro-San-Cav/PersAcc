@@ -420,39 +420,6 @@ def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Fi
     
     return fig
 
-def _render_yearly_table(projected: dict, label: str):
-    """Renderiza tabla de proyecciones anuales CON columna delta (DEPRECATED)."""
-    import pandas as pd
-    
-    if not projected:
-        return
-    
-    data = []
-    sorted_years = sorted(projected.keys())
-    prev_total = None
-    
-    for year in sorted_years:
-        info = projected[year]
-        current_total = info['annual_total']
-        
-        delta_str = "—"
-        if prev_total is not None:
-            delta = current_total - prev_total
-            sign = "+" if delta >= 0 else ""
-            delta_str = f"{sign}{format_currency(delta)}"
-            
-        data.append({
-            t("proyecciones.year_col"): year,
-            f"{label} {t('proyecciones.monthly_avg_suffix')}": format_currency(info['monthly_avg']),
-            f"{label} {t('proyecciones.annual_total_suffix')}": format_currency(current_total),
-            t("proyecciones.expected_delta"): delta_str
-        })
-        
-        prev_total = current_total
-    
-    df = pd.DataFrame(data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
 
 def _render_yearly_table_simple(projected: dict, label: str, current_year_historical_avg: float = 0):
     """Renderiza tabla de proyecciones anuales SIN columna delta.

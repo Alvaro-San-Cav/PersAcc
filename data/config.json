@@ -14,6 +14,16 @@
             "filter_concept": "",
             "action_type": "fixed",
             "action_value": 1.0
+        },
+        {
+            "id": "fe4a8e90-0eee-4c12-b436-a32940645d6e",
+            "active": true,
+            "name": "fiestas mas caras",
+            "filter_relevance": "",
+            "filter_category": "Fiesta",
+            "filter_concept": "",
+            "action_type": "percent",
+            "action_value": 5.0
         }
     ],
     "llm": {
@@ -22,11 +32,11 @@
         "max_tokens": 1500
     },
     "retenciones": {
-        "pct_remanente_default": 50,
-        "pct_salario_default": 50
+        "pct_remanente_default": 0,
+        "pct_salario_default": 20
     },
     "cierre": {
-        "metodo_saldo": "despues_salario"
+        "metodo_saldo": "antes_salario"
     },
     "conceptos_default": {
         "salario": "Nómina mensual",
@@ -34,7 +44,8 @@
         "tarifa_movil": "Pepephone"
     },
     "importes_default": {
-        "tarifa_movil": 7.9
+        "tarifa_movil": 7.9,
+        "salario": 1000.0
     },
     "relevancias_default": {
         "tarifa_movil": "NE"

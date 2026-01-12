@@ -7,7 +7,7 @@ from datetime import date, timedelta
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.models import TipoMovimiento, CierreMensual
+from src.models import TipoMovimiento
 from src.database import (
     get_ledger_by_month, get_all_categorias, is_mes_cerrado,
     get_snapshot_by_month, get_cierre_mes, upsert_cierre_mes,

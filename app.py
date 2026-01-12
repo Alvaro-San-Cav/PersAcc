@@ -12,13 +12,22 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.ui.styles import apply_custom_css
+from src.i18n import t, set_language, get_language
+from src.config import load_config
+
+# Cargar idioma desde configuración al inicio (antes de set_page_config)
+config = load_config()
+preferred_lang = config.get('language', 'es')
+current_lang = get_language()
+if preferred_lang != current_lang:
+    set_language(preferred_lang)
 
 # ============================================================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ============================================================================
 
 st.set_page_config(
-    page_title="PersAcc - Finanzas Personales",
+    page_title=t('page_title'),
     page_icon="assets/logo.ico",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -51,15 +60,6 @@ from src.ui.proyecciones import render_proyecciones
 from src.ui.search_assistant_new import render_chat_search
 from src.ui.utilidades import render_utilidades
 from src.ui.manual import render_manual
-from src.i18n import t, set_language, get_language
-from src.config import load_config
-
-# Cargar idioma desde configuración al inicio
-config = load_config()
-preferred_lang = config.get('language', 'es')
-current_lang = get_language()
-if preferred_lang != current_lang:
-    set_language(preferred_lang)
 
 
 
@@ -85,7 +85,7 @@ def main():
         try:
             with open("assets/logo.ico", "rb") as f:
                 logo_b64 = base64.b64encode(f.read()).decode()
-            logo_html = f'<img src="data:image/x-icon;base64,{logo_b64}" width="100" style="margin: 20px 0;">'
+            logo_html = f'<img src="data:image/x-icon;base64,{logo_b64}" width="100" style="display: block; margin: 20px auto;">'
         except:
             logo_html = ""
 
@@ -107,7 +107,7 @@ def main():
                 display: flex; flex-direction: column;
                 align-items: center; justify-content: center;
             ">
-                <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0;">PersAcc</h1>
+                <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0; text-align: center; margin-left: 20px;">PersAcc</h1>
                 {logo_html}
                 <p style="color: #666; font-size: 1.1em; text-align: center; max-width: 500px; padding: 0 20px;">{random_tip}</p>
                 <div style="

@@ -1,4 +1,5 @@
 {
+    "page_title": "PersAcc - Personal Finance",
     "navigation": {
         "ledger": "📊 Ledger",
         "cierre": "🔒 Month Closing",
@@ -195,7 +196,24 @@
             "relevance_label": "Relevance",
             "liquidity_flag": "Liquidity shortage",
             "submit_button": "💾 Save Movement",
-            "success_message": "✅ Movement saved successfully"
+            "success_message": "✅ Movement saved successfully",
+            "calculator_title": "Quick Calculator",
+            "calc_num1": "Number 1",
+            "calc_num2": "Number 2",
+            "calc_result": "Result",
+            "calc_use_result": "Use as amount",
+            "calc_div_zero": "Cannot divide by zero",
+            "liquidity_help": "Mark if you need to advance this income to current month",
+            "concept_placeholder": "Ex: Dinner with friends",
+            "validation": {
+                "no_categories_setup": "No categories found. Run setup_db.py first.",
+                "no_categories_type": "No categories for {type}",
+                "concept_required": "Concept is required",
+                "amount_positive": "Amount must be greater than 0",
+                "relevance_required": "Select expense relevance",
+                "month_closed": "🔒 Cannot add entries to closed month **{month}**.",
+                "error": "Error: {error}"
+            }
         },
         "types": {
             "expense": "🔴 Expense",

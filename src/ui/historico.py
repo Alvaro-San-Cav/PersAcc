@@ -3,27 +3,16 @@ Página de Histórico Anual - PersAcc
 Renderiza la interfaz de historico.
 """
 import streamlit as st
-from datetime import date, datetime, timedelta
-from pathlib import Path
-import sys
-import csv
-from io import StringIO
+from datetime import date, datetime
 import requests
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, CierreMensual, Categoria
+from src.models import TipoMovimiento
 from src.database import (
-    get_all_categorias, get_categorias_by_tipo, get_ledger_by_month,
-    get_all_ledger_entries, get_latest_snapshot, update_categoria,
-    get_category_counts, delete_categoria, deactivate_categoria,
-    insert_categoria, DEFAULT_DB_PATH, delete_ledger_entry,
-    update_ledger_entry, get_all_meses_fiscales_cerrados,
-    is_mes_cerrado, get_connection
+    get_all_categorias, get_ledger_by_month, is_mes_cerrado
 )
 from src.business_logic import (
-    calcular_fecha_contable, calcular_mes_fiscal, calcular_kpis,
-    calcular_kpis_relevancia, ejecutar_cierre_mes,
-    calcular_kpis_anuales, get_word_counts, get_top_entries,
-    calculate_curious_metrics
+    calcular_kpis, calcular_kpis_anuales, get_word_counts, 
+    get_top_entries, calculate_curious_metrics
 )
 from src.config import format_currency, get_currency_symbol, load_config
 from src.i18n import t, get_salary_keywords
@@ -204,19 +193,24 @@ def render_month_view(entries, mes_sel, anio_sel):
         if gastos_cat:
             import plotly.graph_objects as go
             sorted_cats = sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True)
-            fig_cat = go.Figure(data=[go.Bar(
-                x=[x[1] for x in sorted_cats],
-                y=[x[0] for x in sorted_cats],
-                orientation='h',
-                marker_color='#ff6b6b'
+            
+            # Donut Chart igual al del Ledger
+            fig_cat = go.Figure(data=[go.Pie(
+                labels=[x[0] for x in sorted_cats],
+                values=[x[1] for x in sorted_cats],
+                hole=0.4,
+                textinfo='label+percent',
+                textposition='inside',
+                insidetextorientation='radial'
             )])
+            
             fig_cat.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font_color='white',
-                height=max(250, len(gastos_cat) * 25),
-                yaxis=dict(autorange="reversed"),
-                margin=dict(l=120, r=20, t=20, b=20)
+                margin=dict(t=20, b=20, l=20, r=20),
+                height=350,
+                showlegend=False
             )
             st.plotly_chart(fig_cat, use_container_width=True)
         else:
@@ -448,19 +442,24 @@ def render_year_view(entries, anio_sel):
             
             if gastos_cat:
                 sorted_cats = sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True)
-                fig_cat = go.Figure(data=[go.Bar(
-                    x=[x[1] for x in sorted_cats],
-                    y=[x[0] for x in sorted_cats],
-                    orientation='h',
-                    marker_color='#ff6b6b'
+                
+                # Donut Chart igual al del Ledger
+                fig_cat = go.Figure(data=[go.Pie(
+                    labels=[x[0] for x in sorted_cats],
+                    values=[x[1] for x in sorted_cats],
+                    hole=0.4,
+                    textinfo='label+percent',
+                    textposition='inside',
+                    insidetextorientation='radial'
                 )])
+                
                 fig_cat.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font_color='white',
-                    height=max(300, len(gastos_cat) * 30),
-                    yaxis=dict(autorange="reversed"),
-                    margin=dict(l=150)
+                    margin=dict(t=20, b=20, l=20, r=20),
+                    height=400,
+                    showlegend=False
                 )
                 st.plotly_chart(fig_cat, use_container_width=True)
             else:

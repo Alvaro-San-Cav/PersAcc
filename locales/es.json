@@ -1,4 +1,5 @@
 {
+    "page_title": "PersAcc - Finanzas Personales",
     "navigation": {
         "ledger": "📊 Ledger",
         "cierre": "🔒 Cierre de Mes",
@@ -195,7 +196,24 @@
             "relevance_label": "Relevancia",
             "liquidity_flag": "Falta de liquidez",
             "submit_button": "💾 Guardar Movimiento",
-            "success_message": "✅ Movimiento guardado correctamente"
+            "success_message": "✅ Movimiento guardado correctamente",
+            "calculator_title": "Calculadora Rápida",
+            "calc_num1": "Número 1",
+            "calc_num2": "Número 2",
+            "calc_result": "Resultado",
+            "calc_use_result": "Usar como importe",
+            "calc_div_zero": "No se puede dividir por cero",
+            "liquidity_help": "Marca si necesitas adelantar este ingreso al mes actual",
+            "concept_placeholder": "Ej: Cena con amigos",
+            "validation": {
+                "no_categories_setup": "No hay categorías. Ejecuta setup_db.py primero.",
+                "no_categories_type": "No hay categorías para {type}",
+                "concept_required": "El concepto es obligatorio",
+                "amount_positive": "El importe debe ser mayor a 0",
+                "relevance_required": "Selecciona la relevancia del gasto",
+                "month_closed": "🔒 No puedes añadir entradas al mes **{month}** porque ya está cerrado.",
+                "error": "Error: {error}"
+            }
         },
         "types": {
             "expense": "🔴 Gasto",

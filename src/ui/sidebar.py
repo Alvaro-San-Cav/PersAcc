@@ -61,7 +61,7 @@ def render_sidebar():
         # Obtener categorías
         categorias = get_all_categorias()
         if not categorias:
-            st.warning("No hay categorías. Ejecuta setup_db.py primero.")
+            st.warning(t('sidebar.quick_add.validation.no_categories_setup'))
             return
         
         # PASO 1: Seleccionar TIPO DE MOVIMIENTO primero
@@ -101,7 +101,7 @@ def render_sidebar():
         cat_nombres = list(cat_dict.keys())
         
         if not cat_nombres:
-            st.warning(f"No hay categorías para {tipo_seleccionado}")
+            st.warning(t('sidebar.quick_add.validation.no_categories_type', type=tipo_seleccionado))
             return
         
         # Selector de categoría (ya filtrado)
@@ -154,7 +154,7 @@ def render_sidebar():
         # Concepto 
         concepto = st.text_input(
             f"📝 {t('sidebar.quick_add.concept_label')}", 
-            placeholder="Ej: Cena con amigos",
+            placeholder=t('sidebar.quick_add.concept_placeholder'),
             key="concepto_input_widget"
         )
         
@@ -188,7 +188,7 @@ def render_sidebar():
         elif tipo_mov == TipoMovimiento.INGRESO:
             flag_liquidez = st.checkbox(
                 f"⚡ {t('sidebar.quick_add.liquidity_flag')}",
-                help="Marca si necesitas adelantar este ingreso al mes actual",
+                help=t('sidebar.quick_add.liquidity_help'),
                 key="flag_liquidez_sel"
             )
         
@@ -200,6 +200,11 @@ def render_sidebar():
         # Mantenemos la variable 'fecha' que ya fue asignada arriba
 
         
+        # Aplicar resultado de calculadora ANTES de crear el widget (si hay flag pendiente)
+        if st.session_state.get("calc_apply_result_flag", False):
+            st.session_state["quick_amount_widget"] = st.session_state.get("calc_pending_value", 0.0)
+            st.session_state["calc_apply_result_flag"] = False
+            st.session_state["calc_result"] = None
         
         # Importe (el valor se actualiza en el bloque should_reset_defaults arriba)
         # No usamos value= porque Streamlit lee directamente de st.session_state[key]
@@ -210,6 +215,95 @@ def render_sidebar():
             format="%.2f",
             key="quick_amount_widget"
         )
+        
+        # ============================================================================
+        # CALCULADORA RÁPIDA (Desplegable)
+        # ============================================================================
+        with st.expander(f"🧮 {t('sidebar.quick_add.calculator_title')}", expanded=False):
+            # CSS para centrar iconos en botones de la calculadora
+            st.markdown("""
+            <style>
+            /* Centrar texto en todos los botones del sidebar */
+            section[data-testid="stSidebar"] button {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            section[data-testid="stSidebar"] button p,
+            section[data-testid="stSidebar"] button span,
+            section[data-testid="stSidebar"] button div {
+                text-align: center !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: block !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Inicializar valores de la calculadora en session_state
+            if "calc_num1" not in st.session_state:
+                st.session_state["calc_num1"] = 0.0
+            if "calc_num2" not in st.session_state:
+                st.session_state["calc_num2"] = 0.0
+            if "calc_result" not in st.session_state:
+                st.session_state["calc_result"] = None
+            
+            calc_col1, calc_col2 = st.columns(2)
+            with calc_col1:
+                num1 = st.number_input(
+                    t('sidebar.quick_add.calc_num1'),
+                    value=st.session_state["calc_num1"],
+                    step=0.01,
+                    format="%.2f",
+                    key="calc_input_num1"
+                )
+            with calc_col2:
+                num2 = st.number_input(
+                    t('sidebar.quick_add.calc_num2'),
+                    value=st.session_state["calc_num2"],
+                    step=0.01,
+                    format="%.2f",
+                    key="calc_input_num2"
+                )
+            
+            # Botones de operaciones
+            op_col1, op_col2, op_col3, op_col4 = st.columns(4)
+            
+            result = None
+            with op_col1:
+                if st.button("➕", key="calc_add", use_container_width=True):
+                    result = num1 + num2
+            with op_col2:
+                if st.button("➖", key="calc_sub", use_container_width=True):
+                    result = num1 - num2
+            with op_col3:
+                if st.button("✖️", key="calc_mul", use_container_width=True):
+                    result = num1 * num2
+            with op_col4:
+                if st.button("➗", key="calc_div", use_container_width=True):
+                    if num2 != 0:
+                        result = num1 / num2
+                    else:
+                        st.error(t('sidebar.quick_add.calc_div_zero'))
+            
+            # Actualizar resultado si se calculó
+            if result is not None:
+                st.session_state["calc_result"] = result
+                st.session_state["calc_num1"] = num1
+                st.session_state["calc_num2"] = num2
+            
+            # Mostrar resultado
+            if st.session_state["calc_result"] is not None:
+                st.markdown(f"**{t('sidebar.quick_add.calc_result')}:** `{st.session_state['calc_result']:.2f}`")
+                
+                # Botón para transferir resultado al importe (usa flag para evitar error de Streamlit)
+                if st.button(f"📥 {t('sidebar.quick_add.calc_use_result')}", key="calc_use", use_container_width=True):
+                    st.session_state["calc_pending_value"] = abs(st.session_state["calc_result"])
+                    st.session_state["calc_apply_result_flag"] = True
+                    st.rerun()
         
         # Botón submit
         submitted = st.button(
@@ -223,11 +317,11 @@ def render_sidebar():
             # Nota: concepto ya está en concepto_input
             
             if not concepto.strip():
-                st.error("El concepto es obligatorio")
+                st.error(t('sidebar.quick_add.validation.concept_required'))
             elif importe <= 0:
-                st.error("El importe debe ser mayor a 0")
+                st.error(t('sidebar.quick_add.validation.amount_positive'))
             elif tipo_mov == TipoMovimiento.GASTO and enable_relevance and relevancia is None:
-                st.error("Selecciona la relevancia del gasto")
+                st.error(t('sidebar.quick_add.validation.relevance_required'))
             else:
                 # Calcular fechas
                 fecha_contable = calcular_fecha_contable(fecha, tipo_mov, flag_liquidez, concepto=concepto)
@@ -235,7 +329,7 @@ def render_sidebar():
                 
                 # Verificar si el mes está cerrado
                 if is_mes_cerrado(mes_fiscal):
-                    st.error(f"🔒 No puedes añadir entradas al mes **{mes_fiscal}** porque ya está cerrado.")
+                    st.error(t('sidebar.quick_add.validation.month_closed', month=mes_fiscal))
                 else:
                     # Crear entrada
                     entry = LedgerEntry(
@@ -265,4 +359,4 @@ def render_sidebar():
                         st.rerun()
 
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(t('sidebar.quick_add.validation.error', error=str(e)))

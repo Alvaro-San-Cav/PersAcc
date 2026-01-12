@@ -3,28 +3,18 @@ Página de Cierre de Mes - PersAcc
 Renderiza la interfaz de cierre.
 """
 import streamlit as st
-from datetime import date, datetime, timedelta
-from pathlib import Path
-import sys
-import csv
-from io import StringIO
+from datetime import date, timedelta
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, CierreMensual, Categoria
+from src.models import TipoMovimiento
 from src.database import (
-    get_all_categorias, get_categorias_by_tipo, get_ledger_by_month,
-    get_all_ledger_entries, get_latest_snapshot, update_categoria,
-    get_category_counts, delete_categoria, deactivate_categoria,
-    insert_categoria, DEFAULT_DB_PATH, delete_ledger_entry,
-    update_ledger_entry, get_all_meses_fiscales_cerrados,
-    is_mes_cerrado, get_connection
+    get_all_meses_fiscales_cerrados, get_latest_snapshot,
+    is_mes_cerrado, get_cierre_mes, get_snapshot_by_month
 )
 from src.business_logic import (
-    calcular_fecha_contable, calcular_mes_fiscal, calcular_kpis,
-    calcular_kpis_relevancia, ejecutar_cierre_mes,
-    calcular_kpis_anuales, get_word_counts, get_top_entries,
-    calculate_curious_metrics, calculate_consequences
+    calcular_mes_fiscal, calcular_kpis, ejecutar_cierre_mes,
+    calculate_consequences
 )
-from src.config import format_currency, get_currency_symbol
+from src.config import format_currency, get_currency_symbol, load_config
 from src.i18n import t
 
 

@@ -3,30 +3,11 @@ Página de Utilidades - PersAcc
 Renderiza la interfaz de utilidades.
 """
 import streamlit as st
-import sys
 import subprocess
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
-import csv
-from io import StringIO
 import pandas as pd
-import uuid
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, CierreMensual, Categoria
-from src.database import (
-    get_all_categorias, get_categorias_by_tipo, get_ledger_by_month,
-    get_all_ledger_entries, get_latest_snapshot, update_categoria,
-    get_category_counts, delete_categoria, deactivate_categoria,
-    insert_categoria, DEFAULT_DB_PATH, delete_ledger_entry,
-    update_ledger_entry, get_all_meses_fiscales_cerrados,
-    is_mes_cerrado, get_connection
-)
-from src.business_logic import (
-    calcular_fecha_contable, calcular_mes_fiscal, calcular_kpis,
-    calcular_kpis_relevancia, ejecutar_cierre_mes,
-    calcular_kpis_anuales, get_word_counts, get_top_entries,
-    calculate_curious_metrics
-)
 from src.config import get_currency_symbol, load_config, save_config
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
@@ -47,7 +28,7 @@ def render_utilidades():
                     margin-bottom: 1rem; text-align: center; font-weight: bold;
                     box-shadow: 0 4px 15px rgba(0,200,83,0.3);
                     animation: fadeIn 0.5s ease-out;">
-            ✅ {st.session_state['notify_success']}
+            {st.session_state['notify_success']}
         </div>
         <style>
             @keyframes fadeIn {{
@@ -464,6 +445,19 @@ def render_utilidades():
             # Proteger ID si no existe (nuevas filas)
             if "id" not in df_rules.columns:
                 df_rules["id"] = None
+            
+            # Crear columna formateada para mostrar valor con símbolo correcto
+            def format_value(row):
+                if pd.isna(row.get('action_value')):
+                    return ""
+                val = float(row.get('action_value', 0))
+                action_type = row.get('action_type', 'percent')
+                if action_type == 'percent':
+                    return f"{val:.1f}%"
+                else:
+                    return f"{get_currency_symbol()} {val:.2f}"
+            
+            df_rules['value_display'] = df_rules.apply(format_value, axis=1)
 
             # Obtener si relevancia está habilitada
             enable_relevance = config_data.get('enable_relevance', True)
@@ -484,9 +478,15 @@ def render_utilidades():
                     required=True, width="small", default="percent"
                 ),
                 "action_value": st.column_config.NumberColumn(
-                    t('consequences.table_columns.action_value'), 
+                    "Valor (número)", 
                     min_value=0.0, step=0.1, required=True, width="small",
-                    format=f"{get_currency_symbol()} %.2f"
+                    help="Ingrese el número. El formato se muestra en la siguiente columna."
+                ),
+                "value_display": st.column_config.TextColumn(
+                    t('consequences.table_columns.action_value'),
+                    disabled=True,
+                    width="small",
+                    help="Formato automático: % para porcentajes, moneda para valores fijos"
                 )
             }
             
@@ -497,13 +497,19 @@ def render_utilidades():
                     options=["", "NE", "LI", "SUP", "TON"],
                     required=False, width="small"
                 )
+                column_order = ["active", "name", "filter_relevance", "filter_category", "filter_concept", "action_type", "action_value", "value_display"]
             else:
                 # Ocultar columna de relevancia
                 column_config["filter_relevance"] = None
+                column_order = ["active", "name", "filter_category", "filter_concept", "action_type", "action_value", "value_display"]
+            
+            # Actualizar value_display antes de mostrar
+            df_rules['value_display'] = df_rules.apply(format_value, axis=1)
             
             edited_df = st.data_editor(
                 df_rules,
                 column_config=column_config,
+                column_order=column_order,
                 num_rows="dynamic",
                 use_container_width=True,
                 key="rules_editor",

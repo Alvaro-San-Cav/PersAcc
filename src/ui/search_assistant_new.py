@@ -418,7 +418,7 @@ def get_top_expenses(limit: int = 10, year: int = None, month: int = None) -> st
         period = f" de {year}"
     result = f"**Top {len(top)} gastos{period}:**\n\n"
     for i, e in enumerate(top, 1):
-        cat_name = cats_dict.get(e.categoria_id, "Sin categoría")
+        cat_name = catsdict.get(e.categoria_id, "Sin categoría")
         result += f"{i}. {e.fecha_real.strftime('%d/%m/%Y')}: {e.concepto[:40]} - **{format_currency(e.importe)}** ({cat_name})\n"
     return result
 
