@@ -230,3 +230,46 @@ Analyze the CLOSED MONTH of {period}.
 
 If Balance is negative, highlight the danger of debt. If Investment is high, praise the discipline.
 """
+
+# ============================================================================
+# QUICK SUMMARY PROMPTS (Ledger - comentarios rápidos del mes)
+# ============================================================================
+
+QUICK_SUMMARY_ES = """Eres un asesor financiero con sentido del humor. Analiza estos datos del mes y haz un comentario gracioso pero útil (2-3 frases, máximo 50 palabras).
+
+Resumen del mes:
+- Ingresos: {income:.2f}€
+- Gastos totales: {expenses:.2f}€  
+- Balance: {balance:.2f}€
+
+Principales gastos:
+{expense_text}
+
+Instrucciones:
+- Haz comentarios ingeniosos sobre los gastos específicos si los hay
+- NO MENCIONES EL BALANCE si es positivo. Solo comenta sobre gastos.
+- Solo menciona el balance si es NEGATIVO (mal mes)
+- Usa máximo 1-2 emojis
+- Sé directo y conciso
+- No uses introducciones como "Vaya" o "Bueno"
+- Responde SOLO el comentario, nada más"""
+
+QUICK_SUMMARY_EN = """You're a financial advisor with a sense of humor. Analyze this month's data and make a witty but useful comment (2-3 sentences, max 50 words).
+
+Month summary:
+- Income: €{income:.2f}
+- Total expenses: €{expenses:.2f}
+- Balance: €{balance:.2f}
+
+Top expenses:
+{expense_text}
+
+Instructions:
+- Make witty comments about specific expenses if available
+- DO NOT MENTION THE BALANCE if it's positive. Only comment on expenses.
+- Only mention balance if it's NEGATIVE (bad month)
+- Use maximum 1-2 emojis
+- Be direct and concise
+- Don't use introductions like "Well" or "So"
+- Reply ONLY with the comment, nothing else"""
+

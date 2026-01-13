@@ -20,9 +20,9 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-from . import llm_prompts
-from .config import get_currency_symbol
-from .constants import (
+from . import prompts as llm_prompts
+from ..config import get_currency_symbol
+from ..constants import (
     LLM_TIMEOUT_QUICK, LLM_TIMEOUT_LONG, 
     LLM_MAX_RESPONSE_LENGTH, LLM_MAX_MOVEMENTS_DISPLAY
 )
@@ -232,43 +232,23 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
             expense_lines = [f"- {e.get('concepto', 'Gasto')}: {e.get('importe', 0):.2f}€ ({e.get('categoria', '')})" for e in top_expenses]
             expense_text = "\n".join(expense_lines)
         
-        # Build prompt with more commentary focus
+        # Build prompt using centralized templates
+        expense_text_final = expense_text if expense_text else ("Sin gastos registrados" if lang == "es" else "No expenses recorded")
+        
         if lang == "es":
-            prompt = f"""Eres un asesor financiero con sentido del humor. Analiza estos datos del mes y haz un comentario gracioso pero útil (2-3 frases, máximo 50 palabras).
-
-Resumen del mes:
-- Ingresos: {income:.2f}€
-- Gastos totales: {expenses:.2f}€  
-- Balance: {balance:.2f}€
-
-Principales gastos:
-{expense_text if expense_text else "Sin gastos registrados"}
-
-Instrucciones:
-- Haz comentarios ingeniosos sobre los gastos específicos si los hay
-- El balance normalmente es positivo, así que no comentes sobre él a menos que sea negativo. Si los gastos son muy altos pero el balance sigue siendo positivo, puedes mencionarlo como algo positivo (ej: "¡Qué gastos de Navidad y Reyes! 🎄 ¡Pero el balance sigue siendo positivo! 💰").
-- Usa máximo 1-2 emojis
-- Sé directo y conciso
-- No uses introducciones como "Vaya" o "Bueno"
-- Responde SOLO el comentario, nada más"""
+            prompt = llm_prompts.QUICK_SUMMARY_ES.format(
+                income=income,
+                expenses=expenses,
+                balance=balance,
+                expense_text=expense_text_final
+            )
         else:
-            prompt = f"""You're a financial advisor with a sense of humor. Analyze this month's data and make a witty but useful comment (2-3 sentences, max 50 words).
-
-Month summary:
-- Income: €{income:.2f}
-- Total expenses: €{expenses:.2f}
-- Balance: €{balance:.2f}
-
-Top expenses:
-{expense_text if expense_text else "No expenses recorded"}
-
-Instructions:
-- Make witty comments about specific expenses if available
-- The balance is normally positive, so do not comment on it unless it is negative. Exception: if expenses are very high, you can highlight that the balance remains positive (e.g., "What holiday spending! 🎄 But the balance is still positive! 💰").
-- Use maximum 2-3 emojis
-- Be direct and concise
-- Don't use introductions like "Well" or "So"
-- Reply ONLY with the comment, nothing else"""
+            prompt = llm_prompts.QUICK_SUMMARY_EN.format(
+                income=income,
+                expenses=expenses,
+                balance=balance,
+                expense_text=expense_text_final
+            )
         
         # Check if this is a Qwen model (needs think: false to disable thinking mode)
         is_qwen = 'qwen' in model_name.lower()
@@ -637,7 +617,7 @@ def is_llm_enabled() -> bool:
         True if LLM is enabled, False otherwise
     """
     try:
-        config_path = Path(__file__).parent.parent / "data" / "config.json"
+        config_path = Path(__file__).parent.parent.parent / "data" / "config.json"
         if not config_path.exists():
             return False
         
@@ -658,7 +638,7 @@ def get_llm_config() -> Dict[str, Any]:
         Dictionary with LLM configuration
     """
     try:
-        config_path = Path(__file__).parent.parent / "data" / "config.json"
+        config_path = Path(__file__).parent.parent.parent / "data" / "config.json"
         if not config_path.exists():
             return {"enabled": False, "model_tier": "light", "max_tokens": 400}
         

@@ -15,23 +15,33 @@
 ### ✨ Key Features
 
 #### 📊 Core Accounting
-✅ **Automatic Month Closing** - Step-by-step wizard that calculates retentions, generates immutable snapshots, and opens the next month  
-✅ **Configurable Retentions** - Set savings/investment % on surplus balance and salary  
-✅ **Expense Classification** - Relevance system (Necessary, Like, Superfluous, Nonsense) to analyze behavior  
-✅ **Editable Table** - Modify transactions inline with closed month validation  
-✅ **CSV Import/Export** - Migrate from other apps or create backups  
+- **Automatic Month Closing** - Step-by-step wizard that calculates retentions, generates immutable snapshots, and opens the next month
+- **Configurable Retentions** - Set savings/investment % on surplus balance and salary
+- **Expense Classification** - Relevance system (Necessary, Like, Superfluous, Nonsense) to analyze behavior
+- **Consequences Account** - Automatic rules to track hidden costs and forced savings
+- **Editable Table** - Modify transactions inline with closed month validation
+- **Smart Category Sorting** - Categories auto-sort by historical usage patterns
+- **Default Values** - Auto-fill concepts, amounts, and relevance per category
+- **CSV Import/Export** - Migrate from other apps or create backups
 
-#### 🤖 AI-Powered Features (NEW!)
-✅ **Intelligent Search Assistant** - Ask questions in natural language and get instant answers  
-✅ **LLM-Based Parameter Extraction** - Smart query understanding with Ollama integration  
-✅ **ML Financial Projections** - Predict salaries, expenses, and investments using linear regression  
-✅ **Automated Insights** - Get AI-generated recommendations based on your spending patterns  
+#### 🤖 AI-Powered Features (Ollama)
+- **Intelligent Chat Assistant** - Ask questions in natural language about your finances
+- **Ledger AI Commentary** - Witty AI-generated comments on your monthly spending
+- **Period Analysis** - Deep AI analysis of months or years with personalized recommendations
+- **Smart Search** - Natural language queries with automatic parameter extraction
 
 #### 📈 Analytics & Projections
-✅ **Historical Dashboard** - Annual KPIs, monthly evolution, and trend analysis  
-✅ **Future Projections** - ML-based predictions for the next 5 years  
-✅ **Spending Quality Analysis** - Visual breakdown by relevance category  
-✅ **Interactive Charts** - Plotly-powered visualizations with historical vs projected data  
+- **Historical Dashboard** - Annual KPIs, monthly evolution, and trend analysis
+- **ML Projections** - Predict salaries, expenses, and investments for 5+ years
+- **Spending Quality Analysis** - Visual NE/LI/SUP/TON breakdown
+- **Period Annotations** - Personal notes per month or year
+- **Interactive Charts** - Plotly-powered visualizations with historical vs projected data
+
+#### 🌍 User Experience
+- **Multi-language** - Spanish and English
+- **Multi-currency** - EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL
+- **Lazy Loading** - Fast startup with on-demand section loading
+- **Built-in Manual** - Complete user guide in both languages
 
 ## 🚀 Quick Start
 
@@ -65,10 +75,13 @@ PersAcc uses **Ollama** for local AI processing (completely offline and free).
 1. **Install Ollama**: Download from [ollama.com](https://ollama.com/download)
 2. **Download a model**:
    ```bash
-   ollama pull phi3  # Recommended (2.3GB)
+   ollama pull phi3  # Recommended (2.3GB, balanced)
+   # Or: ollama pull tinyllama (0.6GB, fast)
+   # Or: ollama pull mistral (4.1GB, quality)
    ```
-3. **Enable in app**: Go to Utilities > AI Configuration > Enable AI
-4. **Start searching**: Use the "Search Assistant" tab to ask questions in natural language!
+3. **Enable in app**: Go to Utilities > Configuration > Enable AI Analysis
+4. **Select model**: Choose from available models in AI Configuration section
+5. **Start using**: Chat Assistant tab for queries, Ledger for AI comments
 
 See [**OLLAMA_SETUP.md**](OLLAMA_SETUP.md) for detailed AI configuration.
 
@@ -86,65 +99,44 @@ Guided 4-step process: real balance, new salary, retentions, and confirmation.
 
 ## 📖 Key Concepts
 
-### 🔍 AI Search Assistant
+### 🤖 AI Chat Assistant
 
-The **Search Assistant** lets you query your financial data using natural language:
+Ask questions in natural language about your finances:
 
 **Examples:**
 - "¿Cuánto gasté en transporte el año pasado?"
-- "Muestra los mayores gastos de diciembre"
-- "¿Cuál es mi tasa de ahorro?"
-
-The AI extracts parameters, shows you an editable form, and executes the search when you're ready.
+- "What are my biggest expenses this month?"
+- "Busca gastos de Uber"
+- "Show my savings rate for 2024"
 
 **How it works:**
 1. Enter your question in natural language (Spanish or English)
-2. AI analyzes and extracts search parameters (concept, category, dates)
-3. Review and edit parameters in an interactive form
-4. Execute search to see results
+2. AI analyzes and extracts search parameters
+3. Review results with AI-formatted responses
+4. Follow up with related questions
 
 ### 📈 ML Projections
 
 The **Projections** feature uses machine learning to forecast your financial future:
 
-- **Salary Projections**: Linear regression on historical income data
-- **Investment Forecasts**: Based on your savings rate and projected income
-- **Expense Predictions**: Trend analysis with confidence scoring
+- **Income Projections** - Linear regression on historical salary data
+- **Investment Forecasts** - Based on savings rate and automatic retentions
+- **Expense Predictions** - Trend analysis with seasonality detection
 
-Each projection includes:
-- **Confidence Level**: R² score showing prediction reliability
-- **Trend Analysis**: Whether values are going up, down, or stable
-- **Interactive Charts**: Historical data vs future predictions
-- **Year-by-year Breakdown**: Detailed monthly and annual figures
+Each projection includes confidence levels, trend indicators, and interactive charts.
 
 ### 💰 Month Closing
 
-The **monthly closing flow** is the heart of PersAcc. Follow these steps:
+The **monthly closing flow** is the heart of PersAcc:
 
-#### When to Close the Month?
-Once you receive next month's salary (even if it's on the 28th), you should start closing the current month.
+1. **Navigate to Month Closing** - System detects next month to close
+2. **Enter bank balance** - Exact value from your bank account
+3. **Enter salary amount** - New salary received
+4. **Configure retentions** - Set surplus and salary retention %
+5. **Review consequences** - If enabled, see rule-based forced savings
+6. **Execute closing** - Creates entries and opens next month
 
-#### Wizard Steps
-
-1. **Go to the "Month Closing" tab** - The system automatically detects the next month to close
-
-2. **Enter your bank balance** - Input the exact value shown in your bank account at that moment
-   - *Traditional mode*: Balance **before** receiving salary
-   - *Alternative mode*: Balance **after** receiving salary (configurable in settings)
-
-3. **Enter the salary amount** - Input the gross salary you just received
-
-4. **Configure retentions** - Set what percentage to allocate to investment/savings:
-   - **% Surplus Retention**: From leftover money before the new salary
-   - **% Salary Retention**: From the new salary received
-
-5. **Execute the closing** - The system:
-   - Creates automatic investment entries
-   - Generates the salary as income in the new month
-   - Calculates and displays the final result
-   - Automatically switches to the next month
-
-**Result**: Closed and immutable month + next month ready with correct opening balance.
+**Result**: Immutable closed month + next month ready with correct opening balance.
 
 ### 🎯 Spending Relevance
 
@@ -154,43 +146,37 @@ Classify each expense as:
 - **SUP** (Superfluous) - Occasionally justifiable
 - **TON** (Nonsense) - Impulsive or regretted
 
-**Goal**: Analyze what % of your spending goes to each category and improve habits.
+**Goal**: Analyze spending patterns and improve financial habits.
+
+### 📝 Annotations
+
+Add personal notes to any month or year to remember context, decisions, or reflections. Notes are shown in read-only mode when reviewing closed periods.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Streamlit 
-- **Backend**: Python 3.9+
-- **Database**: SQLite 
-- **AI/ML**: Ollama (local LLM), scikit-learn, NumPy
-- **Charts**: Plotly
-- **Containerization**: Docker (optional)
+| Component | Technology |
+|-----------|------------|
+| Frontend | Streamlit |
+| Backend | Python 3.9+ |
+| Database | SQLite |
+| AI/LLM | Ollama (local) |
+| ML | scikit-learn, NumPy |
+| Charts | Plotly |
+| Container | Docker (optional) |
 
-## 📝 Typical Usage
+## 📝 Configuration Options
 
-### Daily Workflow
+All settings in **Utilities > Configuration**:
 
-1. **Quick Add** (sidebar) - Log expenses in 10 seconds
-2. **Analysis** - Review transactions table and monthly KPIs
-3. **Search Assistant** - Ask questions about your spending
-4. **End of month** - Closing wizard (5 minutes)
-
-### Monthly Review
-
-1. **Historical** - Check monthly trends and patterns
-2. **Projections** - See where you're headed financially
-3. **AI Insights** - Get automated recommendations
-
-### Closing Example
-
-```
-Month: January 2026
-Real balance: €1,245
-New salary: €2,500
-Surplus retention: 50% → €622.50
-Salary retention: 20% → €500
-
-→ February starts with €622.50 + €2,500 - €500 = €2,622.50 operational
-```
+| Category | Options |
+|----------|---------|
+| **Language** | Spanish, English |
+| **Currency** | EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL |
+| **Toggles** | Relevance Analysis, Automatic Retentions, Consequences, AI Analysis |
+| **Retentions** | Default % for surplus and salary |
+| **Defaults** | Concepts, amounts, and relevance per category |
+| **Closing Method** | Before salary / After salary |
+| **AI Model** | Any Ollama model (phi3, tinyllama, mistral, llama3, qwen, etc.) |
 
 ## 🐳 Docker Deployment
 
@@ -210,7 +196,7 @@ PersAcc supports multiple languages:
 - 🇪🇸 Spanish (default)
 - 🇬🇧 English
 
-Switch languages in the sidebar.
+Change language in **Utilities > Configuration**.
 
 ## 🤝 Contributing
 
@@ -224,8 +210,7 @@ Switch languages in the sidebar.
 
 This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
 
-The LICENSE file contains the full text of the license.  
-**Summary**: You are free to share and adapt the material for non-commercial purposes, as long as you give appropriate credit and distribute your contributions under the same license.
+**Summary**: Free to share and adapt for non-commercial purposes with attribution.
 
 ## 🙏 Acknowledgments
 
@@ -243,5 +228,5 @@ The LICENSE file contains the full text of the license.
 
 ⭐ If PersAcc is useful to you, give the repo a star!
 
-**Version**: 2.0  
+**Version**: 3.0  
 **Last updated**: January 2026

@@ -105,6 +105,20 @@ def calcular_mes_fiscal(fecha_contable: date) -> str:
 # CALCULADORA DE KPIs (Sanitizada)
 # ============================================================================
 
+def _sum_by_type(entries: List[LedgerEntry], tipo: TipoMovimiento) -> float:
+    """
+    Helper: Suma los importes de entradas filtradas por tipo de movimiento.
+    
+    Args:
+        entries: Lista de entradas del ledger
+        tipo: Tipo de movimiento a filtrar
+        
+    Returns:
+        Suma total de importes para el tipo especificado
+    """
+    return sum(e.importe for e in entries if e.tipo_movimiento == tipo)
+
+
 def calcular_kpis(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Dict:
     """
     Calcula los KPIs de un mes fiscal específico.
@@ -118,51 +132,25 @@ def calcular_kpis(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Dict:
     """
     entries = get_ledger_by_month(mes_fiscal, db_path)
     
-    total_ingresos = sum(
-        e.importe for e in entries 
-        if e.tipo_movimiento == TipoMovimiento.INGRESO
-    )
+    # Usar helper para sumar por tipo (Clean Code: reduce duplicación)
+    total_ingresos = _sum_by_type(entries, TipoMovimiento.INGRESO)
+    total_gastos = _sum_by_type(entries, TipoMovimiento.GASTO)
+    total_traspasos_entrada = _sum_by_type(entries, TipoMovimiento.TRASPASO_ENTRADA)
+    total_traspasos_salida = _sum_by_type(entries, TipoMovimiento.TRASPASO_SALIDA)
+    total_inversion = _sum_by_type(entries, TipoMovimiento.INVERSION)
     
-    total_gastos = sum(
-        e.importe for e in entries 
-        if e.tipo_movimiento == TipoMovimiento.GASTO
-    )
-    
-    total_traspasos_entrada = sum(
-        e.importe for e in entries 
-        if e.tipo_movimiento == TipoMovimiento.TRASPASO_ENTRADA
-    )
-    
-    total_traspasos_salida = sum(
-        e.importe for e in entries 
-        if e.tipo_movimiento == TipoMovimiento.TRASPASO_SALIDA
-    )
-
-    total_inversion = sum(
-        e.importe for e in entries 
-        if e.tipo_movimiento == TipoMovimiento.INVERSION
-    )
-    
-    # Calcular % de retención sobre salario (ahorro líquido + inversión)
-    # Definición: Capacidad de ahorro (Cashflow) = Ingresos + Entradas - Gastos - Salidas
-    # Nota: Inversión no se resta aquí si lo consideramos parte del "Ahorro generado", 
-    # pero para "Saldo" sí se restaría. 
-    # La variable se llama 'ahorro_total' pero se mapea a 'balance_mes'.
-    # Si el usuario pide "saldo actual", debería ser lo que queda en cuenta.
-    
-    # Ajuste solicitado: Detraer TRASPASO_SALIDA
+    # Balance = (Ingresos + Entradas) - (Gastos + Salidas)
     ahorro_total = (total_ingresos + total_traspasos_entrada) - (total_gastos + total_traspasos_salida)
     
-    pct_salary_retention = 0.0
-    if total_ingresos > 0:
-        pct_salary_retention = ahorro_total / total_ingresos
+    # Porcentaje de retención sobre ingresos
+    pct_salary_retention = ahorro_total / total_ingresos if total_ingresos > 0 else 0.0
     
     return {
         "mes_fiscal": mes_fiscal,
         "total_ingresos": total_ingresos,
         "total_gastos": total_gastos,
         "total_traspasos_entrada": total_traspasos_entrada,
-        "total_traspasos_salida": sum(e.importe for e in entries if e.tipo_movimiento == TipoMovimiento.TRASPASO_SALIDA),
+        "total_traspasos_salida": total_traspasos_salida,
         "total_inversion": total_inversion,
         "pct_salary_retention": pct_salary_retention,
         "balance_mes": ahorro_total,
@@ -265,18 +253,18 @@ def ejecutar_cierre_mes(
     Raises:
         ValueError: Si el mes ya está cerrado.
     """
-    # 1. Verificar que el mes no esté cerrado
+    # PASO 1: Verificar que el mes no esté cerrado
     if is_mes_cerrado(mes_fiscal, db_path):
         raise ValueError(f"El mes {mes_fiscal} ya está cerrado.")
     
-    # 2. Obtener KPIs del mes actual
+    # PASO 2: Obtener KPIs del mes actual
     kpis = calcular_kpis(mes_fiscal, db_path)
     
-    # 3. Obtener saldo inicial del mes (desde CIERRES_MENSUALES o 0)
+    # PASO 3: Obtener saldo inicial del mes (desde CIERRES_MENSUALES o 0)
     cierre_actual = get_cierre_mes(mes_fiscal, db_path)
     saldo_inicio = cierre_actual.saldo_inicio if cierre_actual else 0.0
     
-    # 4. Calcular retención total
+    # PASO 4: Calcular retención total a invertir
     retencion_ejecutada = calcular_inversion_cierre(
         retenciones_manuales=kpis["total_inversion"],
         saldo_banco_real=saldo_banco_real,
@@ -285,21 +273,22 @@ def ejecutar_cierre_mes(
         pct_retencion_salario=pct_retencion_salario
     )
     
-    # Solo la parte nueva a transferir (excluyendo retenciones manuales ya hechas)
+    # Nota: La variable transferencia_nueva no se usa actualmente pero se calcula
+    # para posible uso futuro o debugging
     transferencia_nueva = retencion_ejecutada - kpis["total_inversion"]
     
-    # Calcular saldo base para retención de remanente
-    # Si salario_ya_incluido=True, el saldo real del mes (sin la nómina nueva) es saldo - nómina
+    # PASO 5: Calcular saldo base para retención de remanente
+    # Si salario_ya_incluido=True, restamos la nómina para obtener el saldo real del mes
     if salario_ya_incluido:
         saldo_base_remanente = saldo_banco_real - nomina_nueva
     else:
         saldo_base_remanente = saldo_banco_real
     
-    # Retenciones separadas
+    # Calcular retenciones separadas
     retencion_remanente = saldo_base_remanente * pct_retencion_remanente
     retencion_salario = nomina_nueva * pct_retencion_salario
     
-    # 4b. Crear entrada en LEDGER para la retención del remanente (en el mes actual)
+    # PASO 6: Crear entrada de inversión por retención de remanente (mes actual)
     if retencion_remanente > 0:
         # Calcular último día del mes actual
 
@@ -332,17 +321,17 @@ def ejecutar_cierre_mes(
             )
             insert_ledger_entry(entry_remanente, db_path)
     
-    # 5. Calcular saldo final del mes actual (después de retención del remanente, ANTES del salario)
-    # Si el saldo ya incluye la nómina, usamos saldo_base_remanente como punto de partida
+    # PASO 7: Calcular saldo final del mes (después de retención, antes del salario nuevo)
     if salario_ya_incluido:
         saldo_fin = saldo_base_remanente - retencion_remanente
     else:
         saldo_fin = saldo_banco_real - retencion_remanente
     
-    # 6. Calcular saldo inicial del mes siguiente (saldo_fin + salario - retención salario)
+    # Nota: saldo_inicio_siguiente se calcula pero no se usa directamente
+    # (el mes siguiente se abre con saldo_fin, el salario se registra como ingreso)
     saldo_inicio_siguiente = saldo_fin + nomina_nueva - retencion_salario
     
-    # 6. Calcular mes siguiente
+    # PASO 8: Calcular identificador del mes siguiente
     year, month = map(int, mes_fiscal.split('-'))
     if month == 12:
         mes_siguiente = f"{year+1}-01"
@@ -351,12 +340,12 @@ def ejecutar_cierre_mes(
         mes_siguiente = f"{year}-{month+1:02d}"
         dia_salario = date(year, month+1, 1)
     
-    # 7. Buscar categoría "Salario"
+    # PASO 9: Crear entradas para el mes siguiente (salario + retenciones)
     categorias = get_all_categorias(db_path)
     cat_salario = next((c for c in categorias if c.nombre.lower() == CATEGORIA_SALARIO.lower() and c.tipo_movimiento == TipoMovimiento.INGRESO), None)
     
     if cat_salario and nomina_nueva > 0:
-        # 8. Crear entrada de Salario para el mes siguiente
+        # 9a. Crear entrada de Salario para el mes siguiente
         entrada_salario = LedgerEntry(
             id=None,
             fecha_real=dia_salario,
@@ -371,7 +360,7 @@ def ejecutar_cierre_mes(
         )
         insert_ledger_entry(entrada_salario, db_path)
         
-        # 8b. Crear entrada de Inversión por retención de salario (si > 0)
+        # 9b. Crear entrada de Inversión por retención de salario
         if retencion_salario > 0:
             # Buscar categoría específica "Inversion retención de salario"
             cat_inversion = next((c for c in categorias if c.nombre.lower() == CATEGORIA_INVERSION_SALARIO.lower() and c.tipo_movimiento == TipoMovimiento.INVERSION), None)
@@ -395,7 +384,7 @@ def ejecutar_cierre_mes(
                 )
                 insert_ledger_entry(entrada_retencion_salario, db_path)
 
-        # 8c. Crear entrada de Inversión por CONSECUENCIAS (si > 0)
+        # 9c. Crear entrada de Inversión por consecuencias (reglas automáticas)
         if consequences_amount > 0:
              # Buscar o crear categoría "Inversión consecuencias"
              cat_cons = next((c for c in categorias if c.nombre.lower() == "inversión consecuencias"), None)
@@ -417,6 +406,8 @@ def ejecutar_cierre_mes(
                      flag_liquidez=False
                  )
                  insert_ledger_entry(entrada_consecuencias, db_path)
+    
+    # PASO 10: Guardar cierre en la tabla CIERRES_MENSUALES
     cierre = CierreMensual(
         mes_fiscal=mes_fiscal,
         estado='CERRADO',
@@ -432,18 +423,18 @@ def ejecutar_cierre_mes(
     )
     upsert_cierre_mes(cierre, db_path)
     
-    # 11. Abrir mes siguiente con saldo_fin (balance cierre, SIN incluir salario del nuevo mes)
-    # El salario se contabiliza como ingreso en balance_mes del nuevo mes vía LEDGER entry
+    # PASO 11: Abrir el mes siguiente con el saldo final como saldo inicial
+    # El salario ya está registrado como ingreso vía la entrada del PASO 9a
     try:
         abrir_mes(mes_siguiente, saldo_inicio=saldo_fin, db_path=db_path)
     except ValueError:
-        pass  # El mes siguiente ya existe (puede haber sido abierto antes)
+        pass  # El mes siguiente ya existe, ignorar
     
-    # 12. Calcular desviación (diferencia entre lo registrado y la realidad)
+    # PASO 12: Calcular desviación y crear snapshot (para auditoría)
     balance_esperado = kpis["balance_mes"] + kpis["total_traspasos_entrada"] - kpis["total_inversion"]
     desviacion = balance_esperado - saldo_banco_real if saldo_banco_real else None
     
-    # 13. Crear y guardar snapshot (legacy, para compatibilidad)
+    # Snapshot: registro histórico del cierre para consultas futuras
     snapshot = SnapshotMensual(
         mes_cierre=mes_fiscal,
         fecha_ejecucion=datetime.now(),

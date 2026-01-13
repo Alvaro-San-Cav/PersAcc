@@ -51,15 +51,6 @@ st.markdown(
 )
 
 
-# Importar componentes UI  
-from src.ui.sidebar import render_sidebar
-from src.ui.analisis import render_analisis
-from src.ui.cierre import render_cierre
-from src.ui.historico import render_historico
-from src.ui.proyecciones import render_proyecciones
-from src.ui.search_assistant_new import render_chat_search
-from src.ui.utilidades import render_utilidades
-from src.ui.manual import render_manual
 
 
 
@@ -69,17 +60,15 @@ from src.ui.manual import render_manual
 # ============================================================================
 
 def main():
-    # Placeholder para pantalla de carga (Overlay)
-    loading_ph = st.empty()
-    should_show_loader = 'first_load_done' not in st.session_state
+    # Flag para saber si es primera carga
+    is_first_load = 'first_load_done' not in st.session_state
     
-    start_time = 0
-    
-    if should_show_loader:
-        import base64
+    # Loading screen simple (solo primera carga)
+    if is_first_load:
         import time
+        import base64
         
-        start_time = time.time()
+        loading_ph = st.empty()
         
         # Cargar logo
         try:
@@ -88,92 +77,98 @@ def main():
             logo_html = f'<img src="data:image/x-icon;base64,{logo_b64}" width="100" style="display: block; margin: 20px auto;">'
         except Exception:
             logo_html = ""
-
-        # Obtener tips de carga directamente del JSON
-        import random
-        from src.i18n import get_language, load_translations
-        
-        lang = get_language()
-        translations = load_translations(lang)
-        loading_tips = translations.get('loading_tips', ["Loading..."])
-        random_tip = random.choice(loading_tips) if isinstance(loading_tips, list) else str(loading_tips)
         
         with loading_ph.container():
             st.markdown(f"""
-            <div id="loading-overlay" style="
+            <div style="
                 position: fixed;
                 top: 0; left: 0; width: 100%; height: 100%;
                 background: white; z-index: 999999;
                 display: flex; flex-direction: column;
                 align-items: center; justify-content: center;
             ">
-                <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0; text-align: center; margin-left: 20px;">PersAcc</h1>
+                <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0;">PersAcc</h1>
                 {logo_html}
-                <p style="color: #666; font-size: 1.1em; text-align: center; max-width: 500px; padding: 0 20px;">{random_tip}</p>
-                <div style="
-                    width: 300px; height: 4px; background: #f0f0f0;
-                    border-radius: 2px; overflow: hidden; margin-top: 20px;
-                ">
-                    <div style="
-                        width: 100%; height: 100%; background: #4CAF50;
-                        animation: progress 3s linear forwards;
-                    "></div>
+                <p style="color: #666; font-size: 1.2em; font-weight: 500;">💪 Capitalismo, Ahorro y Trabajo duro</p>
+                <div style="width: 300px; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden; margin-top: 20px;">
+                    <div style="width: 100%; height: 100%; background: #4CAF50; animation: progress 2s linear forwards;"></div>
                 </div>
-                <style>
-                @keyframes progress {{ from {{ width: 0%; }} to {{ width: 100%; }} }}
-                </style>
+                <style>@keyframes progress {{ from {{ width: 0%; }} to {{ width: 100%; }} }}</style>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Brief pause to ensure browser renders the overlay
-            time.sleep(0.1)
-
-    # ==========================================
-    # RENDERIZADO DE LA APP (BACKGROUND)
-    # ==========================================
-    
-    # Sidebar siempre visible con Quick Add
-    render_sidebar()
-    
-    # Track active tab for lazy loading
-    if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = 0
-    
-    # Navegación por tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        t('navigation.ledger'), 
-        t('navigation.cierre'), 
-        t('navigation.historico'),
-        t('navigation.proyecciones'),
-        t('navigation.chat_search'),
-        t('navigation.utilidades')
-    ])
-    
-    with tab1:
-        render_analisis()
-    
-    with tab2:
-        render_cierre()
-    
-    with tab3:
-        render_historico()
-    
-    with tab4:
-        render_proyecciones()
-    
-    with tab5:
-        render_chat_search()
-    
-    with tab6:
-        render_utilidades()
         
-    # ==========================================
-    # FINALIZACIÓN DE CARGA (immediate)
-    # ==========================================
-    if should_show_loader:
-        # Remove overlay immediately when rendering is done
+        time.sleep(3)
         loading_ph.empty()
         st.session_state['first_load_done'] = True
+
+    # ==========================================
+    # NAVEGACIÓN CON LAZY LOADING (PARTE SUPERIOR)
+    # ==========================================
+    
+    # Definir opciones de navegación
+    nav_options = [
+        t('navigation.ledger'),        # 0: Ledger (default)
+        t('navigation.cierre'),        # 1: Cierre de Mes
+        t('navigation.historico'),     # 2: Histórico
+        t('navigation.proyecciones'),  # 3: Proyecciones
+        t('navigation.chat_search'),   # 4: Asistente IA
+        t('navigation.utilidades')     # 5: Utilidades
+    ]
+    
+    # Inicializar sección activa
+    if 'active_section' not in st.session_state:
+        st.session_state.active_section = nav_options[0]  # Ledger por defecto
+    
+    # Navegación horizontal en la parte superior del contenido principal
+    selected_section = st.radio(
+        label="🧭 Navegación",
+        options=nav_options,
+        index=nav_options.index(st.session_state.active_section) if st.session_state.active_section in nav_options else 0,
+        key="nav_radio",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    # Actualizar estado
+    st.session_state.active_section = selected_section
+    
+    st.markdown("---")
+    
+    # ==========================================
+    # RENDERIZADO DE LA APP
+    # ==========================================
+    
+    # Sidebar Quick Add (lazy import)
+    from src.ui.sidebar import render_sidebar
+    render_sidebar()
+    
+    # ==========================================
+    # LAZY LOADING: Solo importa y renderiza la sección activa
+    # ==========================================
+    
+    if selected_section == nav_options[0]:  # Ledger
+        from src.ui.analisis import render_analisis
+        render_analisis()
+    
+    elif selected_section == nav_options[1]:  # Cierre
+        from src.ui.cierre import render_cierre
+        render_cierre()
+    
+    elif selected_section == nav_options[2]:  # Histórico
+        from src.ui.historico import render_historico
+        render_historico()
+    
+    elif selected_section == nav_options[3]:  # Proyecciones
+        from src.ui.proyecciones import render_proyecciones
+        render_proyecciones()
+    
+    elif selected_section == nav_options[4]:  # Asistente IA
+        from src.ui.search_assistant_new import render_chat_search
+        render_chat_search()
+    
+    elif selected_section == nav_options[5]:  # Utilidades
+        from src.ui.utilidades import render_utilidades
+        render_utilidades()
 
 
 if __name__ == "__main__":

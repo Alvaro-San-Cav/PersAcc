@@ -352,7 +352,7 @@ def render_analisis():
         
         # Lógica lenta de IA al final para no bloquear el renderizado de las notas
         if entries and mes_seleccionado == calcular_mes_fiscal(date.today()):
-            from src.llm_service import is_llm_enabled, generate_quick_summary
+            from src.ai.llm_service import is_llm_enabled, generate_quick_summary
             from src.i18n import get_language
             
             if is_llm_enabled():
@@ -390,87 +390,96 @@ def render_analisis():
                     ai_summary_placeholder.markdown(f"*{summary}*")
         
     with col_grafico:
-        # 1. Gráfico de Gastos por Categoría (Nuevo)
+        # 1. Gráfico de Gastos por Categoría
         st.markdown(f"### {t('analisis.expenses_by_category.title')}")
-        from collections import defaultdict
         
-        gastos_por_cat = defaultdict(float)
-        for e in entries:
-            if e.tipo_movimiento == TipoMovimiento.GASTO:
-                # Usar nombre de categoría
-                cat_nombre = cats_map.get(e.categoria_id, "Desconocida")
-                gastos_por_cat[cat_nombre] += e.importe
+        # Placeholder para spinner + gráfico
+        chart1_ph = st.empty()
+        
+        with chart1_ph.container():
+            with st.spinner("📉 Cargando gráfico..."):
+                from collections import defaultdict
+                
+                gastos_por_cat = defaultdict(float)
+                for e in entries:
+                    if e.tipo_movimiento == TipoMovimiento.GASTO:
+                        cat_nombre = cats_map.get(e.categoria_id, "Desconocida")
+                        gastos_por_cat[cat_nombre] += e.importe
+                
+                if gastos_por_cat:
+                    sorted_cats = sorted(gastos_por_cat.items(), key=lambda x: x[1], reverse=True)
+                    cats_labels = [x[0] for x in sorted_cats]
+                    cats_values = [x[1] for x in sorted_cats]
+                    
+                    fig_cat = go.Figure(data=[go.Pie(
+                        labels=cats_labels,
+                        values=cats_values,
+                        hole=0.4,
+                        textinfo='label+percent',
+                        textposition='inside',
+                        insidetextorientation='radial',
+                        textfont_size=20
+                    )])
+                    
+                    fig_cat.update_layout(
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font_color='white',
+                        font_size=10,
+                        margin=dict(t=10, b=10, l=10, r=10),
+                        height=400,
+                        showlegend=False
+                    )
         
         if gastos_por_cat:
-            # Ordenar por importe descendente
-            sorted_cats = sorted(gastos_por_cat.items(), key=lambda x: x[1], reverse=True)
-            cats_labels = [x[0] for x in sorted_cats]
-            cats_values = [x[1] for x in sorted_cats]
-            
-            # Donut Chart para Categorías
-            fig_cat = go.Figure(data=[go.Pie(
-                labels=cats_labels,
-                values=cats_values,
-                hole=0.4,
-                textinfo='label+percent',
-                textposition='inside',
-                insidetextorientation='radial',
-                textfont_size=20
-            )])
-            
-            fig_cat.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font_color='white',
-                font_size=10,
-                margin=dict(t=10, b=10, l=10, r=10),
-                height=400,
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig_cat, use_container_width=True)
+            chart1_ph.plotly_chart(fig_cat, use_container_width=True)
         else:
-            st.info(t('analisis.movements.no_movements'))
+            chart1_ph.info(t('analisis.movements.no_movements'))
 
         if enable_relevance:
             st.markdown(f"### {t('analisis.spending_quality.title')}")
             
-            # Datos para donut chart
-            total_gastos = sum(kpis_rel.values())
+            # Placeholder para spinner + gráfico
+            chart2_ph = st.empty()
+            
+            with chart2_ph.container():
+                with st.spinner("🎯 Cargando análisis..."):
+                    total_gastos = sum(kpis_rel.values())
+                    if total_gastos > 0:
+                        labels = [
+                            t('analisis.spending_quality.labels.necessary'),
+                            t('analisis.spending_quality.labels.like'),
+                            t('analisis.spending_quality.labels.superfluous'),
+                            t('analisis.spending_quality.labels.nonsense')
+                        ]
+                        values = [kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON']]
+                        colors = ['#00c853', '#448aff', '#ffab00', '#ff5252']
+                        
+                        fig = go.Figure(data=[go.Pie(
+                            labels=labels,
+                            values=values,
+                            hole=0.4,
+                            marker_colors=colors,
+                            textinfo='label+percent',
+                            textposition='inside',
+                            insidetextorientation='radial',
+                            textfont_size=16
+                        )])
+                        
+                        fig.update_layout(
+                            showlegend=False,
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            font_color='white',
+                            font_size=10,
+                            margin=dict(t=10, b=10, l=10, r=10),
+                            height=400
+                        )
+            
             if total_gastos > 0:
-                labels = [
-                    t('analisis.spending_quality.labels.necessary'),
-                    t('analisis.spending_quality.labels.like'),
-                    t('analisis.spending_quality.labels.superfluous'),
-                    t('analisis.spending_quality.labels.nonsense')
-                ]
-                values = [kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON']]
-                colors = ['#00c853', '#448aff', '#ffab00', '#ff5252']
-                
-                fig = go.Figure(data=[go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.4,
-                    marker_colors=colors,
-                    textinfo='label+percent',
-                    textposition='inside',
-                    insidetextorientation='radial',
-                    textfont_size=16
-                )])
-                
-                fig.update_layout(
-                    showlegend=False,
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    font_size=10,
-                    margin=dict(t=10, b=10, l=10, r=10),
-                    height=400
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
+                chart2_ph.plotly_chart(fig, use_container_width=True)
             else:
-                st.info(t('analisis.spending_quality.no_data'))
+                chart2_ph.info(t('analisis.spending_quality.no_data'))
 
 
 def _render_user_notes_section(period_type: str, period_identifier: str):

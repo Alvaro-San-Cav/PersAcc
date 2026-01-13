@@ -700,43 +700,6 @@ def render_utilidades():
             help=t('utilidades.config.enable_llm_help'),
             key="config_enable_llm"
         )
-        
-        # Selector de modelo de Ollama (solo si LLM está habilitado)
-        if enable_llm:
-            from src.llm_service import check_ollama_running, get_available_models
-            
-            st.markdown(t('utilidades.config.ai_config_title'))
-            
-            # Verificar si Ollama está corriendo
-            if check_ollama_running():
-                available_models = get_available_models()
-                
-                if available_models:
-                    st.success(t('utilidades.config.ollama_detected', count=len(available_models)))
-                    
-                    current_model = config.get('llm', {}).get('model_tier', 'light')
-                    
-                    # Si el modelo actual no está en la lista, usar el primero disponible
-                    if current_model not in available_models:
-                        default_index = 0
-                    else:
-                        default_index = available_models.index(current_model)
-                    
-                    selected_model = st.selectbox(
-                        t('utilidades.config.llm_model_label'),
-                        options=available_models,
-                        index=default_index,
-                        help=t('utilidades.config.llm_model_help'),
-                        key="config_llm_model"
-                    )
-                else:
-                    st.warning(t('utilidades.config.ollama_no_models_warn'))
-                    st.info(t('utilidades.config.llm_no_models'))
-                    selected_model = config.get('llm', {}).get('model_tier', 'light')
-            else:
-                st.error(t('utilidades.config.ollama_not_running_err'))
-                st.info(t('utilidades.config.llm_not_running'))
-                selected_model = config.get('llm', {}).get('model_tier', 'light')
 
         st.markdown("---")
 
@@ -781,6 +744,46 @@ def render_utilidades():
             key="config_metodo_saldo",
             horizontal=True
         )
+        
+        # ==========================================
+        # SECCIÓN: Configuración del Modelo IA (al final)
+        # ==========================================
+        if enable_llm:
+            from src.ai.llm_service import check_ollama_running, get_available_models
+            
+            st.markdown("---")
+            st.markdown(t('utilidades.config.ai_config_title'))
+            
+            # Verificar si Ollama está corriendo
+            if check_ollama_running():
+                available_models = get_available_models()
+                
+                if available_models:
+                    st.success(t('utilidades.config.ollama_detected', count=len(available_models)))
+                    
+                    current_model = config.get('llm', {}).get('model_tier', 'light')
+                    
+                    # Si el modelo actual no está en la lista, usar el primero disponible
+                    if current_model not in available_models:
+                        default_index = 0
+                    else:
+                        default_index = available_models.index(current_model)
+                    
+                    selected_model = st.selectbox(
+                        t('utilidades.config.llm_model_label'),
+                        options=available_models,
+                        index=default_index,
+                        help=t('utilidades.config.llm_model_help'),
+                        key="config_llm_model"
+                    )
+                else:
+                    st.warning(t('utilidades.config.ollama_no_models_warn'))
+                    st.info(t('utilidades.config.llm_no_models'))
+                    selected_model = config.get('llm', {}).get('model_tier', 'light')
+            else:
+                st.error(t('utilidades.config.ollama_not_running_err'))
+                st.info(t('utilidades.config.llm_not_running'))
+                selected_model = config.get('llm', {}).get('model_tier', 'light')
         
     # ========================
     # TAB: VALORES POR DEFECTO

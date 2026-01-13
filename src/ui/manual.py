@@ -27,6 +27,10 @@ def render_manual():
     -  **Cuenta de Consecuencias** - Reglas automáticas para costes ocultos
     -  **Tabla Editable** - Modifica movimientos con validación de meses cerrados
     -  **Dashboard Histórico** - KPIs anuales y evolución mensual
+    -  **🤖 IA con Ollama** - Comentarios inteligentes y análisis profundo
+    -  **📈 Proyecciones ML** - Predicciones de gastos e inversiones
+    -  **💬 Chat Asistente** - Pregunta sobre tus finanzas en lenguaje natural
+    -  **📝 Anotaciones** - Notas personales por período
     -  **Multi-idioma** - Español e Inglés
     -  **Multi-divisa** - Configura tu moneda (€, $, £, etc.)
     """)
@@ -223,13 +227,21 @@ def render_manual():
     
     #### 🎛️ Funcionalidades (Toggles)
     
-    > 🌟 **NUEVO**: Activa/desactiva funcionalidades según tus necesidades
-    
     | Toggle | Descripción |
     |--------|-------------|
     | **Análisis de Relevancia** | Sistema NE/LI/SUP/TON |
     | **Retenciones Automáticas** | Inversiones automáticas en cierre |
     | **Cuenta de Consecuencias** | Sistema de reglas avanzado |
+    | **🤖 Análisis con IA** | Comentarios inteligentes con Ollama |
+    
+    #### 🤖 Configuración de IA (Ollama)
+    
+    > Requiere [Ollama](https://ollama.com/download) instalado y ejecutándose.
+    
+    | Ajuste | Descripción |
+    |--------|-------------|
+    | **Modelo** | Selecciona entre modelos disponibles (tinyllama, phi3, mistral, llama3, qwen, etc.) |
+    | **Estado** | Indicador verde/rojo del estado del servidor Ollama |
     
     #### 💰 Retenciones
     
@@ -245,13 +257,17 @@ def render_manual():
     | **Antes de salario** | Introduces el saldo ANTES de cobrar la nómina (recomendado) |
     | **Después de salario** | Introduces el saldo DESPUÉS de cobrar |
     
-    #### 📝 Conceptos default
+    #### 📝 Valores por Defecto
     
-    > 🌟 **NUEVO**: Define conceptos automáticos por categoría
+    Configura valores automáticos para cada categoría:
     
-    - Para cada categoría, puedes configurar un texto que se auto-completa al seleccionarla
-    - Ejemplo: Si configuras "Nómina mensual" para "Salario", ese texto aparecerá automáticamente al elegir esa categoría
-    - Ahorra tiempo en movimientos recurrentes
+    | Tipo | Descripción |
+    |------|-------------|
+    | **Conceptos default** | Texto que se auto-completa al seleccionar la categoría |
+    | **Importes default** | Cantidad que se rellena automáticamente |
+    | **Relevancias default** | Código NE/LI/SUP/TON predeterminado |
+    
+    > 💡 **Tip**: Configura valores por defecto para gastos recurrentes y ahorra tiempo.
     
     ### Archivo de configuración
     
@@ -328,6 +344,87 @@ def render_manual():
     #### 📋 Datos Detallados
     - Tabla completa de movimientos del año
     - Filtrable y exportable
+    
+    #### 📝 Anotaciones
+    - Añade notas personales por mes o año
+    - Recuerda decisiones, contexto o reflexiones
+    - Se muestran en modo solo lectura al revisar períodos cerrados
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # INTELIGENCIA ARTIFICIAL
+    # ============================================================================
+    st.markdown("""
+    ## 🤖 Inteligencia Artificial (Ollama)
+    
+    PersAcc incluye integración con IA local usando [Ollama](https://ollama.com).
+    
+    ### Requisitos
+    
+    1. **Instalar Ollama**: Descarga desde [ollama.com/download](https://ollama.com/download)
+    2. **Descargar modelo**: Ejecuta `ollama pull phi3` (o tinyllama, mistral, llama3, qwen3)
+    3. **Mantener Ollama ejecutándose**: El servidor local debe estar activo
+    
+    ### Funcionalidades IA
+    
+    #### 💬 Comentario del Ledger
+    En la vista mensual, la IA genera un comentario ingenioso sobre tus finanzas del mes.
+    
+    #### 📊 Análisis de Período
+    En Histórico, genera análisis profundo del mes o año seleccionado:
+    - Evaluación de patrones de gasto
+    - Recomendaciones personalizadas
+    - Insights sobre categorías
+    
+    #### 💬 Chat Asistente
+    Pregunta en lenguaje natural sobre tus finanzas:
+    - "¿Cuánto gasté en restaurantes este mes?"
+    - "¿Cuáles son mis mayores gastos del 2024?"
+    - "Busca gastos de Uber"
+    
+    ### Configuración
+    
+    1. Activa en **Utilidades → Configuración → Análisis con IA**
+    2. Selecciona el modelo en la sección **Configuración del Modelo IA**
+    3. El indicador verde confirma que Ollama está funcionando
+    
+    > 💡 **Modelos recomendados**: phi3 (equilibrado), tinyllama (rápido), mistral (calidad)
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # PROYECCIONES ML
+    # ============================================================================
+    st.markdown("""
+    ## 📈 Proyecciones (Machine Learning)
+    
+    Accede desde la pestaña **Proyecciones** para ver predicciones basadas en tu historial.
+    
+    ### Tipos de Proyección
+    
+    #### 💰 Proyección de Ingresos
+    - Evolución estimada del salario
+    - Basada en histórico de ingresos
+    
+    #### 📊 Proyección de Inversiones
+    - Crecimiento proyectado del capital invertido
+    - Considera retenciones automáticas
+    
+    #### 📉 Proyección de Gastos
+    - Predicción de gastos futuros
+    - Análisis por categoría y temporalidad
+    
+    ### Insights Automáticos
+    
+    El sistema genera insights sobre tus patrones:
+    - Tendencias de ahorro
+    - Meses de mayor gasto
+    - Evolución del patrimonio
+    
+    > ⚠️ **Nota**: Las proyecciones mejoran con más datos históricos. Se recomienda tener al menos 6 meses de historial.
     """)
     
     st.markdown("---")
@@ -364,7 +461,7 @@ def render_manual():
     
     ---
     
-    **Versión**: 2.0 | **Stack**: Streamlit + SQLite + Python
+    **Versión**: 3.0 | **Stack**: Streamlit + SQLite + Python + Ollama
     
     *¿Dudas o sugerencias? Abre un issue en el repositorio.*
     """)

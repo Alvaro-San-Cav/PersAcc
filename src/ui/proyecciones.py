@@ -7,7 +7,7 @@ from datetime import date
 import plotly.graph_objects as go
 import plotly.express as px
 
-from src.ml_engine import (
+from src.ai.ml_engine import (
     project_salaries, 
     project_investments, 
     generate_insights,

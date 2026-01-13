@@ -27,6 +27,10 @@ def render_manual_en():
     -  **Consequences Account** - Automatic rules for hidden costs
     -  **Editable Table** - Modify transactions with closed month validation
     -  **Historical Dashboard** - Annual KPIs and monthly evolution
+    -  **🤖 AI with Ollama** - Smart comments and deep analysis
+    -  **📈 ML Projections** - Expense and investment predictions
+    -  **💬 Chat Assistant** - Ask about your finances in natural language
+    -  **📝 Annotations** - Personal notes per period
     -  **Multi-language** - Spanish and English
     -  **Multi-currency** - Configure your currency (€, $, £, etc.)
     """)
@@ -223,13 +227,21 @@ def render_manual_en():
     
     #### 🎛️ Features (Toggles)
     
-    > 🌟 **NEW**: Enable/disable features according to your needs
-    
     | Toggle | Description |
     |--------|-------------|
     | **Relevance Analysis** | NE/LI/SUP/TON system |
     | **Automatic Retentions** | Automatic investments at closing |
     | **Consequences Account** | Advanced rule system |
+    | **🤖 AI Analysis** | Smart comments with Ollama |
+    
+    #### 🤖 AI Configuration (Ollama)
+    
+    > Requires [Ollama](https://ollama.com/download) installed and running.
+    
+    | Setting | Description |
+    |---------|-------------|
+    | **Model** | Select from available models (tinyllama, phi3, mistral, llama3, qwen, etc.) |
+    | **Status** | Green/red indicator of Ollama server status |
     
     #### 💰 Retentions
     
@@ -245,13 +257,17 @@ def render_manual_en():
     | **Before salary** | Enter balance BEFORE receiving salary (recommended) |
     | **After salary** | Enter balance AFTER receiving |
     
-    #### 📝 Default Concepts
+    #### 📝 Default Values
     
-    > 🌟 **NEW**: Define automatic concepts per category
+    Configure automatic values for each category:
     
-    - For each category, you can configure a text that auto-fills when selecting it
-    - Example: If you configure "Monthly salary" for "Salary", that text will appear automatically when choosing that category
-    - Saves time on recurring transactions
+    | Type | Description |
+    |------|-------------|
+    | **Default Concepts** | Text that auto-fills when selecting the category |
+    | **Default Amounts** | Quantity that fills automatically |
+    | **Default Relevance** | Predetermined NE/LI/SUP/TON code |
+    
+    > 💡 **Tip**: Configure default values for recurring expenses to save time.
     
     ### Configuration File
     
@@ -328,6 +344,87 @@ def render_manual_en():
     #### 📋 Detailed Data
     - Complete table of year transactions
     - Filterable and exportable
+    
+    #### 📝 Annotations
+    - Add personal notes per month or year
+    - Remember decisions, context, or reflections
+    - Shown in read-only mode when reviewing closed periods
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # ARTIFICIAL INTELLIGENCE
+    # ============================================================================
+    st.markdown("""
+    ## 🤖 Artificial Intelligence (Ollama)
+    
+    PersAcc includes local AI integration using [Ollama](https://ollama.com).
+    
+    ### Requirements
+    
+    1. **Install Ollama**: Download from [ollama.com/download](https://ollama.com/download)
+    2. **Download model**: Run `ollama pull phi3` (or tinyllama, mistral, llama3, qwen3)
+    3. **Keep Ollama running**: The local server must be active
+    
+    ### AI Features
+    
+    #### 💬 Ledger Comment
+    In monthly view, AI generates a witty comment about your month's finances.
+    
+    #### 📊 Period Analysis
+    In Historical, generate deep analysis of selected month or year:
+    - Spending patterns evaluation
+    - Personalized recommendations
+    - Category insights
+    
+    #### 💬 Chat Assistant
+    Ask in natural language about your finances:
+    - "How much did I spend on restaurants this month?"
+    - "What are my biggest expenses in 2024?"
+    - "Search for Uber expenses"
+    
+    ### Configuration
+    
+    1. Enable in **Utilities → Configuration → AI Analysis**
+    2. Select model in **AI Model Configuration** section
+    3. Green indicator confirms Ollama is working
+    
+    > 💡 **Recommended models**: phi3 (balanced), tinyllama (fast), mistral (quality)
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # ML PROJECTIONS
+    # ============================================================================
+    st.markdown("""
+    ## 📈 Projections (Machine Learning)
+    
+    Access from the **Projections** tab to see predictions based on your history.
+    
+    ### Projection Types
+    
+    #### 💰 Income Projection
+    - Estimated salary evolution
+    - Based on income history
+    
+    #### 📊 Investment Projection
+    - Projected growth of invested capital
+    - Considers automatic retentions
+    
+    #### 📉 Expense Projection
+    - Future expense prediction
+    - Analysis by category and seasonality
+    
+    ### Automatic Insights
+    
+    The system generates insights about your patterns:
+    - Savings trends
+    - Highest expense months
+    - Wealth evolution
+    
+    > ⚠️ **Note**: Projections improve with more historical data. At least 6 months of history recommended.
     """)
     
     st.markdown("---")
@@ -364,7 +461,7 @@ def render_manual_en():
     
     ---
     
-    **Version**: 2.0 | **Stack**: Streamlit + SQLite + Python
+    **Version**: 3.0 | **Stack**: Streamlit + SQLite + Python + Ollama
     
     *Questions or suggestions? Open an issue in the repository.*
     """)

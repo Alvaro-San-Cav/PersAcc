@@ -21,7 +21,7 @@ from src.business_logic import (
 )
 from src.config import format_currency, get_currency_symbol, load_config
 from src.i18n import t
-from src.llm_service import (
+from src.ai.llm_service import (
     is_llm_enabled, get_llm_config, analyze_financial_period
 )
 
@@ -159,8 +159,19 @@ def _render_period_notes(period_type: str, period_identifier: str, readonly: boo
     if readonly:
         st.markdown(f"### {t('historico.notes_title', period=period_identifier)}")
         if current_notes:
+            # Sanitize HTML to prevent XSS attacks
+            try:
+                import bleach
+                allowed_tags = ['p', 'br', 'strong', 'em', 'u', 's', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'span']
+                allowed_attrs = {'span': ['style'], '*': ['class']}
+                safe_notes = bleach.clean(current_notes, tags=allowed_tags, attributes=allowed_attrs)
+            except ImportError:
+                # Fallback: escape HTML if bleach not available
+                import html
+                safe_notes = html.escape(current_notes)
+            
             with st.container(border=True):
-                st.markdown(current_notes, unsafe_allow_html=True)
+                st.markdown(safe_notes, unsafe_allow_html=True)
         else:
             st.info(t('historico.no_notes', period=period_identifier))
         return
@@ -738,7 +749,7 @@ def _render_ai_commentary_section(period_type: str, period_identifier: str, kpis
             with st.spinner(t('historico.ai_loading')):
                 try:
                     # Import here to check availability
-                    from src.llm_service import (
+                    from src.ai.llm_service import (
                         check_ollama_running, 
                         get_available_models
                     )

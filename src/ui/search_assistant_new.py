@@ -12,7 +12,7 @@ from collections import defaultdict
 from difflib import SequenceMatcher
 
 from src.i18n import t
-from src.llm_service import is_llm_enabled, get_llm_config
+from src.ai.llm_service import is_llm_enabled, get_llm_config
 from src.database import get_all_ledger_entries, get_all_categorias
 from src.models import TipoMovimiento
 from src.config import format_currency
@@ -68,7 +68,7 @@ def _extract_params(query):
     try:
         import requests
         import json
-        from src.llm_service import is_llm_enabled, get_llm_config, check_ollama_running, _validate_and_normalize_params, get_current_season
+        from src.ai.llm_service import is_llm_enabled, get_llm_config, check_ollama_running, _validate_and_normalize_params, get_current_season
         
         # 1. Verificaciones previas
         if not is_llm_enabled():

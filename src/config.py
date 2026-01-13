@@ -58,7 +58,9 @@ def load_config() -> dict:
             else:
                 merged[key] = value
         return merged
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError) as e:
+        import logging
+        logging.warning(f"Config file corrupted or unreadable, using defaults: {e}")
         return DEFAULT_CONFIG.copy()
 
 
