@@ -32,7 +32,7 @@ def render_proyecciones():
     # Selector de rango de años
     current_year = date.today().year
     
-    col1, col2, col3 = st.columns([1, 1, 2])
+    col1, col2, _ = st.columns([1, 1, 2])
     with col1:
         start_year = st.selectbox(
             t("proyecciones.from_year"),
@@ -127,10 +127,11 @@ def render_proyecciones():
                 year_info = salary_data['projected'][current_year]
                 if 'historical_months' in year_info and year_info['historical_months'] > 0:
                     st.info(
-                        f"ℹ️ **Año {current_year}**: La media mensual muestra el promedio REAL de "
-                        f"{year_info['historical_months']} mes(es) transcurrido(s). "
-                        f"El total anual combina datos reales + proyección de los {year_info.get('projected_months', 0)} meses restantes."
-                    )
+                    t('proyecciones.current_year_note', 
+                      year=current_year, 
+                      historical_months=year_info['historical_months'], 
+                      projected_months=year_info.get('projected_months', 0))
+                )
             
             _render_yearly_table_simple(
                 salary_data['projected'], 
@@ -179,14 +180,7 @@ def render_proyecciones():
         
         # Tabla resumen por año (sin columna delta)
         with st.expander(t("proyecciones.yearly_breakdown")):
-            # TEMPORAL: Cargar directamente para evitar caché corrupto
-            import json
-            from pathlib import Path
-            locale_path = Path(__file__).parent.parent.parent / "locales" / "es.json"
-            translations = json.loads(locale_path.read_text(encoding='utf-8'))
-            investment_label = translations['proyecciones']['investment']
-            
-            _render_yearly_table_simple(inv_data['projected'], investment_label)
+            _render_yearly_table_simple(inv_data['projected'], t('proyecciones.investment'))
     
     st.markdown("---")
     
@@ -267,7 +261,7 @@ def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Fig
             x=list(range(len(hist_values))),
             y=hist_values,
             mode='lines+markers',
-            name='Histórico',
+            name=t('proyecciones.chart_historical'),
             line=dict(color='#00ff88', width=2),
             marker=dict(size=6)
         ))
@@ -292,7 +286,7 @@ def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Fig
             x=x_proj,
             y=proj_values,
             mode='lines',
-            name='Proyectado',
+            name=t('proyecciones.chart_projected'),
             line=dict(color='#8a2be2', width=2, dash='dash'),
             fill='tonexty' if historical else None,
             fillcolor='rgba(138, 43, 226, 0.1)'
@@ -306,7 +300,7 @@ def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Fig
         height=300,
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        xaxis=dict(showgrid=False, title="Meses"),
+        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months')),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title=get_currency_symbol())
     )
     
@@ -357,7 +351,7 @@ def _create_investment_chart(data: dict, current_year: int, end_year: int) -> go
         margin=dict(t=30, b=30, l=50, r=30),
         height=300,
         showlegend=False,
-        xaxis=dict(showgrid=False, title="Año", tickmode='linear'),
+        xaxis=dict(showgrid=False, title=t('proyecciones.axis_year'), tickmode='linear'),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title=get_currency_symbol())
     )
     
@@ -378,7 +372,7 @@ def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Fi
             x=list(range(len(hist_values))),
             y=hist_values,
             mode='lines+markers',
-            name='Histórico',
+            name=t('proyecciones.chart_historical'),
             line=dict(color='#ff6b6b', width=2),
             marker=dict(size=6)
         ))
@@ -400,7 +394,7 @@ def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Fi
             x=x_proj,
             y=proj_values,
             mode='lines',
-            name='Proyectado',
+            name=t('proyecciones.chart_projected'),
             line=dict(color='#ff9966', width=2, dash='dash'),
             fill='tonexty' if historical else None,
             fillcolor='rgba(255, 107, 107, 0.1)'
@@ -414,7 +408,7 @@ def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Fi
         height=300,
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        xaxis=dict(showgrid=False, title="Meses"),
+        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months')),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title=get_currency_symbol())
     )
     

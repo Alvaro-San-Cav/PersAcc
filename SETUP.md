@@ -63,11 +63,12 @@ pip install -r requirements.txt
 **Contents of requirements.txt:**
 ```
 streamlit>=1.28.0
-plotly>=5.14.0
+plotly>=5.18.0
 pandas>=2.0.0
-numpy>=1.24.0
-scikit-learn>=1.3.0
 requests>=2.31.0
+streamlit-quill>=0.1.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
 ```
 
 ### Step 4: Initialize Database

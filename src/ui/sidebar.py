@@ -172,7 +172,7 @@ def render_sidebar():
                     st.session_state["relevancia_sel"] = relevancia_default
                 
                 relevancia_code = st.radio(
-                    "Relevancia",
+                    t('sidebar.quick_add.relevance_label'),
                     options=relevancia_options,
                     format_func=lambda x: f"{x} - {RELEVANCIA_DESCRIPTIONS[RelevanciaCode(x)]}",
                     horizontal=True,
@@ -220,90 +220,235 @@ def render_sidebar():
         # CALCULADORA RÁPIDA (Desplegable)
         # ============================================================================
         with st.expander(f"🧮 {t('sidebar.quick_add.calculator_title')}", expanded=False):
-            # CSS para centrar iconos en botones de la calculadora
+            # CSS para estilo de calculadora profesional
             st.markdown("""
             <style>
-            /* Centrar texto en todos los botones del sidebar */
+            /* Centrar texto en botones */
             section[data-testid="stSidebar"] button {
                 display: flex !important;
                 justify-content: center !important;
                 align-items: center !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
+                padding: 8px !important;
+                min-height: 42px !important;
+                font-size: 16px !important;
+                font-weight: 600 !important;
             }
-            section[data-testid="stSidebar"] button p,
-            section[data-testid="stSidebar"] button span,
-            section[data-testid="stSidebar"] button div {
-                text-align: center !important;
-                width: 100% !important;
+            section[data-testid="stSidebar"] button p {
                 margin: 0 !important;
-                padding: 0 !important;
-                display: block !important;
+                font-size: 16px !important;
             }
             </style>
             """, unsafe_allow_html=True)
             
-            # Inicializar valores de la calculadora en session_state
-            if "calc_num1" not in st.session_state:
-                st.session_state["calc_num1"] = 0.0
-            if "calc_num2" not in st.session_state:
-                st.session_state["calc_num2"] = 0.0
-            if "calc_result" not in st.session_state:
-                st.session_state["calc_result"] = None
+            # Inicializar estado de la calculadora
+            if "calc_display" not in st.session_state:
+                st.session_state["calc_display"] = 0.0
+            if "calc_operand" not in st.session_state:
+                st.session_state["calc_operand"] = None
+            if "calc_operation" not in st.session_state:
+                st.session_state["calc_operation"] = None
+            if "calc_new_number" not in st.session_state:
+                st.session_state["calc_new_number"] = True
             
-            calc_col1, calc_col2 = st.columns(2)
-            with calc_col1:
-                num1 = st.number_input(
-                    t('sidebar.quick_add.calc_num1'),
-                    value=st.session_state["calc_num1"],
-                    step=0.01,
-                    format="%.2f",
-                    key="calc_input_num1"
-                )
-            with calc_col2:
-                num2 = st.number_input(
-                    t('sidebar.quick_add.calc_num2'),
-                    value=st.session_state["calc_num2"],
-                    step=0.01,
-                    format="%.2f",
-                    key="calc_input_num2"
-                )
-            
-            # Botones de operaciones
-            op_col1, op_col2, op_col3, op_col4 = st.columns(4)
-            
-            result = None
-            with op_col1:
-                if st.button("➕", key="calc_add", use_container_width=True):
-                    result = num1 + num2
-            with op_col2:
-                if st.button("➖", key="calc_sub", use_container_width=True):
-                    result = num1 - num2
-            with op_col3:
-                if st.button("✖️", key="calc_mul", use_container_width=True):
-                    result = num1 * num2
-            with op_col4:
-                if st.button("➗", key="calc_div", use_container_width=True):
-                    if num2 != 0:
-                        result = num1 / num2
-                    else:
-                        st.error(t('sidebar.quick_add.calc_div_zero'))
-            
-            # Actualizar resultado si se calculó
-            if result is not None:
-                st.session_state["calc_result"] = result
-                st.session_state["calc_num1"] = num1
-                st.session_state["calc_num2"] = num2
-            
-            # Mostrar resultado
-            if st.session_state["calc_result"] is not None:
-                st.markdown(f"**{t('sidebar.quick_add.calc_result')}:** `{st.session_state['calc_result']:.2f}`")
+            # Procesar acciones pendientes ANTES de crear el widget
+            if "calc_pending_action" in st.session_state:
+                action = st.session_state["calc_pending_action"]
                 
-                # Botón para transferir resultado al importe (usa flag para evitar error de Streamlit)
-                if st.button(f"📥 {t('sidebar.quick_add.calc_use_result')}", key="calc_use", use_container_width=True):
-                    st.session_state["calc_pending_value"] = abs(st.session_state["calc_result"])
-                    st.session_state["calc_apply_result_flag"] = True
+                if action["type"] == "append_digit":
+                    digit = action["digit"]
+                    if st.session_state["calc_new_number"]:
+                        st.session_state["calc_display"] = float(digit)
+                        st.session_state["calc_new_number"] = False
+                    else:
+                        current = st.session_state["calc_display"]
+                        if current == int(current):
+                            st.session_state["calc_display"] = current * 10 + digit
+                        else:
+                            current_str = f"{current:.10f}".rstrip('0')
+                            if '.' in current_str:
+                                decimal_places = len(current_str.split('.')[1])
+                                st.session_state["calc_display"] = current + (digit / (10 ** (decimal_places + 1)))
+                            else:
+                                st.session_state["calc_display"] = current * 10 + digit
+                
+                elif action["type"] == "clear_all":
+                    st.session_state["calc_display"] = 0.0
+                    st.session_state["calc_operand"] = None
+                    st.session_state["calc_operation"] = None
+                    st.session_state["calc_new_number"] = True
+                
+                elif action["type"] == "operation":
+                    op = action["op"]
+                    current = st.session_state["calc_display"]
+                    
+                    if st.session_state["calc_operand"] is not None and st.session_state["calc_operation"] and not st.session_state["calc_new_number"]:
+                        prev = st.session_state["calc_operand"]
+                        if st.session_state["calc_operation"] == "add":
+                            result = prev + current
+                        elif st.session_state["calc_operation"] == "sub":
+                            result = prev - current
+                        elif st.session_state["calc_operation"] == "mul":
+                            result = prev * current
+                        elif st.session_state["calc_operation"] == "div":
+                            result = prev / current if current != 0 else 0
+                        else:
+                            result = current
+                        
+                        st.session_state["calc_display"] = result
+                        st.session_state["calc_operand"] = result
+                    else:
+                        st.session_state["calc_operand"] = current
+                    
+                    st.session_state["calc_operation"] = op
+                    st.session_state["calc_new_number"] = True
+                
+                elif action["type"] == "equals":
+                    if st.session_state["calc_operand"] is not None and st.session_state["calc_operation"]:
+                        current = st.session_state["calc_display"]
+                        prev = st.session_state["calc_operand"]
+                        
+                        if st.session_state["calc_operation"] == "add":
+                            result = prev + current
+                        elif st.session_state["calc_operation"] == "sub":
+                            result = prev - current
+                        elif st.session_state["calc_operation"] == "mul":
+                            result = prev * current
+                        elif st.session_state["calc_operation"] == "div":
+                            if current != 0:
+                                result = prev / current
+                            else:
+                                st.error(t('sidebar.quick_add.calc_div_zero'))
+                                result = 0
+                        else:
+                            result = current
+                        
+                        st.session_state["calc_display"] = result
+                        st.session_state["calc_operand"] = None
+                        st.session_state["calc_operation"] = None
+                        st.session_state["calc_new_number"] = True
+                
+                # IMPORTANTE: Sincronizar con el widget key antes de limpar
+                st.session_state["calc_display_widget"] = st.session_state["calc_display"]
+                
+                # Limpiar acción pendiente
+                del st.session_state["calc_pending_action"]
+            
+            # Mostrar operación pendiente si existe
+            operation_text = ""
+            if st.session_state["calc_operation"] and st.session_state["calc_operand"] is not None:
+                op_symbol = {"add": "+", "sub": "-", "mul": "×", "div": "÷"}
+                operation_text = f"{st.session_state['calc_operand']:.2f} {op_symbol.get(st.session_state['calc_operation'], '?')}"
+            
+            # Display con operación pendiente
+            if operation_text:
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                            padding: 8px 15px 5px 15px; border-radius: 8px 8px 0 0;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
+                    <div style='color: rgba(255,255,255,0.7); font-size: 12px; 
+                               text-align: right; min-height: 16px;'>{operation_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Display editable (number input)
+            display_value = st.number_input(
+                "Display",
+                value=float(st.session_state["calc_display"]),
+                step=0.01,
+                format="%.2f",
+                key="calc_display_widget",
+                label_visibility="collapsed"
+            )
+            
+            # Sincronizar calc_display con el valor actual del widget
+            # Esto asegura que el botón "usar como importe" siempre lea el valor correcto
+            st.session_state["calc_display"] = st.session_state["calc_display_widget"]
+            
+            # Grid de botones 4x4
+            # Fila 1: 7, 8, 9, ÷
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("7", key="calc_7", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 7}
                     st.rerun()
+            with col2:
+                if st.button("8", key="calc_8", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 8}
+                    st.rerun()
+            with col3:
+                if st.button("9", key="calc_9", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 9}
+                    st.rerun()
+            with col4:
+                if st.button("➗", key="calc_div", use_container_width=True, type="secondary"):
+                    st.session_state["calc_pending_action"] = {"type": "operation", "op": "div"}
+                    st.rerun()
+            
+            # Fila 2: 4, 5, 6, ×
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("4", key="calc_4", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 4}
+                    st.rerun()
+            with col2:
+                if st.button("5", key="calc_5", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 5}
+                    st.rerun()
+            with col3:
+                if st.button("6", key="calc_6", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 6}
+                    st.rerun()
+            with col4:
+                if st.button("✖️", key="calc_mul", use_container_width=True, type="secondary"):
+                    st.session_state["calc_pending_action"] = {"type": "operation", "op": "mul"}
+                    st.rerun()
+            
+            # Fila 3: 1, 2, 3, -
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("1", key="calc_1", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 1}
+                    st.rerun()
+            with col2:
+                if st.button("2", key="calc_2", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 2}
+                    st.rerun()
+            with col3:
+                if st.button("3", key="calc_3", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 3}
+                    st.rerun()
+            with col4:
+                if st.button("➖", key="calc_sub", use_container_width=True, type="secondary"):
+                    st.session_state["calc_pending_action"] = {"type": "operation", "op": "sub"}
+                    st.rerun()
+            
+            # Fila 4: AC, 0, =, +
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("AC", key="calc_ac", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "clear_all"}
+                    st.rerun()
+            with col2:
+                if st.button("0", key="calc_0", use_container_width=True):
+                    st.session_state["calc_pending_action"] = {"type": "append_digit", "digit": 0}
+                    st.rerun()
+            with col3:
+                if st.button("=", key="calc_eq", use_container_width=True, type="primary"):
+                    st.session_state["calc_pending_action"] = {"type": "equals"}
+                    st.rerun()
+            with col4:
+                if st.button("➕", key="calc_add", use_container_width=True, type="secondary"):
+                    st.session_state["calc_pending_action"] = {"type": "operation", "op": "add"}
+                    st.rerun()
+            
+            # Botón para usar el resultado
+            st.markdown("---")
+            if st.button(f"📥 {t('sidebar.quick_add.calc_use_result')}", key="calc_use", use_container_width=True):
+                # Usar flags porque el widget de importe se crea ANTES de la calculadora
+                # Los flags se procesan en líneas 203-207 antes de crear el widget
+                st.session_state["calc_pending_value"] = abs(float(st.session_state["calc_display"]))
+                st.session_state["calc_apply_result_flag"] = True
+                st.rerun()
         
         # Botón submit
         submitted = st.button(

@@ -4,30 +4,62 @@ Renderiza la interfaz de historico.
 """
 import streamlit as st
 from datetime import date, datetime
+from collections import defaultdict
 import requests
+import plotly.graph_objects as go
 
 from src.models import TipoMovimiento
 from src.database import (
-    get_all_categorias, get_ledger_by_month, is_mes_cerrado
+    get_all_categorias, get_ledger_by_month, is_mes_cerrado,
+    get_ledger_by_year, get_available_years,
+    get_ai_analysis, save_ai_analysis,
+    get_period_notes, save_period_notes
 )
 from src.business_logic import (
     calcular_kpis, calcular_kpis_anuales, get_word_counts, 
-    get_top_entries, calculate_curious_metrics
+    get_top_entries, calculate_curious_metrics, es_entrada_salario
 )
 from src.config import format_currency, get_currency_symbol, load_config
-from src.i18n import t, get_salary_keywords
+from src.i18n import t
 from src.llm_service import (
     is_llm_enabled, get_llm_config, analyze_financial_period
 )
-from src.database import get_ai_analysis, save_ai_analysis
 
+
+def _get_formatted_month_label(mes_str):
+    """Devuelve la etiqueta formateada 'YYYY-MM - Mes' para un mes dado."""
+    try:
+        mes_date = datetime.strptime(mes_str, "%Y-%m")
+        mes_nombre = mes_date.strftime("%B").capitalize()
+        return f"{mes_str} - {mes_nombre}"
+    except Exception:
+        return mes_str
+
+def _reset_to_year_view():
+    """Callback para volver a la vista anual. Se ejecuta ANTES del rerun."""
+    target_val = t('historico.full_year')
+    st.session_state["hist_mes_sel"] = target_val
+    st.session_state["hist_mes_sel_widget"] = target_val
+
+def _handle_chart_selection():
+    """Procesa la selección del gráfico al inicio del script, antes de renderizar widgets."""
+    if "year_evolution_chart" in st.session_state:
+        selection = st.session_state["year_evolution_chart"]
+        if selection and selection.get("selection") and selection["selection"].get("points"):
+            point = selection["selection"]["points"][0]
+            if "x" in point:
+                clicked_month = point["x"]
+                new_val = _get_formatted_month_label(clicked_month)
+                
+                # Actualizar si es diferente (evitar loops si ya está seleccionado)
+                if st.session_state.get("hist_mes_sel") != new_val:
+                    st.session_state["hist_mes_sel"] = new_val
+                    st.session_state["hist_mes_sel_widget"] = new_val
 
 def render_historico():
     """Renderiza el dashboard de análisis anual con estadísticas detalladas."""
-    from src.database import get_ledger_by_year, get_available_years, get_all_categorias, get_ledger_by_month
-    from src.business_logic import calcular_kpis_anuales, calcular_kpis
-    import plotly.graph_objects as go
-    from collections import defaultdict
+    # 0. Procesar eventos de navegación (Clicks en gráficos) ANTES de renderizar nada
+    _handle_chart_selection()
     
     st.markdown(f'<div class="main-header"><h1>{t("historico.title")}</h1></div>', unsafe_allow_html=True)
     
@@ -61,22 +93,35 @@ def render_historico():
     opciones_mes = [t('historico.full_year')]  # Primera opción: año completo
     meses_nombres = {}
     for mes in meses_con_datos:
-        try:
-            mes_date = datetime.strptime(mes, "%Y-%m")
-            mes_nombre = mes_date.strftime("%B").capitalize()
-            opcion = f"{mes} - {mes_nombre}"
-        except:
-            opcion = mes
+        opcion = _get_formatted_month_label(mes)
         opciones_mes.append(opcion)
         meses_nombres[opcion] = mes
     
     with col2:
+        # Shadow Key Pattern para permitir actualizaciones programáticas
+        # Inicializar estado si no existe
+        if "hist_mes_sel" not in st.session_state:
+            st.session_state["hist_mes_sel"] = opciones_mes[0] # Full year
+        
+        # Sincronizar widget -> state usando callback en on_change
+        
+        # Calcular índice para mantener sincronía
+        try:
+            current_idx = opciones_mes.index(st.session_state["hist_mes_sel"])
+        except ValueError:
+            current_idx = 0
+            st.session_state["hist_mes_sel"] = opciones_mes[0]
+
         mes_opcion = st.selectbox(
             t('historico.period_selector'),
             options=opciones_mes,
-            index=0,
-            key="hist_mes_sel"
+            index=current_idx,
+            key="hist_mes_sel_widget",
+            on_change=_update_hist_mes_sel
         )
+        
+        # No actualizamos manualmente st.session_state["hist_mes_sel"] aquí
+        # porque ya lo maneja el callback o la lógica de inicialización
     
     # Determinar si es vista de mes o año
     if mes_opcion == t('historico.full_year'):
@@ -98,6 +143,76 @@ def render_historico():
             render_year_view(entries, anio_sel)
 
 
+def _update_hist_mes_sel():
+    """Callback para actualizar el estado del mes seleccionado desde el widget"""
+    st.session_state["hist_mes_sel"] = st.session_state["hist_mes_sel_widget"]
+
+
+def _render_period_notes(period_type: str, period_identifier: str, readonly: bool = False):
+    """Renderiza la sección de notas del usuario."""
+    # Intentar cargar notas existentes
+    try:
+        current_notes = get_period_notes(period_type, period_identifier) or ""
+    except Exception:
+        current_notes = ""
+        
+    if readonly:
+        st.markdown(f"### {t('historico.notes_title', period=period_identifier)}")
+        if current_notes:
+            with st.container(border=True):
+                st.markdown(current_notes, unsafe_allow_html=True)
+        else:
+            st.info(t('historico.no_notes', period=period_identifier))
+        return
+
+    # Mostrar notificación si viene de un guardado exitoso
+    toast_key = f"toast_notes_{period_type}_{period_identifier}"
+    if st.session_state.get(toast_key):
+        st.success(t('historico.notes_success', period=period_identifier))
+        st.session_state[toast_key] = False
+
+    st.markdown(f"### {t('historico.notes_title', period=period_identifier)}")
+    
+    try:
+        from streamlit_quill import st_quill
+        quill_available = True
+    except ImportError:
+        quill_available = False
+    
+    if quill_available:
+        # Editor de texto enriquecido
+        content = st_quill(
+            value=current_notes,
+            placeholder="Escribe tus anotaciones, conclusiones o recordatorios...",
+            html=True,
+            toolbar=[
+                [{'header': [1, 2, 3, False]}],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{'list': 'ordered'}, {'list': 'bullet'}],
+                [{'color': []}, {'background': []}],
+                ['clean']
+            ],
+            key=f"quill_{period_type}_{period_identifier}"
+        )
+        
+        if st.button(f"💾 Guardar Notas", key=f"btn_save_{period_type}_{period_identifier}", type="primary"):
+            save_period_notes(period_type, period_identifier, content if content else "")
+            st.session_state[toast_key] = True
+            st.rerun()
+    else:
+        # Fallback texto plano
+        with st.form(f"form_notes_{period_type}_{period_identifier}"):
+            new_notes = st.text_area(
+                "Tus anotaciones:",
+                value=current_notes,
+                height=150
+            )
+            if st.form_submit_button("Guardar"):
+                save_period_notes(period_type, period_identifier, new_notes)
+                st.session_state[toast_key] = True
+                st.rerun()
+
+
 def render_month_view(entries, mes_sel, anio_sel):
     """Renderiza la vista de un mes específico."""
     from src.business_logic import calcular_kpis
@@ -110,13 +225,11 @@ def render_month_view(entries, mes_sel, anio_sel):
     cats_dict = {c.id: c.nombre for c in get_all_categorias()}
     
     if not entries:
-        st.info(f"No hay entradas para {mes_sel}")
+        st.info(t('historico.no_entries_month', month=mes_sel))
         return
     
-    # Botón para volver
-    if st.button(t('historico.back_to_year')):
-        st.session_state["hist_selected_month"] = None
-        st.rerun()
+    # Botón para volver usando Callback
+    st.button(t('historico.back_to_year'), on_click=_reset_to_year_view)
     
     # Calcular KPIs del mes
     kpis = calcular_kpis(mes_sel)
@@ -178,6 +291,11 @@ def render_month_view(entries, mes_sel, anio_sel):
             entries=entries
         )
         st.markdown("---")
+    
+    
+    # Sección de NOTAS del usuario (Solo Lectura)
+    _render_period_notes("month", mes_sel, readonly=True)
+    st.markdown("---")
     
     # Gráficos lado a lado
     col_cats, col_quality = st.columns(2)
@@ -255,15 +373,12 @@ def render_month_view(entries, mes_sel, anio_sel):
             t('historico.data.columns.concept'): e.concepto[:60] if e.concepto else "",
             t('historico.data.columns.amount'): f"{signo}{format_currency(e.importe)}"
         })
-    st.dataframe(data, use_container_width=True, hide_index=True, height=400)
+    from src.constants import DATAFRAME_HEIGHT_MEDIUM
+    st.dataframe(data, use_container_width=True, hide_index=True, height=DATAFRAME_HEIGHT_MEDIUM)
 
 
 def render_year_view(entries, anio_sel):
     """Renderiza la vista de un año completo."""
-    from src.business_logic import calcular_kpis_anuales, get_word_counts, get_top_entries, calculate_curious_metrics
-    import plotly.graph_objects as go
-    from collections import defaultdict
-    from src.config import load_config
     
     config = load_config()
     enable_relevance = config.get('enable_relevance', True)
@@ -334,24 +449,12 @@ def render_year_view(entries, anio_sel):
     avg_ingresos = kpis['total_ingresos'] / meses_activos
     avg_gastos = kpis['total_gastos'] / meses_activos
     
-    # Calcular salario medio
-    # Obtener palabras clave de salario desde i18n
-    salary_keywords = get_salary_keywords()
-    
-    # Buscar categoría Salario por si acaso
+    # Calcular salario medio usando función centralizada
     current_cats = get_all_categorias()
-    id_salario = next((c.id for c in current_cats if any(kw in c.nombre.lower() for kw in salary_keywords)), None)
-    
-    def es_salario(entry):
-        # Criterio 1: Es de la categoría Salario
-        if id_salario and entry.categoria_id == id_salario:
-            return True
-        # Criterio 2: El concepto contiene palabras clave
-        concepto = (entry.concepto or "").lower()
-        return any(kw in concepto for kw in salary_keywords)
-    
-    total_salario = sum(e.importe for e in entries if es_salario(e))
-    
+    total_salario = sum(
+        e.importe for e in entries 
+        if es_entrada_salario(e, current_cats)
+    )
     avg_salario = total_salario / meses_activos
     
     col_a1, col_a2, col_a3 = st.columns(3)
@@ -389,6 +492,7 @@ def render_year_view(entries, anio_sel):
         t('historico.tabs.overview'), t('historico.tabs.analysis'), t('historico.tabs.data')
     ])
     
+
     # === TAB 1: VISIÓN GLOBAL ===
     with tab_overview:
         
@@ -415,15 +519,7 @@ def render_year_view(entries, anio_sel):
             fig_evo.update_layout(barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=350)
             
             # Mostrar gráfico con event handler para clicks
-            chart_event = st.plotly_chart(fig_evo, use_container_width=True, key="year_evolution_chart", on_select="rerun")
-            
-            # Procesar click en el gráfico
-            if chart_event and chart_event.selection and chart_event.selection.points:
-                clicked_point = chart_event.selection.points[0]
-                if 'x' in clicked_point:
-                    clicked_month = clicked_point['x']
-                    st.session_state["hist_selected_month"] = clicked_month
-                    st.rerun()
+            st.plotly_chart(fig_evo, use_container_width=True, key="year_evolution_chart", on_select="rerun")
         else:
             st.info(t('historico.overview.no_monthly_data'))
 
@@ -605,9 +701,11 @@ def _render_ai_commentary_section(period_type: str, period_identifier: str, kpis
         kpis_data: Dictionary with financial KPIs
         entries: List of ledger entries for the period (optional)
     """
+    from src.i18n import t, get_language
+    
     config = load_config()
     llm_config = get_llm_config()
-    lang = config.get('language', 'es')
+    lang = get_language()
     
     # Try to load saved analysis from database
     saved_analysis = get_ai_analysis(period_type, period_identifier)

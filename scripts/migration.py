@@ -68,11 +68,14 @@ KEYWORD_TO_TYPE: Dict[str, TipoMovimiento] = {
 
 
 
-def detectar_tipo_movimiento(concepto: str, importe: float, categoria: str = "", is_ingreso: bool = False, mode: str = "GASTO") -> TipoMovimiento:
+def detectar_tipo_movimiento(concepto: str, importe: float, categoria: str = "", mode: str = "GASTO") -> TipoMovimiento:
     """
     Detecta el tipo de movimiento basándose en el concepto y la categoría.
+    
     Args:
-        is_ingreso: Deprecated, use mode.
+        concepto: Descripción del movimiento
+        importe: Cantidad del movimiento
+        categoria: Nombre de la categoría
         mode: Modo de importación ("GASTO", "INGRESO", "INVERSION")
     """
     texto = (concepto + " " + categoria).lower()
@@ -226,8 +229,6 @@ def importar_csv_simple(csv_path: Path, delimiter: str = ",", mode: str = "GASTO
     importados = 0
     errores = []
     
-    is_ingreso = (mode == "INGRESO")
-    
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         
@@ -259,9 +260,6 @@ def importar_csv_simple(csv_path: Path, delimiter: str = ",", mode: str = "GASTO
         if not col_importe and not (col_cargo or col_abono):
             raise ValueError("No se encontró columna de importe")
             
-        # Si es ingreso, no esperamos categoría ni relevancia obligatoriamente
-        use_default_category = is_ingreso and not col_categoria
-        
         for i, row in enumerate(reader, start=2):
             try:
                 # Parsear fecha
@@ -292,14 +290,14 @@ def importar_csv_simple(csv_path: Path, delimiter: str = ",", mode: str = "GASTO
                 if mode == "INVERSION":
                     tipo = TipoMovimiento.INVERSION
                 else:
-                    tipo = detectar_tipo_movimiento(concepto, importe, categoria_nombre, is_ingreso, mode=mode)
+                    tipo = detectar_tipo_movimiento(concepto, importe, categoria_nombre, mode=mode)
                     
-                    # Forzar tipo INGRESO si estamos en modo ingreso y no se detectó nada específico (como reembolso o liquidez)
-                    if is_ingreso and tipo == TipoMovimiento.GASTO:
+                    # Forzar tipo INGRESO si estamos en modo ingreso y no se detectó nada específico
+                    if mode == "INGRESO" and tipo == TipoMovimiento.GASTO:
                         tipo = TipoMovimiento.INGRESO
                 
                 if not categoria_nombre:
-                     if is_ingreso:
+                     if mode == "INGRESO":
                          categoria_nombre = "Ingresos Varios"
                      elif mode == "INVERSION":
                          categoria_nombre = "Inversion Historical"

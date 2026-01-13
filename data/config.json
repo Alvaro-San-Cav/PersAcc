@@ -32,8 +32,8 @@
         "max_tokens": 1500
     },
     "retenciones": {
-        "pct_remanente_default": 0,
-        "pct_salario_default": 20
+        "pct_remanente_default": 20,
+        "pct_salario_default": 56
     },
     "cierre": {
         "metodo_saldo": "antes_salario"

@@ -86,7 +86,7 @@ def main():
             with open("assets/logo.ico", "rb") as f:
                 logo_b64 = base64.b64encode(f.read()).decode()
             logo_html = f'<img src="data:image/x-icon;base64,{logo_b64}" width="100" style="display: block; margin: 20px auto;">'
-        except:
+        except Exception:
             logo_html = ""
 
         # Obtener tips de carga directamente del JSON
@@ -116,7 +116,7 @@ def main():
                 ">
                     <div style="
                         width: 100%; height: 100%; background: #4CAF50;
-                        animation: progress 10s linear forwards;
+                        animation: progress 3s linear forwards;
                     "></div>
                 </div>
                 <style>
@@ -125,7 +125,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            # Pausa breve para asegurar que el navegador renderice el overlay
+            # Brief pause to ensure browser renders the overlay
             time.sleep(0.1)
 
     # ==========================================
@@ -134,6 +134,10 @@ def main():
     
     # Sidebar siempre visible con Quick Add
     render_sidebar()
+    
+    # Track active tab for lazy loading
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
     
     # Navegación por tabs
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -164,18 +168,10 @@ def main():
         render_utilidades()
         
     # ==========================================
-    # FINALIZACIÓN DE CARGA
+    # FINALIZACIÓN DE CARGA (immediate)
     # ==========================================
     if should_show_loader:
-        import time
-        
-        # Esperar hasta completar los 10 segundos mínimos
-        elapsed = time.time() - start_time
-        remaining = 10.0 - elapsed
-        if remaining > 0:
-            time.sleep(remaining)
-            
-        # Eliminar overlay
+        # Remove overlay immediately when rendering is done
         loading_ph.empty()
         st.session_state['first_load_done'] = True
 

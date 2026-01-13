@@ -231,14 +231,14 @@ def delete_ledger_entry(entry_id: int, db_path: Path = DEFAULT_DB_PATH):
         _clear_cache()
 
 
-def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe: float, relevencia_code: str = None, db_path: Path = DEFAULT_DB_PATH):
+def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe: float, relevancia_code: str = None, db_path: Path = DEFAULT_DB_PATH):
     """Actualiza una entrada del libro diario."""
     with get_connection(db_path) as conn:
         conn.execute(
             """UPDATE LEDGER 
                SET categoria_id = ?, concepto = ?, importe = ?, relevancia_code = ?
                WHERE id = ?""",
-            (categoria_id, concepto, importe, relevencia_code, entry_id)
+            (categoria_id, concepto, importe, relevancia_code, entry_id)
         )
         _clear_cache()
 
@@ -553,3 +553,31 @@ def delete_ai_analysis(period_type: str, period_identifier: str, db_path: Path =
 
 
 
+
+# ============================================================================
+# OPERACIONES PERIOD_NOTES
+# ============================================================================
+
+def get_period_notes(period_type: str, period_identifier: str, db_path: Path = DEFAULT_DB_PATH) -> Optional[str]:
+    """
+    Obtiene las notas del usuario para un período específico.
+    """
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT note_text FROM PERIOD_NOTES WHERE period_type = ? AND period_identifier = ?",
+            (period_type, period_identifier)
+        ).fetchone()
+        return row["note_text"] if row else None
+
+
+def save_period_notes(period_type: str, period_identifier: str, note_text: str, db_path: Path = DEFAULT_DB_PATH):
+    """
+    Guarda o actualiza las notas del usuario para un período.
+    """
+    with get_connection(db_path) as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO PERIOD_NOTES 
+               (period_type, period_identifier, note_text, updated_at)
+               VALUES (?, ?, ?, ?)""",
+            (period_type, period_identifier, note_text, datetime.now())
+        )

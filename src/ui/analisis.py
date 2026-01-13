@@ -7,7 +7,7 @@ from datetime import date, timedelta
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.models import TipoMovimiento
+from src.models import TipoMovimiento, CierreMensual
 from src.database import (
     get_ledger_by_month, get_all_categorias, is_mes_cerrado,
     get_snapshot_by_month, get_cierre_mes, upsert_cierre_mes,
@@ -28,7 +28,7 @@ def render_analisis():
     enable_relevance = config.get('enable_relevance', True)
 
     # Selector de mes
-    col1, col2, col3 = st.columns([1, 2, 1])
+    _, col2, _ = st.columns([1, 2, 1])
     with col2:
         # Determinar qué año fiscal mostrar (12 meses)
         # Lógica: empezar desde el año actual y avanzar mientras diciembre esté cerrado
@@ -334,7 +334,7 @@ def render_analisis():
                                     categoria_id=nuevo_cat_id,
                                     concepto=row['Concepto'],
                                     importe=float(row['Importe']),
-                                    relevencia_code=prueba_rel
+                                    relevancia_code=prueba_rel
                                 )
                                 count_updates += 1
                         
@@ -343,23 +343,27 @@ def render_analisis():
         else:
             st.info(t('analisis.movements.no_movements'))
         
-        # AI Quick Summary (solo si hay movimientos y es mes actual)
+        # Espacio para el resumen de IA (marcador de posición)
+        ai_summary_placeholder = st.empty()
+
+        # Separador y Sección de Notas (Ahora se renderiza INMEDIATAMENTE)
+        st.markdown("---")
+        _render_user_notes_section("month", mes_seleccionado)
+        
+        # Lógica lenta de IA al final para no bloquear el renderizado de las notas
         if entries and mes_seleccionado == calcular_mes_fiscal(date.today()):
             from src.llm_service import is_llm_enabled, generate_quick_summary
             from src.i18n import get_language
             
             if is_llm_enabled():
-                # Cache key based only on month - generate once per session
-                cache_key = f"ai_summary_{mes_seleccionado}"
-                
-                # Check if we have a cached summary for this month
+                # Cache key includes month AND language
+                current_lang = get_language()
+                cache_key = f"ai_summary_{mes_seleccionado}_{current_lang}"
                 cached_summary = st.session_state.get('ai_summary_cache', {})
                 
                 if cached_summary.get('key') == cache_key and cached_summary.get('text'):
-                    # Use cached summary
                     summary = cached_summary['text']
                 else:
-                    # Generate new summary (only once per session per month)
                     expense_items = []
                     for e in entries:
                         if e.tipo_movimiento == TipoMovimiento.GASTO:
@@ -369,22 +373,22 @@ def render_analisis():
                                 'importe': float(e.importe)
                             })
                     
-                    with st.spinner("🤖 Generando comentario..."):
-                        summary = generate_quick_summary(
-                            income=kpis['total_ingresos'],
-                            expenses=kpis['total_gastos'],
-                            balance=kpis['balance_mes'],
-                            lang=get_language(),
-                            expense_items=expense_items
-                        )
+                    with ai_summary_placeholder.container():
+                        with st.spinner("🤖 Generando comentario..."):
+                            summary = generate_quick_summary(
+                                income=kpis['total_ingresos'],
+                                expenses=kpis['total_gastos'],
+                                balance=kpis['balance_mes'],
+                                lang=get_language(),
+                                expense_items=expense_items
+                            )
                     
-                    # Cache the result for this session
                     if summary:
                         st.session_state['ai_summary_cache'] = {'key': cache_key, 'text': summary}
                 
                 if summary:
-                    st.markdown(f"*{summary}*")
-    
+                    ai_summary_placeholder.markdown(f"*{summary}*")
+        
     with col_grafico:
         # 1. Gráfico de Gastos por Categoría (Nuevo)
         st.markdown(f"### {t('analisis.expenses_by_category.title')}")
@@ -410,23 +414,23 @@ def render_analisis():
                 hole=0.4,
                 textinfo='label+percent',
                 textposition='inside',
-                insidetextorientation='radial'
+                insidetextorientation='radial',
+                textfont_size=20
             )])
             
             fig_cat.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font_color='white',
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=300,
+                font_size=10,
+                margin=dict(t=10, b=10, l=10, r=10),
+                height=400,
                 showlegend=False
             )
             
             st.plotly_chart(fig_cat, use_container_width=True)
         else:
             st.info(t('analisis.movements.no_movements'))
-            
-        st.divider()
 
         if enable_relevance:
             st.markdown(f"### {t('analisis.spending_quality.title')}")
@@ -446,22 +450,90 @@ def render_analisis():
                 fig = go.Figure(data=[go.Pie(
                     labels=labels,
                     values=values,
-                    hole=0.6,
+                    hole=0.4,
                     marker_colors=colors,
-                    textinfo='percent',
-                    textfont_size=14
+                    textinfo='label+percent',
+                    textposition='inside',
+                    insidetextorientation='radial',
+                    textfont_size=16
                 )])
                 
                 fig.update_layout(
-                    showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.2),
+                    showlegend=False,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font_color='white',
-                    margin=dict(t=20, b=20, l=20, r=20),
-                    height=300
+                    font_size=10,
+                    margin=dict(t=10, b=10, l=10, r=10),
+                    height=400
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info(t('analisis.spending_quality.no_data'))
+
+
+def _render_user_notes_section(period_type: str, period_identifier: str):
+    """Renderiza la sección de notas del usuario con editor de texto enriquecido."""
+    from src.database import get_period_notes, save_period_notes
+    
+    try:
+        from streamlit_quill import st_quill
+        quill_available = True
+    except ImportError:
+        quill_available = False
+        st.warning("⚠️ Para usar el editor de texto rico, instala: `pip install streamlit-quill`")
+    
+    # Intentar cargar notas existentes
+    try:
+        current_notes = get_period_notes(period_type, period_identifier) or ""
+    except Exception:
+        current_notes = ""
+        
+    # Mostrar notificación si viene de un guardado exitoso
+    toast_key = f"toast_notes_{period_type}_{period_identifier}"
+    if st.session_state.get(toast_key):
+        st.success("✅ Notas guardadas")
+        st.session_state[toast_key] = False
+
+    st.markdown("### 📝 Notas del Mes")
+    
+    if quill_available:
+        # Editor de texto enriquecido con streamlit-quill
+        content = st_quill(
+            value=current_notes,
+            placeholder="Escribe tus anotaciones, conclusiones o recordatorios...",
+            html=True,
+            toolbar=[
+                [{'header': [1, 2, 3, False]}],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{'list': 'ordered'}, {'list': 'bullet'}],
+                [{'color': []}, {'background': []}],
+                ['clean']
+            ],
+            key=f"quill_editor_{period_type}_{period_identifier}"
+        )
+        
+        # Botón de guardar fuera del editor
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("💾 Guardar Notas", type="primary", use_container_width=True):
+                save_period_notes(period_type, period_identifier, content if content else "")
+                st.session_state[toast_key] = True
+                st.rerun()
+    else:
+        # Fallback: editor simple de texto plano
+        form_key = f"notes_form_{period_type}_{period_identifier}"
+        
+        with st.form(form_key):
+            new_notes = st.text_area(
+                "Espacio para tus anotaciones, conclusiones o recordatorios:",
+                value=current_notes,
+                height=150,
+                key=f"txt_{period_type}_{period_identifier}"
+            )
+            
+            if st.form_submit_button("Guardar Notas"):
+                save_period_notes(period_type, period_identifier, new_notes)
+                st.session_state[toast_key] = True
+                st.rerun()

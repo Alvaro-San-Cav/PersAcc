@@ -22,6 +22,10 @@ from collections import defaultdict
 
 from . import llm_prompts
 from .config import get_currency_symbol
+from .constants import (
+    LLM_TIMEOUT_QUICK, LLM_TIMEOUT_LONG, 
+    LLM_MAX_RESPONSE_LENGTH, LLM_MAX_MOVEMENTS_DISPLAY
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -242,7 +246,8 @@ Principales gastos:
 
 Instrucciones:
 - Haz comentarios ingeniosos sobre los gastos específicos si los hay
-- Usa máximo 1-2 emojis, no más
+- El balance normalmente es positivo, así que no comentes sobre él a menos que sea negativo. Si los gastos son muy altos pero el balance sigue siendo positivo, puedes mencionarlo como algo positivo (ej: "¡Qué gastos de Navidad y Reyes! 🎄 ¡Pero el balance sigue siendo positivo! 💰").
+- Usa máximo 1-2 emojis
 - Sé directo y conciso
 - No uses introducciones como "Vaya" o "Bueno"
 - Responde SOLO el comentario, nada más"""
@@ -259,7 +264,8 @@ Top expenses:
 
 Instructions:
 - Make witty comments about specific expenses if available
-- Use maximum 1-2 emojis, no more
+- The balance is normally positive, so do not comment on it unless it is negative. Exception: if expenses are very high, you can highlight that the balance remains positive (e.g., "What holiday spending! 🎄 But the balance is still positive! 💰").
+- Use maximum 2-3 emojis
 - Be direct and concise
 - Don't use introductions like "Well" or "So"
 - Reply ONLY with the comment, nothing else"""
@@ -285,7 +291,8 @@ Instructions:
         if is_qwen:
             payload["think"] = False
         
-        response = requests.post(OLLAMA_API_URL, json=payload, timeout=15)
+        # Call API - shorter timeout for quick summary
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=LLM_TIMEOUT_QUICK)
         
         if response.status_code == 200:
             result = response.json()
@@ -297,8 +304,8 @@ Instructions:
                 # Remove quotes if present
                 if text.startswith('"') and text.endswith('"'):
                     text = text[1:-1]
-                if len(text) > 200:
-                    text = text[:197] + "..."
+                if len(text) > LLM_MAX_RESPONSE_LENGTH:
+                    text = text[:(LLM_MAX_RESPONSE_LENGTH-3)] + "..."
                 return text
             else:
                 # Debug: show thinking content if available (v2 - with think:False)
@@ -430,7 +437,7 @@ def analyze_financial_period(
         response = requests.post(
             OLLAMA_API_URL,
             json=payload,
-            timeout=180  # 3 minutos - modelos grandes pueden tardar más
+            timeout=LLM_TIMEOUT_LONG  # Timeout configurable desde constants
         )
         
         if response.status_code == 200:
@@ -563,7 +570,7 @@ def _build_spanish_prompt(data: Dict[str, Any], period_type: str, movements: lis
             is_current_period = (period_date.year == now.year and period_date.month == now.month)
             if is_current_period:
                 template_vars['period_context'] = f" (MES EN CURSO - datos hasta el día {now.day})"
-        except:
+        except Exception:
             pass
     
     # Select appropriate template
@@ -610,7 +617,7 @@ def _build_english_prompt(data: Dict[str, Any], period_type: str, movements: lis
             is_current_period = (period_date.year == now.year and period_date.month == now.month)
             if is_current_period:
                 template_vars['period_context'] = f" (CURRENT MONTH - data through day {now.day})"
-        except:
+        except Exception:
             pass
     
     # Select appropriate template
@@ -697,8 +704,30 @@ def _validate_and_normalize_params(
     Returns:
         Tuple of (normalized_params, validation_errors)
     """
+    # VALID TOOLS & PARAMETERS
+    TOOL_PARAMS = {
+        "search_expenses_by_concept": ["concept", "year", "month"],
+        "search_expenses_by_category": ["category_name", "year", "month"],
+        "get_top_expenses": ["limit", "year", "month"],
+        "get_category_breakdown": ["year", "month"],
+        "get_savings_rate": ["year", "month"],
+        "get_total_by_type": ["movement_type", "year", "month"]
+    }
+    
     normalized = params.copy()
     errors = []
+    
+    # FILTER: Remove unknown parameters to prevent TypeError in tool functions
+    if tool_name in TOOL_PARAMS:
+        allowed = set(TOOL_PARAMS[tool_name])
+        # Also keep any params that might be used by _validate (none currently but safe to keep known logic params if we had any)
+        # But strictly for the tool function call, we must filter.
+        keys_to_remove = [k for k in normalized.keys() if k not in allowed]
+        if keys_to_remove:
+            logger.warning(f"Removing invalid parameters for {tool_name}: {keys_to_remove}")
+            for k in keys_to_remove:
+                del normalized[k]
+    
     now = datetime.now()
     
     # Detect season in the message
@@ -983,6 +1012,10 @@ def chat_with_tools(user_message: str, available_tools: List[Dict[str, Any]], co
     # Initialize search context
     search_ctx = SearchContext(message=user_message)
     
+    # Import streamlit para guardar contexto en session_state
+    # NOTE: Esto acopla este servicio a Streamlit - considerar refactorizar en el futuro
+    import streamlit as st
+    
     try:
         # PASO 1: Extraer herramienta y parámetros usando LLM
         llm_extraction = _llm_extract_tool_and_params(user_message, available_tools, context)
@@ -1054,7 +1087,6 @@ def chat_with_tools(user_message: str, available_tools: List[Dict[str, Any]], co
             error_msg += "\n Por favor, reformula tu pregunta."
             
             # Guardar trace para debugging
-            import streamlit as st
             st.session_state['last_search_trace'] = search_ctx.to_dict()
             
             return error_msg
@@ -1064,7 +1096,6 @@ def chat_with_tools(user_message: str, available_tools: List[Dict[str, Any]], co
         raw_result = tool_function(**validated_params)
         
         # Guardar contexto para preguntas de seguimiento
-        import streamlit as st
         st.session_state['last_search_context'] = {
             'tool': tool_to_use['name'],
             'params': validated_params,
@@ -1083,7 +1114,6 @@ def chat_with_tools(user_message: str, available_tools: List[Dict[str, Any]], co
         logger.error(f"Error in chat_with_tools: {e}")
         
         # Guardar error trace
-        import streamlit as st
         search_ctx.validation_errors.append(f"Error de ejecución: {str(e)}")
         st.session_state['last_search_trace'] = search_ctx.to_dict()
         

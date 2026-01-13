@@ -52,6 +52,9 @@ temp_import.csv
 # Legacy Tools
 tools/
 
+# Debug/Dev Files
+debug_*.py
+
 # Packaging
 build/
 dist/

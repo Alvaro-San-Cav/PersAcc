@@ -3,11 +3,11 @@ Lógica de negocio para el sistema de finanzas personales.
 Implementa: Calculadora de KPIs, Algoritmo de Cierre, Análisis de Gastos.
 """
 from datetime import date, datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from pathlib import Path
 import calendar
 
-from .models import TipoMovimiento, LedgerEntry, SnapshotMensual, CierreMensual
+from .models import TipoMovimiento, LedgerEntry, SnapshotMensual, CierreMensual, Categoria
 from .database import (
     get_ledger_by_month, insert_snapshot, get_latest_snapshot,
     insert_ledger_entry, get_all_categorias,
@@ -15,12 +15,49 @@ from .database import (
     DEFAULT_DB_PATH
 )
 from .constants import (
-    NOMINA_KEYWORDS,
     CATEGORIA_SALARIO, CATEGORIA_INVERSION_SALARIO, CATEGORIA_INVERSION_REMANENTE,
     CATEGORIA_INVERSION_EXTRA, STOPWORDS_ES, MIN_WORD_LENGTH, DEFAULT_WORD_LIMIT
 )
+from .i18n import get_salary_keywords
 
 
+# ============================================================================
+# UTILIDADES DE DETECCIÓN
+# ============================================================================
+
+def es_entrada_salario(entry: LedgerEntry, categorias: List[Categoria] = None) -> bool:
+    """
+    Determina si una entrada del ledger corresponde a un salario/nómina.
+    
+    Usa keywords multiidioma desde i18n para máxima compatibilidad.
+    
+    Criterios (cualquiera es suficiente):
+    1. La categoría de la entrada contiene palabras clave de salario
+    2. El concepto de la entrada contiene palabras clave de salario
+    
+    Args:
+        entry: Entrada del ledger a verificar
+        categorias: Lista de categorías (opcional, se carga si no se provee)
+        
+    Returns:
+        True si la entrada parece ser un salario/nómina
+        
+    Examples:
+        >>> entry = LedgerEntry(..., concepto="Nómina Enero")
+        >>> es_entrada_salario(entry)
+        True
+    """
+    keywords = get_salary_keywords()
+    
+    # Criterio 1: Verificar si la categoría contiene keywords de salario
+    if categorias:
+        cat = next((c for c in categorias if c.id == entry.categoria_id), None)
+        if cat and any(kw in cat.nombre.lower() for kw in keywords):
+            return True
+    
+    # Criterio 2: Verificar si el concepto contiene keywords de salario
+    concepto = (entry.concepto or "").lower()
+    return any(kw in concepto for kw in keywords)
 
 
 
@@ -425,7 +462,7 @@ def ejecutar_cierre_mes(
 # CÁLCULOS ANUALES
 # ============================================================================
 
-def calcular_kpis_anuales(anio: int, db_path: Path = DEFAULT_DB_PATH) -> Dict:
+def calcular_kpis_anuales(anio: int, db_path: Path = DEFAULT_DB_PATH) -> Dict[str, float]:
     """
     Calcula los KPIs agregados de un año completo.
     
@@ -434,7 +471,14 @@ def calcular_kpis_anuales(anio: int, db_path: Path = DEFAULT_DB_PATH) -> Dict:
         db_path: Ruta a la base de datos
     
     Returns:
-        Diccionario con estadísticas anuales
+        Diccionario con estadísticas anuales:
+        {
+            'total_ingresos': float,
+            'total_gastos': float,
+            'total_inversion': float,
+            'ahorro_total': float,
+            'pct_ahorro': float (0-100)
+        }
     """
     from .database import get_ledger_by_year, get_all_categorias
     
@@ -531,7 +575,12 @@ def calcular_kpis_anuales(anio: int, db_path: Path = DEFAULT_DB_PATH) -> Dict:
 # ANÁLISIS AVANZADO
 # ============================================================================
 
-def get_word_counts(entries: list[LedgerEntry], filter_type: TipoMovimiento = TipoMovimiento.GASTO, min_length: int = MIN_WORD_LENGTH, limit: int = DEFAULT_WORD_LIMIT) -> dict[str, int]:
+def get_word_counts(
+    entries: List[LedgerEntry], 
+    filter_type: TipoMovimiento = TipoMovimiento.GASTO, 
+    min_length: int = MIN_WORD_LENGTH, 
+    limit: int = DEFAULT_WORD_LIMIT
+) -> List[tuple]:
     """
     Cuenta la frecuencia de palabras en los conceptos.
     Ignora stop words comunes en español.

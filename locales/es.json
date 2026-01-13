@@ -5,7 +5,7 @@
         "cierre": "🔒 Cierre de Mes",
         "historico": "📅 Histórico",
         "proyecciones": "🔮 Proyecciones",
-        "chat_search": "💬 Chat Search",
+        "chat_search": "💬 Asistente IA",
         "utilidades": "🔧 Utilidades"
     },
     "loading_tips": [
@@ -55,6 +55,11 @@
         "no_growth_detected": "No hay crecimiento significativo",
         "recent_months_only": "últimos {months} meses",
         "no_insights": "Acumula más datos para generar insights automáticos.",
+        "chart_historical": "Histórico",
+        "chart_projected": "Proyectado",
+        "axis_months": "Meses",
+        "axis_year": "Año",
+        "current_year_note": "ℹ️ **Año {year}**: La media mensual muestra el promedio REAL de {historical_months} mes(es) transcurrido(s). El total anual combina datos reales + proyección de los {projected_months} meses restantes.",
         "insights": {
             "income_trend_positive": {
                 "title": "Tendencia de ingresos positiva",
@@ -136,7 +141,35 @@
         "error": "Error al procesar la consulta",
         "no_messages": "Aún no hay mensajes. ¡Haz tu primera pregunta!",
         "you": "Tú",
-        "assistant": "Asistente"
+        "assistant": "Asistente",
+        "active_model": "🤖 Modelo activo: **{model}**",
+        "analyze_button": "Analizar",
+        "months": [
+            "Todos",
+            "Enero",
+            "Febrero",
+            "Marzo",
+            "Abril",
+            "Mayo",
+            "Junio",
+            "Julio",
+            "Agosto",
+            "Septiembre",
+            "Octubre",
+            "Noviembre",
+            "Diciembre"
+        ],
+        "category_label": "Categoría:",
+        "year_label": "Año (0=todos):",
+        "month_label": "Mes:",
+        "search_type_label": "Tipo de búsqueda:",
+        "execute_button": "🔎 Ejecutar",
+        "results_title": "📊 Resultados",
+        "new_search": "🔄 Nueva búsqueda",
+        "llm_disabled": "❌ El LLM no está habilitado",
+        "ollama_not_running": "❌ Ollama no está corriendo",
+        "ollama_hint": "🚀 Inicia Ollama desde: https://ollama.com/download",
+        "analyzing": "✅ Analizando con IA ({model})..."
     },
     "consequences": {
         "title": "⚖️ Reglas Consecuencias",
@@ -303,8 +336,17 @@
                 "title": "Paso 3: Retenciones",
                 "surplus_label": "% Retener del Remanente",
                 "salary_label": "% Retener de la Nómina",
+                "surplus_help": "Porcentaje del saldo sobrante a enviar a inversión",
+                "salary_help": "Porcentaje de la nueva nómina a enviar a inversión",
                 "back_button": "← Anterior",
                 "next_button": "Calcular →"
+            },
+            "step5": {
+                "closed_month": "Mes cerrado",
+                "retention_executed": "Retención ejecutada",
+                "new_month_balance": "Saldo inicial nuevo mes",
+                "salary_registered": "💰 Al cerrar **{closed_month}** se ha registrado el salario de **{next_month}**: **{amount}**",
+                "new_closure_button": "🆕 Nuevo Cierre"
             },
             "step4": {
                 "title": "Paso 4: Confirmación",
@@ -312,14 +354,27 @@
                 "back_button": "← Anterior",
                 "execute_button": "✅ CONFIRMAR CIERRE",
                 "success": "✅ ¡Mes anterior cerrado correctamente!",
-                "error": "❌ Error al ejecutar cierre: {error}"
+                "error": "❌ Error al ejecutar cierre: {error}",
+                "metric_bank_balance": "Saldo Banco Actual",
+                "metric_new_salary": "Nueva Nómina",
+                "metric_manual_retentions": "Retenciones Manuales",
+                "metric_surplus_retention": "Retención Remanente",
+                "metric_salary_retention": "Retención Nómina",
+                "metric_consequences": "⚖️ Retención Consecuencias",
+                "metric_total_investment": "💎 Total a Inversión",
+                "metric_new_transfer": "nueva",
+                "metric_new_month_balance": "🏦 Saldo Inicio Nuevo Mes",
+                "metric_calculated_balance": "📊 Saldo Calculado",
+                "metric_deviation_ok": "✅ Desviación",
+                "metric_deviation_warn": "⚠️ Desviación",
+                "metric_review": "Revisar"
             }
         }
     },
     "historico": {
         "title": "📅 Análisis Histórico",
         "loading_data": "Cargando datos históricos...",
-        "period_selector": "📆 Ver datos de",
+        "period_selector": "📆 Seleccionar Período",
         "full_year": "Año completo",
         "chart_click_hint": "💡 Haz clic en una barra para ver el detalle de ese mes",
         "month_summary": "📊 Resumen del Mes",
@@ -327,6 +382,7 @@
         "year_selector": "📆 Seleccionar Año",
         "no_data": "No hay datos registrados aún.",
         "no_entries": "No hay entradas registradas para {year}.",
+        "no_entries_month": "No hay entradas para {month}",
         "year_summary": "📊 Resumen del Año",
         "kpis": {
             "income": "🟢 Ingresos",
@@ -335,6 +391,9 @@
             "investment": "💎 Inversión Ejecutada",
             "savings_percent": "📈 % Ahorro"
         },
+        "notes_title": "📝 Anotaciones ({period})",
+        "notes_success": "✅ Anotaciones de {period} guardadas",
+        "no_notes": "No hay anotaciones registradas para {period}",
         "averages": {
             "title": "Promedios Mensuales",
             "income": "Ingreso Medio",
@@ -509,6 +568,10 @@
             "llm_model_help": "Elige el modelo de Ollama a utilizar. Modelos más grandes ofrecen mejor calidad pero requieren más RAM y son más lentos.",
             "llm_no_models": "📚 Descarga un modelo con: `ollama pull phi3` o `ollama pull tinyllama`",
             "llm_not_running": "🚀 Instala Ollama desde https://ollama.com/download y asegúrate de que esté ejecutándose.",
+            "ai_config_title": "##### 🤖 Configuración del Modelo IA",
+            "ollama_detected": "✅ Ollama detectado con {count} modelo(s) disponible(s)",
+            "ollama_no_models_warn": "⚠️ Ollama está corriendo pero no hay modelos instalados.",
+            "ollama_not_running_err": "❌ Ollama no está corriendo o no está instalado",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
             "section_closing_title": "#### 🔒 Método de Cierre de Mes",
@@ -524,7 +587,7 @@
             "section2_info": "Estos textos se sugerirán al añadir entradas de cada categoría.",
             "input_placeholder": "Concepto default para {cat}...",
             "button": "💾 Guardar Cambios",
-            "success": "Configuración guardada"
+            "success": "✅ Configuración guardada"
         }
     }
 }

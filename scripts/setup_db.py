@@ -9,7 +9,7 @@ import sqlite3
 from pathlib import Path
 
 # Ruta de la base de datos
-DB_PATH = Path(__file__).parent / "data" / "finanzas.db"
+DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
 
 # Añadir src al path para poder importar config
 import sys
@@ -99,6 +99,17 @@ def create_tables(conn: sqlite3.Connection):
             created_at DATETIME NOT NULL,
             model_used TEXT,
             lang TEXT,
+            PRIMARY KEY (period_type, period_identifier)
+        )
+    """)
+
+    # Tabla para notas persistentes del usuario
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS PERIOD_NOTES (
+            period_type TEXT NOT NULL,
+            period_identifier TEXT NOT NULL,
+            note_text TEXT,
+            updated_at TIMESTAMP,
             PRIMARY KEY (period_type, period_identifier)
         )
     """)

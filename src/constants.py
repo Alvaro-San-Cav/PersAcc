@@ -27,10 +27,6 @@ CATEGORIA_INVERSION_EXTRA = "Inversion extra"
 # PALABRAS CLAVE DE DETECCIÓN
 # ============================================================================
 
-# Palabras que identifican una nómina en el concepto
-# DEPRECATED: Usar get_salary_keywords() de src.i18n para soporte multiidioma
-NOMINA_KEYWORDS = ["nomina", "nómina", "salario", "sueldo", "paga"]
-
 # Stop words para análisis de texto en español
 STOPWORDS_ES = {
     "de", "la", "el", "en", "y", "a", "los", "del", "las", "un", "una",
@@ -98,6 +94,24 @@ RELEVANCIA_BG_COLORS = {
 MIN_WORD_LENGTH = 3  # Longitud mínima de palabra para análisis
 DEFAULT_WORD_LIMIT = 20  # Número de palabras a mostrar en análisis
 DEFAULT_TOP_ENTRIES = 10  # Número de entradas top a mostrar
+
+# Alturas de elementos UI (en píxeles)
+DATAFRAME_HEIGHT_SMALL = 300
+DATAFRAME_HEIGHT_MEDIUM = 400
+DATAFRAME_HEIGHT_LARGE = 600
+
+# ============================================================================
+# CONFIGURACIÓN LLM
+# ============================================================================
+
+# Timeouts para llamadas a Ollama (en segundos)
+LLM_TIMEOUT_QUICK = 15     # Para resúmenes rápidos
+LLM_TIMEOUT_STANDARD = 30  # Para búsquedas
+LLM_TIMEOUT_LONG = 180     # Para análisis completos (3 minutos)
+
+# Límites de texto para LLM
+LLM_MAX_RESPONSE_LENGTH = 200  # Truncar respuestas largas
+LLM_MAX_MOVEMENTS_DISPLAY = 30  # Máximo movimientos a mostrar en prompt
 
 # ============================================================================
 # FORMATOS

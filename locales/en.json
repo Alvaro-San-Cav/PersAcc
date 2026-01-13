@@ -55,6 +55,11 @@
         "no_growth_detected": "No significant growth detected",
         "recent_months_only": "last {months} months",
         "no_insights": "Accumulate more data to generate automatic insights.",
+        "chart_historical": "Historical",
+        "chart_projected": "Projected",
+        "axis_months": "Months",
+        "axis_year": "Year",
+        "current_year_note": "ℹ️ **Year {year}**: The monthly average shows the ACTUAL average of {historical_months} elapsed month(s). The annual total combines actual data + projection for the remaining {projected_months} months.",
         "insights": {
             "income_trend_positive": {
                 "title": "Positive Income Trend",
@@ -136,7 +141,35 @@
         "error": "Error processing query",
         "no_messages": "No messages yet. Ask your first question!",
         "you": "You",
-        "assistant": "Assistant"
+        "assistant": "Assistant",
+        "active_model": "🤖 Active model: **{model}**",
+        "analyze_button": "Analyze",
+        "months": [
+            "All",
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December"
+        ],
+        "category_label": "Category:",
+        "year_label": "Year (0=all):",
+        "month_label": "Month:",
+        "search_type_label": "Search type:",
+        "execute_button": "🔎 Execute",
+        "results_title": "📊 Results",
+        "new_search": "🔄 New search",
+        "llm_disabled": "❌ LLM is not enabled",
+        "ollama_not_running": "❌ Ollama is not running",
+        "ollama_hint": "🚀 Start Ollama from: https://ollama.com/download",
+        "analyzing": "✅ Analyzing with AI ({model})..."
     },
     "consequences": {
         "title": "⚖️ Consequences Rules",
@@ -303,8 +336,17 @@
                 "title": "Step 3: Retentions",
                 "surplus_label": "% to retain from surplus",
                 "salary_label": "% to retain from salary",
+                "surplus_help": "Percentage of surplus balance to transfer to investment",
+                "salary_help": "Percentage of new salary to transfer to investment",
                 "back_button": "← Previous",
                 "next_button": "Calculate →"
+            },
+            "step5": {
+                "closed_month": "Closed month",
+                "retention_executed": "Retention executed",
+                "new_month_balance": "New month starting balance",
+                "salary_registered": "💰 When closing **{closed_month}**, the salary for **{next_month}** was registered: **{amount}**",
+                "new_closure_button": "🆕 New Closure"
             },
             "step4": {
                 "title": "Step 4: Confirmation",
@@ -312,14 +354,27 @@
                 "back_button": "← Previous",
                 "execute_button": "✅ CONFIRM CLOSING",
                 "success": "✅ Previous month closed successfully!",
-                "error": "❌ Error executing closing: {error}"
+                "error": "❌ Error executing closing: {error}",
+                "metric_bank_balance": "Current Bank Balance",
+                "metric_new_salary": "New Salary",
+                "metric_manual_retentions": "Manual Retentions",
+                "metric_surplus_retention": "Surplus Retention",
+                "metric_salary_retention": "Salary Retention",
+                "metric_consequences": "⚖️ Consequences Retention",
+                "metric_total_investment": "💎 Total Investment",
+                "metric_new_transfer": "new",
+                "metric_new_month_balance": "🏦 New Month Starting Balance",
+                "metric_calculated_balance": "📊 Calculated Balance",
+                "metric_deviation_ok": "✅ Deviation",
+                "metric_deviation_warn": "⚠️ Deviation",
+                "metric_review": "Review"
             }
         }
     },
     "historico": {
         "title": "📅 Historic Analysis",
         "loading_data": "Loading historical data...",
-        "period_selector": "📆 View data for",
+        "period_selector": "📆 Select Period",
         "full_year": "Full Year",
         "chart_click_hint": "💡 Click on a bar to see that month's details",
         "month_summary": "📊 Month Summary",
@@ -327,6 +382,7 @@
         "year_selector": "📆 Select Year",
         "no_data": "No data recorded yet.",
         "no_entries": "No entries recorded for {year}.",
+        "no_entries_month": "No entries for {month}",
         "year_summary": "📊 Year Summary",
         "kpis": {
             "income": "🟢 Income",
@@ -335,6 +391,9 @@
             "investment": "💎 Investment Executed",
             "savings_percent": "📈 % Savings"
         },
+        "notes_title": "📝 Annotations ({period})",
+        "notes_success": "✅ Annotations for {period} saved",
+        "no_notes": "No annotations recorded for {period}",
         "averages": {
             "title": "Monthly Averages",
             "income": "Avg Income",
@@ -510,6 +569,10 @@
             "llm_model_help": "Choose the Ollama model to use. Larger models offer better quality but require more RAM and are slower.",
             "llm_no_models": "📚 Download a model with: `ollama pull phi3` or `ollama pull tinyllama`",
             "llm_not_running": "🚀 Install Ollama from https://ollama.com/download and make sure it's running.",
+            "ai_config_title": "##### 🤖 AI Model Configuration",
+            "ollama_detected": "✅ Ollama detected with {count} model(s) available",
+            "ollama_no_models_warn": "⚠️ Ollama is running but no models are installed.",
+            "ollama_not_running_err": "❌ Ollama is not running or not installed",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
             "section_closing_title": "#### 🔒 Month Closing Method",
@@ -525,7 +588,7 @@
             "section2_info": "These texts will be suggested when adding entries for each category.",
             "input_placeholder": "Default concept for {cat}...",
             "button": "💾 Save Changes",
-            "success": "Configuration saved"
+            "success": "✅ Configuration saved"
         }
     }
 }

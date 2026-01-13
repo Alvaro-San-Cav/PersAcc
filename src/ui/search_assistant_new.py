@@ -20,15 +20,15 @@ from src.config import format_currency
 
 def render_chat_search():
     """Renderiza el Asistente de Búsqueda con formulario editable."""
-    st.markdown('<div class="main-header"><h1>🔍 Asistente de Búsqueda</h1></div>', unsafe_allow_html=True)
-    st.markdown("*Describe lo que buscas en lenguaje natural y ajusta los parámetros*")
+    st.markdown(f'<div class="main-header"><h1>{t("chat_search.title")}</h1></div>', unsafe_allow_html=True)
+    st.markdown(f"*{t('chat_search.subtitle')}*")
     
     if not is_llm_enabled():
-        st.warning("⚠️ El servicio de LLM no está configurado. Ve a Utilidades > Configuración de IA.")
+        st.warning(t("chat_search.llm_not_configured"))
         return
     
     llm_config = get_llm_config()
-    st.caption(f"🤖 Modelo activo: **{llm_config.get('model_tier', 'desconocido')}**")
+    st.caption(t("chat_search.active_model", model=llm_config.get('model_tier', 'desconocido')))
     
     if 'search_params' not in st.session_state:
         st.session_state.search_params = None
@@ -40,11 +40,11 @@ def render_chat_search():
     # Input + Analizar
     col1, col2 = st.columns([5, 1])
     with col1:
-        query = st.text_input("🔍 ¿Qué buscas?", placeholder="Ej: gastos en transporte el mes pasado", key="q_in")
+        query = st.text_input("🔍", placeholder=t("chat_search.input_placeholder"), key="q_in", label_visibility="collapsed")
     with col2:
         st.write(""); st.write("")
-        if st.button("Analizar", use_container_width=True, type="primary") and query:
-            with st.spinner("🧠 Analizando..."):
+        if st.button(t("chat_search.analyze_button"), use_container_width=True, type="primary") and query:
+            with st.spinner(t("chat_search.thinking")):
                 _extract_params(query)
     
     st.markdown("---")
@@ -55,8 +55,8 @@ def render_chat_search():
     
     # Resultados
     if st.session_state.search_results:
-        st.markdown("### 📊 Resultados")
-        if st.button("🔄 Nueva búsqueda"):
+        st.markdown(f"### {t('chat_search.results_title')}")
+        if st.button(t('chat_search.new_search')):
             st.session_state.search_params = None
             st.session_state.search_results = None
             st.rerun()
@@ -72,18 +72,18 @@ def _extract_params(query):
         
         # 1. Verificaciones previas
         if not is_llm_enabled():
-            st.error("❌ El LLM no está habilitado")
+            st.error(t('chat_search.llm_disabled'))
             return
         
         if not check_ollama_running():
-            st.error("❌ Ollama no está corriendo")
-            st.info("🚀 Inicia Ollama desde: https://ollama.com/download")
+            st.error(t('chat_search.ollama_not_running'))
+            st.info(t('chat_search.ollama_hint'))
             return
             
         llm_config = get_llm_config()
         model = llm_config.get('model_tier') or 'phi3'
         
-        st.success(f"✅ Analizando con IA ({model})...")
+        st.success(t('chat_search.analyzing', model=model))
         
         # 2. Construir Prompt Robusto
         tools_spec = [
@@ -213,16 +213,16 @@ def _render_form():
                         if c.lower() == extracted_cat:
                             cat_idx = i
                             break
-                val = st.selectbox("Categoría:", cats, index=cat_idx)
+                val = st.selectbox(t('chat_search.category_label'), cats, index=cat_idx)
             elif tipo == "Mayores gastos":
                 lim = st.number_input("Top:", value=p['params'].get('limit', 10), min_value=1)
         with col2:
-            yr = st.number_input("Año (0=todos):", value=p['params'].get('year', 0), min_value=0, max_value=datetime.now().year)
-            meses = ["Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            yr = st.number_input(t('chat_search.year_label'), value=p['params'].get('year', 0), min_value=0, max_value=datetime.now().year)
+            meses = t('chat_search.months')
             mes_idx = p['params'].get('month', 0) or 0
-            mes = st.selectbox("Mes:", meses, index=mes_idx)
+            mes = st.selectbox(t('chat_search.month_label'), meses, index=mes_idx)
         
-        if st.form_submit_button("🔎 Ejecutar", use_container_width=True, type="primary"):
+        if st.form_submit_button(t('chat_search.execute_button'), use_container_width=True, type="primary"):
             tool = {v: k for k, v in tool_map.items()}[tipo]
             params = {}
             if tipo == "Por concepto" and val:
@@ -233,7 +233,7 @@ def _render_form():
                 params['limit'] = lim
             if yr > 0:
                 params['year'] = yr
-            if mes != "Todos":
+            if mes != meses[0]:  # Check against "All"/"Todos" dynamically
                 params['month'] = meses.index(mes)
             _execute(tool, params)
 

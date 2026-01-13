@@ -4,11 +4,16 @@ Renderiza la interfaz de utilidades.
 """
 import streamlit as st
 import subprocess
+import csv
+import sys
 from datetime import date
 from pathlib import Path
+from io import StringIO
 import pandas as pd
 
 from src.config import get_currency_symbol, load_config, save_config
+from src.database import get_all_categorias, get_category_counts, get_all_ledger_entries, DEFAULT_DB_PATH
+from src.models import TipoMovimiento
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
 from src.i18n import t, get_language, set_language, get_language_flag, get_language_name
@@ -240,7 +245,7 @@ def render_utilidades():
                     try:
                         conn.execute("DELETE FROM SNAPSHOTS_MENSUALES")
 
-                    except:
+                    except Exception:
                         pass
                 st.session_state['delete_success'] = t('utilidades.cleanup.option1_success', count=entries_count)
                 st.rerun()
@@ -268,7 +273,7 @@ def render_utilidades():
                     try:
                         conn.execute("DELETE FROM SNAPSHOTS_MENSUALES")
 
-                    except:
+                    except Exception:
                         pass
                 
                 # Regenerar categorías por defecto
@@ -700,14 +705,14 @@ def render_utilidades():
         if enable_llm:
             from src.llm_service import check_ollama_running, get_available_models
             
-            st.markdown("##### 🤖 Configuración del Modelo IA")
+            st.markdown(t('utilidades.config.ai_config_title'))
             
             # Verificar si Ollama está corriendo
             if check_ollama_running():
                 available_models = get_available_models()
                 
                 if available_models:
-                    st.success(f"✅ Ollama detectado con {len(available_models)} modelo(s) disponible(s)")
+                    st.success(t('utilidades.config.ollama_detected', count=len(available_models)))
                     
                     current_model = config.get('llm', {}).get('model_tier', 'light')
                     
@@ -725,11 +730,11 @@ def render_utilidades():
                         key="config_llm_model"
                     )
                 else:
-                    st.warning("⚠️ Ollama está corriendo pero no hay modelos instalados.")
+                    st.warning(t('utilidades.config.ollama_no_models_warn'))
                     st.info(t('utilidades.config.llm_no_models'))
                     selected_model = config.get('llm', {}).get('model_tier', 'light')
             else:
-                st.error("❌ Ollama no está corriendo o no está instalado")
+                st.error(t('utilidades.config.ollama_not_running_err'))
                 st.info(t('utilidades.config.llm_not_running'))
                 selected_model = config.get('llm', {}).get('model_tier', 'light')
 
