@@ -1,0 +1,37 @@
+IMPORTANT INFORMATION FOR WINDOWS USERS / INFORMACIÓN IMPORTANTE PARA USUARIOS DE WINDOWS
+========================================================================================
+
+When running the installer, you might see a blue window saying:
+"Windows protected your PC" (Microsoft Defender SmartScreen)
+
+This happens because this software is independent and does not have a costly digital signature certificate (~$400/year). It does NOT mean the file is malicious.
+
+to PROCEED:
+1. Click on "More info" (Más información).
+2. Click on "Run anyway" (Ejecutar de todas formas).
+
+----------------------------------------------------------------------------------------
+
+Al ejecutar el instalador, es posible que vea una ventana azul que dice:
+"Windows protegió su PC" (Microsoft Defender SmartScreen)
+
+Esto ocurre porque este software es independiente y no cuenta con un costoso certificado de firma digital (~400€/año). NO significa que el archivo sea malicioso.
+
+PARA CONTINUAR:
+1. Haga clic en "Más información".
+2. Haga clic en "Ejecutar de todas formas".
+
+========================================================================================
+PersAcc - Personal Finance Assistant
+Open Source Software
+
+SECURITY WARNING / ADVERTENCIA DE SEGURIDAD
+----------------------------------------------------------------------------------------
+If you have acquired this software from a third party, DO NOT install it as it may have been modified.
+You can obtain the original version at:
+https://github.com/Alvaro-San-Cav/PersAcc
+
+Si ha adquirido este software de un tercero, NO lo instale pues podría haber sido modificado.
+Puede obtener la versión original en:
+https://github.com/Alvaro-San-Cav/PersAcc
+========================================================================================
