@@ -25,7 +25,6 @@
 - **CSV Import/Export** - Migrate from other apps or create backups
 
 #### 🤖 AI-Powered Features (Ollama)
-- **Intelligent Chat Assistant** - Ask questions in natural language about your finances
 - **Ledger AI Commentary** - Witty AI-generated comments on your monthly spending
 - **Period Analysis** - Deep AI analysis of months or years with personalized recommendations
 - **Smart Search** - Natural language queries with automatic parameter extraction
@@ -34,13 +33,10 @@
 - **Historical Dashboard** - Annual KPIs, monthly evolution, and trend analysis
 - **ML Projections** - Predict salaries, expenses, and investments for 5+ years
 - **Spending Quality Analysis** - Visual NE/LI/SUP/TON breakdown
-- **Period Annotations** - Personal notes per month or year
-- **Interactive Charts** - Plotly-powered visualizations with historical vs projected data
+
 
 #### 🌍 User Experience
 - **Multi-language** - Spanish and English
-- **Multi-currency** - EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL
-- **Lazy Loading** - Fast startup with on-demand section loading
 - **Built-in Manual** - Complete user guide in both languages
 
 ## 🚀 Quick Start
@@ -75,7 +71,8 @@ PersAcc uses **Ollama** for local AI processing (completely offline and free).
 1. **Install Ollama**: Download from [ollama.com](https://ollama.com/download)
 2. **Download a model**:
    ```bash
-   ollama pull phi3  # Recommended (2.3GB, balanced)
+   ollama pull phi3  # Recommended for balance (2.3GB)
+   # Or: ollama pull qwen3:8b  # Author's current used
    # Or: ollama pull tinyllama (0.6GB, fast)
    # Or: ollama pull mistral (4.1GB, quality)
    ```
