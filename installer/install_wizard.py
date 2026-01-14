@@ -168,7 +168,7 @@ TRANSLATIONS = {
         'installing_dir': 'Creating directory...',
         'installing_files': 'Copying files...',
         'installing_venv': 'Creating virtual environment...',
-        'installing_deps': 'Installing dependencies...',
+        'installing_deps': 'Downloading and installing dependencies...',
         'installing_db': 'Setting up database...',
         'installing_launch': 'Creating launchers...',
         'installing_short': 'Creating desktop shortcut...',
@@ -186,7 +186,8 @@ TRANSLATIONS = {
         'install_complete': 'Installation complete!',
         'python_desc': 'Python is the runtime required to execute this application.\nThe installer needs it to set up the environment.',
         'internet_desc': 'Required ONLY during installation to download necessary software libraries.\nThe application works 100% offline afterwards.',
-        'ollama_desc': 'Ollama is a tool that runs AI models LOCALLY on your PC.\nIt provides privacy, zero monthly costs, and powers the Smart Search and Analysis features.',
+        'ollama_desc': 'Ollama (by Ollama Inc.) is an open-source tool that runs large language models (LLMs) LOCALLY on your PC.\n\nKey benefits: Total privacy (data never leaves your computer), zero recurring costs, and offline operation after initial model download.\n\nCreated by the team behind Docker, Ollama makes AI accessible to everyone.',
+        'ollama_download': '🌐 Download from: https://ollama.com',
         'python_ok': '✅ Python detected',
         'python_not_found': '❌ Python not found in PATH',
         'internet_ok': '✅ Internet connection',
@@ -234,7 +235,7 @@ TRANSLATIONS = {
         'installing_dir': 'Creando directorio...',
         'installing_files': 'Copiando archivos...',
         'installing_venv': 'Creando entorno virtual...',
-        'installing_deps': 'Instalando dependencias...',
+        'installing_deps': 'Descargando e instalando dependencias...',
         'installing_db': 'Configurando base de datos...',
         'installing_launch': 'Creando lanzadores...',
         'installing_short': 'Creando acceso directo...',
@@ -269,7 +270,8 @@ EXPERIENCIA DE USUARIO
         'install_complete': '¡Instalación completada!',
         'python_desc': 'Python es el motor necesario para ejecutar esta aplicación.\nEl instalador lo necesita para configurar el entorno.',
         'internet_desc': 'Necesario SOLO durante la instalación para bajar librerías.\nLa aplicación funciona 100% desconectada después.',
-        'ollama_desc': 'Ollama es una herramienta que ejecuta modelos de IA LOCALMENTE en su PC.\nOfrece privacidad total, coste cero y potencia la Búsqueda Inteligente.',
+        'ollama_desc': 'Ollama (por Ollama Inc.) es una herramienta de código abierto que ejecuta modelos de lenguaje (LLMs) LOCALMENTE en tu PC.\n\nBeneficios clave: Privacidad total (los datos nunca salen de tu ordenador), coste cero recurrente, y funcionamiento offline tras la descarga inicial del modelo.\n\nCreado por el equipo detrás de Docker, Ollama hace la IA accesible para todos.',
+        'ollama_download': '🌐 Descargar desde: https://ollama.com',
         'python_ok': '✅ Python detectado',
         'python_not_found': '❌ Python no encontrado en PATH',
         'internet_ok': '✅ Conexión a Internet',
@@ -631,9 +633,18 @@ La base de datos se inicializa con el idioma seleccionado. Puede cambiar el idio
         else:
             ttk.Label(status_frame, text=self._t('status_not_found'), 
                       foreground='orange', font=('Segoe UI', 10, 'bold')).pack(anchor='w')
-            ttk.Label(status_frame, 
-                      text=self._t('status_install_hint'),
-                      font=('Segoe UI', 9)).pack(anchor='w')
+            
+            # Download link - make it prominent and clickable-looking
+            download_frame = ttk.Frame(status_frame)
+            download_frame.pack(anchor='w', pady=(5, 0))
+            
+            download_label = ttk.Label(download_frame, 
+                                      text=self._t('ollama_download'),
+                                      font=('Segoe UI', 10, 'underline'), 
+                                      foreground='blue',
+                                      cursor='hand2')
+            download_label.pack(side='left')
+            download_label.bind('<Button-1>', lambda e: self._open_ollama_website())
         
         # Checkbox
         ttk.Checkbutton(self.container, text=self._t('ai_check'), 
@@ -646,6 +657,11 @@ La base de datos se inicializa con el idioma seleccionado. Puede cambiar el idio
             return True
         except:
             return False
+    
+    def _open_ollama_website(self):
+        """Open Ollama download page in default browser."""
+        import webbrowser
+        webbrowser.open('https://ollama.com')
     
     # =========================================================================
     # PAGE: Install

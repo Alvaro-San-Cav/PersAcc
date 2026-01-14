@@ -120,7 +120,7 @@ def create_tables(conn: sqlite3.Connection):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tipo ON LEDGER(tipo_movimiento)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_anio ON LEDGER(substr(mes_fiscal, 1, 4))")
     
-    print("✓ Tablas creadas correctamente")
+    print("[OK] Tablas creadas correctamente")
 
 
 def insert_relevancia_codes(conn: sqlite3.Connection):
@@ -138,7 +138,7 @@ def insert_relevancia_codes(conn: sqlite3.Connection):
             (code, descripcion)
         )
     
-    print("✓ Códigos de relevancia insertados")
+    print("[OK] Códigos de relevancia insertados")
 
 
 def insert_default_categories(conn: sqlite3.Connection):
@@ -191,7 +191,7 @@ def insert_default_categories(conn: sqlite3.Connection):
             (nombre, tipo)
         )
     
-    print(f"✓ {len(categorias)} categorías por defecto insertadas")
+    print(f"[OK] {len(categorias)} categorías por defecto insertadas")
 
 
 def setup_database():
@@ -217,7 +217,7 @@ def setup_database():
         conn.commit()
         
         print("-" * 50)
-        print("✅ Base de datos configurada exitosamente!")
+        print("[SUCCESS] Base de datos configurada exitosamente!")
         
         # Verificar tablas creadas
         tables = conn.execute(
@@ -227,7 +227,7 @@ def setup_database():
         
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         raise
     finally:
         conn.close()

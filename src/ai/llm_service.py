@@ -14,11 +14,9 @@ Installation:
 import json
 import requests
 import logging
-from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass, field
-from collections import defaultdict
 
 from . import prompts as llm_prompts
 from ..config import get_currency_symbol
@@ -35,37 +33,15 @@ logger = logging.getLogger(__name__)
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 
-# Model configurations - reference for common models
-# Users can use ANY model name from Ollama directly in config.json
+# NOTE: Models are now detected dynamically from Ollama.
+# The config stores the actual model name (e.g., 'qwen3:8b', 'phi3', 'llama3').
+# MODEL_TIERS is kept only for backward compatibility with old configs
+# that may have 'light', 'standard', etc. as model_tier value.
 MODEL_TIERS = {
-    "light": {
-        "model_name": "tinyllama",
-        "size_gb": 0.6,
-        "ram_gb": 4,
-        "quality": "⭐⭐",
-        "pull_command": "ollama pull tinyllama"
-    },
-    "standard": {
-        "model_name": "phi3",
-        "size_gb": 2.3,
-        "ram_gb": 6,
-        "quality": "⭐⭐⭐",
-        "pull_command": "ollama pull phi3"
-    },
-    "quality": {
-        "model_name": "mistral",
-        "size_gb": 4.1,
-        "ram_gb": 8,
-        "quality": "⭐⭐⭐⭐",
-        "pull_command": "ollama pull mistral"
-    },
-    "premium": {
-        "model_name": "llama3",
-        "size_gb": 4.7,
-        "ram_gb": 12,
-        "quality": "⭐⭐⭐⭐⭐",
-        "pull_command": "ollama pull llama3"
-    }
+    "light": "tinyllama",
+    "standard": "phi3",
+    "quality": "mistral",
+    "premium": "llama3"
 }
 
 # ============================================================================
@@ -217,13 +193,14 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
         llm_config = get_llm_config()
         model_name = llm_config.get('model_tier', 'tinyllama')
         
-        # Verify model exists
+        # Resolve model with fallback
         available_models = get_available_models()
-        if not available_models:
-            return f"[DEBUG: Sin modelos - ejecuta 'ollama pull phi3']" if DEBUG else ""
+        resolved_model = _resolve_model_name(model_name, available_models)
         
-        if model_name not in available_models:
-            return f"[DEBUG: Modelo '{model_name}' no encontrado. Disponibles: {', '.join(available_models[:3])}]" if DEBUG else ""
+        if not resolved_model:
+            return f"[DEBUG: Sin modelos - ejecuta 'ollama pull phi3']" if DEBUG else ""
+            
+        model_name = resolved_model
         
         # Build expense details text
         expense_text = ""
@@ -302,6 +279,36 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
         return f"[DEBUG: Error - {str(e)[:100]}]" if DEBUG else ""
 
 
+def _resolve_model_name(requested_name: str, available_models: list = None) -> str:
+    """
+    Returns the best available model.
+    1. If `requested_name` is in available -> use it.
+    2. If not, use first available model.
+    3. If no models available -> None.
+    """
+    if available_models is None:
+        if not check_ollama_running():
+            return None
+        available_models = get_available_models()
+    
+    if not available_models:
+        return None
+        
+    # 1. Exact match / Partial match logic could be added here if names are complex
+    # But for now, simple check
+    if requested_name in available_models:
+        return requested_name
+        
+    # 2. Check for partial matches (e.g. "llama3" matching "llama3:latest")
+    for m in available_models:
+        if requested_name in m:
+            return m
+
+    # 3. Fallback to first available
+    logger.warning(f"Model '{requested_name}' not found. Using fallback: '{available_models[0]}'")
+    return available_models[0]
+
+
 def analyze_financial_period(
     data: Dict[str, Any],
     period_type: str,
@@ -312,27 +319,6 @@ def analyze_financial_period(
 ) -> str:
     """
     Generate AI commentary for a financial period using Ollama.
-    
-    Args:
-        data: Financial data dictionary with keys like:
-            - income: Total income
-            - expenses: Total expenses
-            - balance: Net balance
-            - investment: Investment amount
-            - savings_percent: Savings percentage
-            - period: Period identifier (e.g., "2024", "January 2024")
-        period_type: "year" or "month"
-        lang: Language code ("es" or "en")
-        model_tier: Model tier to use (or direct model name)
-        max_tokens: Maximum tokens for response
-        movements: Optional list of individual movements (entries)
-        
-    Returns:
-        Generated commentary text
-        
-    Raises:
-        ConnectionError: If Ollama is not running
-        ValueError: If model is not available
     """
     # Check if Ollama is running
     if not check_ollama_running():
@@ -341,10 +327,10 @@ def analyze_financial_period(
             "Instala Ollama desde https://ollama.com/download y asegúrate de que esté corriendo."
         )
     
-    # Determine model name - can be a tier or direct model name
+    # Determine model name - can be a legacy tier or direct model name
     if model_tier in MODEL_TIERS:
-        model_config = MODEL_TIERS[model_tier]
-        model_name = model_config["model_name"]
+        # Legacy tier name -> convert to model name
+        model_name = MODEL_TIERS[model_tier]
     else:
         # Use as direct model name
         model_name = model_tier
@@ -352,22 +338,17 @@ def analyze_financial_period(
     # Get available models
     available_models = get_available_models()
     
-    # Check if exact model or any version is available
-    model_available = any(model_name in model for model in available_models)
+    # Resolve model with fallback
+    resolved_model = _resolve_model_name(model_name, available_models)
     
-    if not model_available:
-        # Suggest first available model if any
-        if available_models:
-            raise ValueError(
-                f"El modelo '{model_name}' no está descargado.\n"
-                f"Modelos disponibles: {', '.join(available_models[:5])}\n"
-                f"Cambia 'model_tier' en config.json a uno de estos nombres."
-            )
-        else:
-            raise ValueError(
-                f"No hay modelos descargados en Ollama.\n"
-                f"Ejecuta: ollama pull tinyllama (o cualquier otro modelo)"
-            )
+    if not resolved_model:
+        raise ValueError(
+            f"No hay modelos descargados en Ollama.\n"
+            f"Ejecuta: ollama pull tinyllama (o cualquier otro modelo)"
+        )
+    
+    # Update model_name to the actually resolved one
+    model_name = resolved_model
     
     # Build prompt based on language
     if lang == "es":
@@ -617,13 +598,8 @@ def is_llm_enabled() -> bool:
         True if LLM is enabled, False otherwise
     """
     try:
-        config_path = Path(__file__).parent.parent.parent / "data" / "config.json"
-        if not config_path.exists():
-            return False
-        
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        
+        from ..config import load_config
+        config = load_config()
         return config.get("llm", {}).get("enabled", False)
     except Exception as e:
         logger.error(f"Error reading config: {e}")
@@ -638,34 +614,16 @@ def get_llm_config() -> Dict[str, Any]:
         Dictionary with LLM configuration
     """
     try:
-        config_path = Path(__file__).parent.parent.parent / "data" / "config.json"
-        if not config_path.exists():
-            return {"enabled": False, "model_tier": "light", "max_tokens": 400}
-        
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        
+        from ..config import load_config
+        config = load_config()
         return config.get("llm", {
             "enabled": False,
-            "model_tier": "light",
+            "model_tier": "phi3",
             "max_tokens": 400
         })
     except Exception as e:
         logger.error(f"Error reading LLM config: {e}")
-        return {"enabled": False, "model_tier": "light", "max_tokens": 400}
-
-
-def get_model_info(model_tier: str = "light") -> Dict[str, Any]:
-    """
-    Get information about a model tier.
-    
-    Args:
-        model_tier: Model tier name
-        
-    Returns:
-        Dictionary with model information
-    """
-    return MODEL_TIERS.get(model_tier, MODEL_TIERS["light"])
+        return {"enabled": False, "model_tier": "phi3", "max_tokens": 400}
 
 
 def _validate_and_normalize_params(

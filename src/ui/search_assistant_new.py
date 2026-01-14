@@ -3,12 +3,9 @@ Asistente de Búsqueda - PersAcc
 UI con formulario editable para parámetros de búsqueda.
 """
 import streamlit as st
-from datetime import datetime, date
 import json
 import re
-import unicodedata
 from typing import List, Dict, Any
-from collections import defaultdict
 from difflib import SequenceMatcher
 
 from src.i18n import t
@@ -28,7 +25,25 @@ def render_chat_search():
         return
     
     llm_config = get_llm_config()
-    st.caption(t("chat_search.active_model", model=llm_config.get('model_tier', 'desconocido')))
+    # El modelo se guarda directamente como nombre en config.json
+    target_model = llm_config.get('model_tier', 'phi3')
+        
+    # 2. Verificar disponibilidad real usando helper centralizado
+    from src.ai.llm_service import _resolve_model_name
+    
+    final_model_name = _resolve_model_name(target_model)
+    is_autodetected = final_model_name and final_model_name != target_model and (target_model not in final_model_name)
+    
+    if not final_model_name:
+        st.error(t('chat_search.ollama_not_running'))
+        return
+
+    # Mostrar en UI
+    display_text = final_model_name
+    if is_autodetected:
+        display_text += f" ({t('chat_search.autodetected')})"
+        
+    st.caption(t("chat_search.active_model", model=display_text))
     
     if 'search_params' not in st.session_state:
         st.session_state.search_params = None
@@ -45,7 +60,7 @@ def render_chat_search():
         st.write(""); st.write("")
         if st.button(t("chat_search.analyze_button"), use_container_width=True, type="primary") and query:
             with st.spinner(t("chat_search.thinking")):
-                _extract_params(query)
+                _extract_params(query, final_model_name)
     
     st.markdown("---")
     
@@ -53,17 +68,19 @@ def render_chat_search():
     if st.session_state.search_params:
         _render_form()
     
-    # Resultados
+    # Resultados (con verificación de seguridad antes de renderizar)
     if st.session_state.search_results:
         st.markdown(f"### {t('chat_search.results_title')}")
         if st.button(t('chat_search.new_search')):
             st.session_state.search_params = None
             st.session_state.search_results = None
             st.rerun()
-        st.markdown(st.session_state.search_results['result'])
+        # Asegurar que 'result' existe antes de mostrar
+        if isinstance(st.session_state.search_results, dict) and 'result' in st.session_state.search_results:
+             st.markdown(st.session_state.search_results['result'])
 
 
-def _extract_params(query):
+def _extract_params(query, model_name=None):
     """Extrae parámetros usando LLM con prompt específico (sin librería ollama)."""
     try:
         import requests
@@ -80,10 +97,12 @@ def _extract_params(query):
             st.info(t('chat_search.ollama_hint'))
             return
             
-        llm_config = get_llm_config()
-        model = llm_config.get('model_tier') or 'phi3'
+        if not model_name:
+            llm_config = get_llm_config()
+            # El modelo se guarda directamente como nombre
+            model_name = llm_config.get('model_tier', 'phi3')
         
-        st.success(t('chat_search.analyzing', model=model))
+        st.success(t('chat_search.analyzing', model=model_name))
         
         # 2. Construir Prompt Robusto
         tools_spec = [
@@ -127,7 +146,7 @@ FORMATO RESPUESTA:
         
         # 3. Llamada directa a API Ollama (sin librería externa)
         payload = {
-            "model": model,
+            "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query}

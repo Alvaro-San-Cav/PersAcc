@@ -6,14 +6,19 @@ import streamlit as st
 import subprocess
 import csv
 import sys
+import uuid
 from datetime import date
 from pathlib import Path
 from io import StringIO
 import pandas as pd
 
 from src.config import get_currency_symbol, load_config, save_config
-from src.database import get_all_categorias, get_category_counts, get_all_ledger_entries, DEFAULT_DB_PATH
-from src.models import TipoMovimiento
+from src.database import (
+    get_all_categorias, get_category_counts, get_all_ledger_entries, 
+    DEFAULT_DB_PATH, get_connection, insert_categoria, update_categoria,
+    delete_categoria, deactivate_categoria
+)
+from src.models import TipoMovimiento, Categoria
 from src.ui.manual import render_manual
 from src.ui.manual_en import render_manual_en
 from src.i18n import t, get_language, set_language, get_language_flag, get_language_name
@@ -186,7 +191,8 @@ def render_utilidades():
                     
                     try:
                         # Construir comando base use sys.executable for safety
-                        cmd = [sys.executable, "migration.py", str(temp_path)]
+                        migration_script = Path("scripts") / "migration.py"
+                        cmd = [sys.executable, str(migration_script), str(temp_path)]
                         if is_ingreso:
                             cmd.append("--ingresos")
                         elif is_inversion:
@@ -277,7 +283,8 @@ def render_utilidades():
                         pass
                 
                 # Regenerar categorías por defecto
-                subprocess.run([sys.executable, "setup_db.py"], cwd=str(DEFAULT_DB_PATH.parent.parent), capture_output=True)
+                setup_script = Path("scripts") / "setup_db.py"
+                subprocess.run([sys.executable, str(setup_script)], cwd=str(DEFAULT_DB_PATH.parent.parent), capture_output=True)
                 
                 st.session_state['delete_success'] = t('utilidades.cleanup.option2_success')
                 st.rerun()
