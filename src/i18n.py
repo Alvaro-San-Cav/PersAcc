@@ -98,12 +98,16 @@ def t(key: str, **kwargs) -> str:
         else:
             return key
     
-    # Convertir a string si es necesario
-    if not isinstance(value, str):
+    # Si es una lista, devolverla directamente sin interpolar
+    if isinstance(value, list):
+        return value
+    
+    # Convertir a string si es necesario (pero no listas)
+    if not isinstance(value, (str, list)):
         return key
     
-    # Interpolación de variables
-    if kwargs:
+    # Interpolación de variables (solo para strings)
+    if kwargs and isinstance(value, str):
         try:
             value = value.format(**kwargs)
         except (KeyError, ValueError):

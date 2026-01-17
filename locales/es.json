@@ -589,5 +589,24 @@
             "button": "💾 Guardar Cambios",
             "success": "✅ Configuración guardada"
         }
+    },
+    "llm": {
+        "not_enabled": "El servicio de LLM no está habilitado. Por favor, actívalo en Utilidades > Configuración de IA.",
+        "assistant_intro": "🤖 Soy el asistente financiero de **PersAcc**. No tengo información sobre eso, pero puedo ayudarte con tus finanzas personales.",
+        "try_questions": "**Prueba preguntas como:**",
+        "example_restaurants": "¿Cuánto gasté en restaurantes este mes?",
+        "example_expenses": "¿Cuáles son mis mayores gastos del 2024?",
+        "example_savings": "¿Cuál es mi tasa de ahorro?",
+        "example_search": "Busca gastos de *[concepto]*",
+        "validation_errors": "⚠️ **Problemas con tu consulta:**",
+        "rephrase": "Por favor, reformula tu pregunta.",
+        "future_year_error": "No puedo consultar datos del futuro (año {year}). El año actual es {current_year}.",
+        "past_year_error": "El año {year} parece incorrecto. ¿Quisiste decir {current_year}?",
+        "invalid_month": "Mes inválido: {month}. Debe estar entre 1 y 12.",
+        "future_month_error": "No puedo consultar datos del futuro (mes {month}/{year}).",
+        "concept_short": "El concepto de búsqueda '{concept}' es demasiado corto.",
+        "limit_invalid": "Límite inválido: {limit}. Debe ser un número positivo.",
+        "limit_adjusted": "Límite muy alto: {limit}. Ajustado a 100.",
+        "processing_error": "Lo siento, hubo un error al procesar tu consulta: {error}"
     }
 }

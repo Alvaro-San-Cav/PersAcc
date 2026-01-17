@@ -6,16 +6,55 @@ import sqlite3
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import date, datetime
-from typing import Optional, List
-import streamlit as st
+from typing import Optional, List, Callable
+from functools import wraps
 
-from .models import (
+from src.models import (
     TipoMovimiento, RelevanciaCode, RELEVANCIA_DESCRIPTIONS,
     Categoria, LedgerEntry, SnapshotMensual, CierreMensual
 )
 
 # Ruta por defecto de la base de datos
 DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
+
+# =============================================================================
+# CACHE WRAPPER - Agnóstico de Streamlit
+# =============================================================================
+
+# Intentar usar el cache de Streamlit si está disponible, sino usar functools.lru_cache
+_streamlit_available = False
+_st_cache_data = None
+
+try:
+    import streamlit as st
+    _streamlit_available = True
+    _st_cache_data = st.cache_data
+except ImportError:
+    pass
+
+
+def cache_data(show_spinner: bool = False) -> Callable:
+    """
+    Decorador de caché compatible con y sin Streamlit.
+    Si Streamlit está disponible, usa st.cache_data.
+    Si no, usa functools.lru_cache como fallback.
+    """
+    def decorator(func: Callable) -> Callable:
+        if _streamlit_available and _st_cache_data:
+            return _st_cache_data(show_spinner=show_spinner)(func)
+        else:
+            from functools import lru_cache
+            return lru_cache(maxsize=128)(func)
+    return decorator
+
+
+def _clear_cache():
+    """Invalidar toda la cache de datos."""
+    if _streamlit_available:
+        import streamlit as st
+        st.cache_data.clear()
+    # Para lru_cache se necesitaría mantener referencias a las funciones cacheadas
+    # pero en contexto de Streamlit esto es suficiente
 
 
 @contextmanager
@@ -34,12 +73,6 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH):
         conn.close()
 
 
-
-def _clear_cache():
-    """Invalidar toda la cache de datos."""
-    st.cache_data.clear()
-
-
 # ============================================================================
 # OPERACIONES CAT_MAESTROS
 # ============================================================================
@@ -56,7 +89,7 @@ def insert_categoria(categoria: Categoria, db_path: Path = DEFAULT_DB_PATH) -> i
         return cursor.lastrowid
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_all_categorias(db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
     """Obtiene todas las categorías activas."""
     with get_connection(db_path) as conn:
@@ -74,7 +107,7 @@ def get_all_categorias(db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
         ]
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_categorias_by_tipo(tipo: TipoMovimiento, db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
     """Obtiene categorías filtradas por tipo de movimiento."""
     with get_connection(db_path) as conn:
@@ -243,7 +276,7 @@ def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe
         _clear_cache()
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_ledger_by_month(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas de un mes fiscal específico."""
     with get_connection(db_path) as conn:
@@ -256,7 +289,7 @@ def get_ledger_by_month(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Lis
         return [_row_to_ledger_entry(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_ledger_by_year(anio: int, db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas de un año específico."""
     with get_connection(db_path) as conn:
@@ -269,7 +302,7 @@ def get_ledger_by_year(anio: int, db_path: Path = DEFAULT_DB_PATH) -> List[Ledge
         return [_row_to_ledger_entry(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_all_ledger_entries(db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas del libro diario."""
     with get_connection(db_path) as conn:
@@ -279,7 +312,7 @@ def get_all_ledger_entries(db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]
         return [_row_to_ledger_entry(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
+@cache_data(show_spinner=False)
 def get_available_years(db_path: Path = DEFAULT_DB_PATH) -> List[int]:
     """Obtiene lista de años con datos en el LEDGER."""
     with get_connection(db_path) as conn:

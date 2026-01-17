@@ -9,7 +9,6 @@ Centraliza valores mágicos y configuraciones para facilitar mantenimiento.
 
 
 # Porcentajes de retención por defecto
-# Porcentajes de retención por defecto
 DEFAULT_PCT_RETENCION_REMANENTE = 0.20
 DEFAULT_PCT_RETENCION_SALARIO = 0.30  # 30%
 
@@ -105,13 +104,18 @@ DATAFRAME_HEIGHT_LARGE = 600
 # ============================================================================
 
 # Timeouts para llamadas a Ollama (en segundos)
-LLM_TIMEOUT_QUICK = 15     # Para resúmenes rápidos
-LLM_TIMEOUT_STANDARD = 30  # Para búsquedas
-LLM_TIMEOUT_LONG = 180     # Para análisis completos (3 minutos)
+# - QUICK: Para resúmenes de una línea y verificaciones de estado
+# - STANDARD: Para búsquedas de chat y extracción de parámetros
+# - LONG: Para análisis financieros profundos que requieren más procesamiento
+LLM_TIMEOUT_QUICK = 15     # Resúmenes rápidos: max 15s
+LLM_TIMEOUT_STANDARD = 30  # Búsquedas/chat: max 30s
+LLM_TIMEOUT_LONG = 180     # Análisis completos: max 3 minutos
 
 # Límites de texto para LLM
-LLM_MAX_RESPONSE_LENGTH = 200  # Truncar respuestas largas
-LLM_MAX_MOVEMENTS_DISPLAY = 30  # Máximo movimientos a mostrar en prompt
+# - MAX_RESPONSE_LENGTH: Evita respuestas demasiado largas en UI
+# - MAX_MOVEMENTS_DISPLAY: Limita datos enviados al LLM para eficiencia
+LLM_MAX_RESPONSE_LENGTH = 200  # Caracteres máximos en respuesta
+LLM_MAX_MOVEMENTS_DISPLAY = 30  # Máximo movimientos a incluir en prompt
 
 # ============================================================================
 # FORMATOS

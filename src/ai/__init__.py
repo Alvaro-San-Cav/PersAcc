@@ -12,7 +12,7 @@ Uso:
 """
 
 # Re-exportar funciones principales para facilitar imports
-from .llm_service import (
+from src.ai.llm_service import (
     is_llm_enabled,
     check_ollama_running,
     get_available_models,
@@ -21,7 +21,7 @@ from .llm_service import (
     get_llm_config
 )
 
-from .ml_engine import (
+from src.ai.ml_engine import (
     project_salaries,
     project_investments,
     project_expenses,

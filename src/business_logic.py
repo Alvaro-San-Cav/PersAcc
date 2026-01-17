@@ -7,18 +7,18 @@ from typing import Dict, Optional, List
 from pathlib import Path
 import calendar
 
-from .models import TipoMovimiento, LedgerEntry, SnapshotMensual, CierreMensual, Categoria
-from .database import (
+from src.models import TipoMovimiento, LedgerEntry, SnapshotMensual, CierreMensual, Categoria
+from src.database import (
     get_ledger_by_month, insert_snapshot, get_latest_snapshot,
     insert_ledger_entry, get_all_categorias,
     get_cierre_mes, upsert_cierre_mes, is_mes_cerrado, abrir_mes,
     DEFAULT_DB_PATH
 )
-from .constants import (
+from src.constants import (
     CATEGORIA_SALARIO, CATEGORIA_INVERSION_SALARIO, CATEGORIA_INVERSION_REMANENTE,
     CATEGORIA_INVERSION_EXTRA, STOPWORDS_ES, MIN_WORD_LENGTH, DEFAULT_WORD_LIMIT
 )
-from .i18n import get_salary_keywords
+from src.i18n import get_salary_keywords
 
 
 # ============================================================================
@@ -168,7 +168,7 @@ def calcular_kpis_relevancia(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -
     Returns:
         Diccionario con totales por cada código de relevancia (NE, LI, SUP, TON)
     """
-    from .models import RelevanciaCode
+    from src.models import RelevanciaCode
     
     entries = get_ledger_by_month(mes_fiscal, db_path)
     gastos = [e for e in entries if e.tipo_movimiento == TipoMovimiento.GASTO]
@@ -471,7 +471,7 @@ def calcular_kpis_anuales(anio: int, db_path: Path = DEFAULT_DB_PATH) -> Dict[st
             'pct_ahorro': float (0-100)
         }
     """
-    from .database import get_ledger_by_year, get_all_categorias
+    from src.database import get_ledger_by_year, get_all_categorias
     
     entries = get_ledger_by_year(anio, db_path)
     

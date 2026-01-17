@@ -17,10 +17,11 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass, field
+from collections import defaultdict
 
-from . import prompts as llm_prompts
-from ..config import get_currency_symbol
-from ..constants import (
+from src.ai import prompts as llm_prompts
+from src.config import get_currency_symbol
+from src.constants import (
     LLM_TIMEOUT_QUICK, LLM_TIMEOUT_LONG, 
     LLM_MAX_RESPONSE_LENGTH, LLM_MAX_MOVEMENTS_DISPLAY
 )
@@ -496,12 +497,26 @@ def _build_movements_text(movements: list, period_type: str) -> str:
     return movements_text
 
 
-def _build_spanish_prompt(data: Dict[str, Any], period_type: str, movements: list = None) -> str:
-    """Build Spanish language prompt for financial analysis."""
-    now = datetime.now()
-    period = data.get("period", "período desconocido")
+def _build_prompt(data: Dict[str, Any], period_type: str, lang: str = "es", movements: list = None) -> str:
+    """
+    Build language-specific prompt for financial analysis.
     
-    # Prepare template variables
+    Args:
+        data: Financial data dictionary
+        period_type: "year" or "month"
+        lang: Language code ("es" or "en")
+        movements: List of movements to include
+        
+    Returns:
+        Formatted prompt string
+    """
+    now = datetime.now()
+    
+    # Language-specific defaults
+    default_period = "período desconocido" if lang == "es" else "unknown period"
+    period = data.get("period", default_period)
+    
+    # Prepare template variables (same for all languages)
     template_vars = {
         'period': period,
         'income': data.get("income", 0),
@@ -524,70 +539,46 @@ def _build_spanish_prompt(data: Dict[str, Any], period_type: str, movements: lis
     if period_type == "year":
         is_current_period = (str(period) == str(now.year))
         if is_current_period:
-            template_vars['period_context'] = f" (AÑO EN CURSO - datos hasta {now.strftime('%B %Y')})"
+            if lang == "es":
+                template_vars['period_context'] = f" (AÑO EN CURSO - datos hasta {now.strftime('%B %Y')})"
+            else:
+                template_vars['period_context'] = f" (CURRENT YEAR - data through {now.strftime('%B %Y')})"
     else:
         try:
             period_date = datetime.strptime(str(period), "%Y-%m")
             is_current_period = (period_date.year == now.year and period_date.month == now.month)
             if is_current_period:
-                template_vars['period_context'] = f" (MES EN CURSO - datos hasta el día {now.day})"
+                if lang == "es":
+                    template_vars['period_context'] = f" (MES EN CURSO - datos hasta el día {now.day})"
+                else:
+                    template_vars['period_context'] = f" (CURRENT MONTH - data through day {now.day})"
         except Exception:
             pass
     
-    # Select appropriate template
-    if period_type == "year":
-        template = llm_prompts.SPANISH_YEAR_CURRENT if is_current_period else llm_prompts.SPANISH_YEAR_CLOSED
-    else:
-        template = llm_prompts.SPANISH_MONTH_CURRENT if is_current_period else llm_prompts.SPANISH_MONTH_CLOSED
+    # Select appropriate template based on language and period
+    if lang == "es":
+        if period_type == "year":
+            template = llm_prompts.SPANISH_YEAR_CURRENT if is_current_period else llm_prompts.SPANISH_YEAR_CLOSED
+        else:
+            template = llm_prompts.SPANISH_MONTH_CURRENT if is_current_period else llm_prompts.SPANISH_MONTH_CLOSED
+    else:  # English
+        if period_type == "year":
+            template = llm_prompts.ENGLISH_YEAR_CURRENT if is_current_period else llm_prompts.ENGLISH_YEAR_CLOSED
+        else:
+            template = llm_prompts.ENGLISH_MONTH_CURRENT if is_current_period else llm_prompts.ENGLISH_MONTH_CLOSED
     
     return template.format(**template_vars)
+
+
+# Backward compatibility aliases
+def _build_spanish_prompt(data: Dict[str, Any], period_type: str, movements: list = None) -> str:
+    """Build Spanish language prompt for financial analysis. DEPRECATED: Use _build_prompt(lang='es')."""
+    return _build_prompt(data, period_type, lang="es", movements=movements)
 
 
 def _build_english_prompt(data: Dict[str, Any], period_type: str, movements: list = None) -> str:
-    """Build English language prompt for financial analysis."""
-    now = datetime.now()
-    period = data.get("period", "unknown period")
-    
-    # Prepare template variables
-    template_vars = {
-        'period': period,
-        'income': data.get("income", 0),
-        'expenses': data.get("expenses", 0),
-        'balance': data.get("balance", 0),
-        'investment': data.get("investment", 0),
-        'savings_pct': data.get("savings_percent", 0),
-        'movements_text': _build_movements_text(movements, period_type),
-        'current_month': now.strftime('%B %Y'),
-        'current_month_name': now.strftime('%B'),
-        'current_day': now.day,
-        'months_elapsed': now.month,
-        'months_remaining': 12 - now.month,
-        'days_remaining': 30 - now.day,
-        'period_context': ""
-    }
-    
-    # Determine if current period
-    is_current_period = False
-    if period_type == "year":
-        is_current_period = (str(period) == str(now.year))
-        if is_current_period:
-            template_vars['period_context'] = f" (CURRENT YEAR - data through {now.strftime('%B %Y')})"
-    else:
-        try:
-            period_date = datetime.strptime(str(period), "%Y-%m")
-            is_current_period = (period_date.year == now.year and period_date.month == now.month)
-            if is_current_period:
-                template_vars['period_context'] = f" (CURRENT MONTH - data through day {now.day})"
-        except Exception:
-            pass
-    
-    # Select appropriate template
-    if period_type == "year":
-        template = llm_prompts.ENGLISH_YEAR_CURRENT if is_current_period else llm_prompts.ENGLISH_YEAR_CLOSED
-    else:
-        template = llm_prompts.ENGLISH_MONTH_CURRENT if is_current_period else llm_prompts.ENGLISH_MONTH_CLOSED
-    
-    return template.format(**template_vars)
+    """Build English language prompt for financial analysis. DEPRECATED: Use _build_prompt(lang='en')."""
+    return _build_prompt(data, period_type, lang="en", movements=movements)
 
 
 def is_llm_enabled() -> bool:
@@ -598,7 +589,7 @@ def is_llm_enabled() -> bool:
         True if LLM is enabled, False otherwise
     """
     try:
-        from ..config import load_config
+        from src.config import load_config
         config = load_config()
         return config.get("llm", {}).get("enabled", False)
     except Exception as e:
@@ -614,7 +605,7 @@ def get_llm_config() -> Dict[str, Any]:
         Dictionary with LLM configuration
     """
     try:
-        from ..config import load_config
+        from src.config import load_config
         config = load_config()
         return config.get("llm", {
             "enabled": False,

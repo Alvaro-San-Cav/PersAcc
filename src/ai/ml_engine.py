@@ -18,8 +18,8 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-from ..database import get_all_ledger_entries, get_available_years, get_snapshots_by_year
-from ..models import TipoMovimiento, LedgerEntry
+from src.database import get_all_ledger_entries, get_available_years, get_snapshots_by_year
+from src.models import TipoMovimiento, LedgerEntry
 
 
 def _get_monthly_aggregates(entries: List[LedgerEntry], tipo: TipoMovimiento) -> Dict[str, float]:
@@ -355,8 +355,8 @@ def generate_insights() -> List[Dict]:
     Returns:
         Lista de insights con tipo, mensaje y severidad
     """
-    from ..database import get_all_categorias
-    from ..i18n import t
+    from src.database import get_all_categorias
+    from src.i18n import t
     
     # Get category names mapping
     cats = get_all_categorias()
@@ -550,7 +550,7 @@ def project_expenses(years_ahead: int = 5) -> Dict:
     Returns:
         Dict con proyecciones de gastos
     """
-    from ..i18n import t
+    from src.i18n import t
     entries = get_all_ledger_entries()
     monthly_exp = _get_monthly_aggregates(entries, TipoMovimiento.GASTO)
     

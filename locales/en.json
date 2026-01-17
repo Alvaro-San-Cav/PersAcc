@@ -590,5 +590,24 @@
             "button": "💾 Save Changes",
             "success": "✅ Configuration saved"
         }
+    },
+    "llm": {
+        "not_enabled": "LLM service is not enabled. Please enable it in Utilities > AI Configuration.",
+        "assistant_intro": "🤖 I'm the **PersAcc** financial assistant. I don't have information about that, but I can help you with your personal finances.",
+        "try_questions": "**Try questions like:**",
+        "example_restaurants": "How much did I spend on restaurants this month?",
+        "example_expenses": "What are my biggest expenses in 2024?",
+        "example_savings": "What is my savings rate?",
+        "example_search": "Search for expenses on *[concept]*",
+        "validation_errors": "⚠️ **Issues with your query:**",
+        "rephrase": "Please rephrase your question.",
+        "future_year_error": "Cannot query future data (year {year}). Current year is {current_year}.",
+        "past_year_error": "Year {year} seems incorrect. Did you mean {current_year}?",
+        "invalid_month": "Invalid month: {month}. Must be between 1 and 12.",
+        "future_month_error": "Cannot query future data (month {month}/{year}).",
+        "concept_short": "Search concept '{concept}' is too short.",
+        "limit_invalid": "Invalid limit: {limit}. Must be a positive number.",
+        "limit_adjusted": "Limit too high: {limit}. Adjusted to 100.",
+        "processing_error": "Sorry, there was an error processing your query: {error}"
     }
 }

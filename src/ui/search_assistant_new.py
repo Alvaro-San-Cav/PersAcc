@@ -5,8 +5,11 @@ UI con formulario editable para parámetros de búsqueda.
 import streamlit as st
 import json
 import re
+import unicodedata
+from datetime import datetime
 from typing import List, Dict, Any
 from difflib import SequenceMatcher
+from collections import defaultdict
 
 from src.i18n import t
 from src.ai.llm_service import is_llm_enabled, get_llm_config
@@ -144,12 +147,17 @@ FORMATO RESPUESTA:
 }}
 """
         
+        # Para Qwen3: añadir /no_think para desactivar modo pensamiento
+        user_content = query
+        if 'qwen3' in model_name.lower() or 'qwen' in model_name.lower():
+            user_content = query + " /no_think"
+        
         # 3. Llamada directa a API Ollama (sin librería externa)
         payload = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
+                {"role": "user", "content": user_content}
             ],
             "stream": False,
             "format": "json",
@@ -157,13 +165,28 @@ FORMATO RESPUESTA:
         }
         
         try:
-            response = requests.post("http://localhost:11434/api/chat", json=payload, timeout=30)
+            response = requests.post("http://localhost:11434/api/chat", json=payload, timeout=120)
             response.raise_for_status()
             result = response.json()
             content = result.get('message', {}).get('content', '{}')
             
-            # Parsear JSON
-            data = json.loads(content)
+            # Limpiar respuesta (algunos modelos añaden texto antes/después del JSON)
+            content = content.strip()
+            
+            # Intentar encontrar JSON si hay texto envolvente
+            if not content.startswith('{'):
+                json_match = re.search(r'\{[^{}]*"tool"[^{}]*\}', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(0)
+            
+            # Debug: mostrar respuesta raw si falla
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as je:
+                st.warning(f"Respuesta del modelo (no es JSON válido): {content[:200]}...")
+                st.error(f"Error parseando JSON: {je}")
+                return
+            
             tool_name = data.get('tool')
             params = data.get('params', {})
             
@@ -175,6 +198,9 @@ FORMATO RESPUESTA:
                 if mes_lower in meses_dict:
                     params['month'] = meses_dict[mes_lower]
             
+        except requests.exceptions.Timeout:
+            st.error("⏱️ Timeout: El modelo tardó demasiado. Intenta con una consulta más simple.")
+            return
         except Exception as e:
             st.error(f"Error llamando al modelo: {e}")
             return
@@ -237,8 +263,17 @@ def _render_form():
                 lim = st.number_input("Top:", value=p['params'].get('limit', 10), min_value=1)
         with col2:
             yr = st.number_input(t('chat_search.year_label'), value=p['params'].get('year', 0), min_value=0, max_value=datetime.now().year)
+            # Lista de meses con fallback
             meses = t('chat_search.months')
-            mes_idx = p['params'].get('month', 0) or 0
+            if not meses or not isinstance(meses, list) or len(meses) == 0:
+                meses = ["Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            # Asegurar que el índice sea un entero válido dentro del rango
+            try:
+                mes_idx = int(p['params'].get('month', 0) or 0)
+            except (ValueError, TypeError):
+                mes_idx = 0
+            mes_idx = max(0, min(mes_idx, len(meses) - 1))
             mes = st.selectbox(t('chat_search.month_label'), meses, index=mes_idx)
         
         if st.form_submit_button(t('chat_search.execute_button'), use_container_width=True, type="primary"):
@@ -379,16 +414,17 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
     
     matched_entries = [entry for entry, score in matching]
     total = sum(e.importe for e in matched_entries)
-    result = f"Encontrados {len(matched_entries)} gastos con '{concept}':\n\n"
-    result += f"**Total: {format_currency(total)}**\n\n"
-    result += "Detalles:\n"
     
-    for e in sorted(matched_entries, key=lambda x: x.importe, reverse=True)[:10]:
+    # Construir tabla markdown
+    result = f"### Encontrados {len(matched_entries)} gastos con '{concept}'\n\n"
+    result += f"**💰 Total: {format_currency(total)}**\n\n"
+    result += "| Fecha | Concepto | Importe | Categoría |\n"
+    result += "|-------|----------|---------|----------|\n"
+    
+    for e in sorted(matched_entries, key=lambda x: x.importe, reverse=True):
         cat_name = cats_dict.get(e.categoria_id, "Sin categoría")
-        result += f"- {e.fecha_real.strftime('%d/%m/%Y')}: {e.concepto[:50]} - {format_currency(e.importe)} ({cat_name})\n"
-    
-    if len(matched_entries) > 10:
-        result += f"\n... y {len(matched_entries) - 10} más"
+        concepto_truncado = e.concepto[:40] + "..." if len(e.concepto) > 40 else e.concepto
+        result += f"| {e.fecha_real.strftime('%d/%m/%Y')} | {concepto_truncado} | {format_currency(e.importe)} | {cat_name} |\n"
     
     return result
 
