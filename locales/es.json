@@ -26,7 +26,7 @@
         "to_year": "📅 Hasta año",
         "calculating": "Calculando proyecciones con ML...",
         "salary_section": "Proyección de Salarios",
-        "investment_section": "Proyección de Inversión",
+        "investment_section": "Proyección de Inversión/Ahorro",
         "expenses_section": "Proyección de Gastos",
         "insights_section": "Insights y Recomendaciones",
         "trend": "Tendencia",
@@ -39,7 +39,7 @@
         "confidence": "Confianza",
         "yearly_breakdown": "📋 Desglose Anual",
         "salary": "Salario",
-        "investment": "Inversión",
+        "investment": "Inversión/Ahorro",
         "expenses": "Gastos",
         "savings_rate": "Tasa de Ahorro",
         "projected_annual": "Proyección {year}",
@@ -227,6 +227,12 @@
             "date_label": "Fecha",
             "amount_label": "Importe",
             "relevance_label": "Relevancia",
+            "relevance_descriptions": {
+                "NE": "Necesario / Inevitable",
+                "LI": "Me gusta / Disfrute consciente",
+                "SUP": "Superfluo / Optimizable",
+                "TON": "Tontería / Error de gasto"
+            },
             "liquidity_flag": "Falta de liquidez",
             "submit_button": "💾 Guardar Movimiento",
             "success_message": "✅ Movimiento guardado correctamente",
@@ -251,7 +257,7 @@
         "types": {
             "expense": "🔴 Gasto",
             "income": "🟢 Ingreso",
-            "investment": "🟣 Inversión",
+            "investment": "🟣 Inversión/Ahorro",
             "transfer_in": "🔵 Traspaso Entrada",
             "transfer_out": "🟠 Traspaso Salida"
         }
@@ -264,7 +270,7 @@
             "income": "🟢 Ingresos",
             "expenses": "🔴 Gastos",
             "balance": "📊 Balance",
-            "investment": "💎 Inversión",
+            "investment": "💎 Inversión/Ahorro",
             "current_balance": "💰 Saldo Actual"
         },
         "initial_balance_config": {
@@ -361,7 +367,7 @@
                 "metric_surplus_retention": "Retención Remanente",
                 "metric_salary_retention": "Retención Nómina",
                 "metric_consequences": "⚖️ Retención Consecuencias",
-                "metric_total_investment": "💎 Total a Inversión",
+                "metric_total_investment": "💎 Total a Inversión/Ahorro",
                 "metric_new_transfer": "nueva",
                 "metric_new_month_balance": "🏦 Saldo Inicio Nuevo Mes",
                 "metric_calculated_balance": "📊 Saldo Calculado",
@@ -388,7 +394,7 @@
             "income": "🟢 Ingresos",
             "expenses": "🔴 Gastos",
             "balance": "📊 Balance",
-            "investment": "💎 Inversión Ejecutada",
+            "investment": "💎 Inversión/Ahorro Ejecutado",
             "savings_percent": "📈 % Ahorro"
         },
         "notes_title": "📝 Anotaciones ({period})",
@@ -426,7 +432,7 @@
             "types": {
                 "expenses": "🔴 Gastos",
                 "income": "🟢 Ingresos",
-                "investments": "🟣 Inversiones"
+                "investments": "🟣 Inversiones/Ahorros"
             },
             "tabs": {
                 "word_frequency": "📝 Palabras Frecuentes",
@@ -501,11 +507,11 @@
             "types": {
                 "expenses": "🔴 Gastos",
                 "income": "🟢 Ingresos",
-                "investments": "🟣 Inversiones"
+                "investments": "🟣 Inversiones/Ahorros"
             },
             "format_expenses": "**Formato GASTOS (separado por comas):**",
             "format_income": "**Formato INGRESOS (separado por comas):**",
-            "format_investments": "**Formato INVERSIONES (separado por comas):**",
+            "format_investments": "**Formato INVERSIONES/AHORROS (separado por comas):**",
             "uploader_label": "Selecciona archivo CSV",
             "file_info": "📄 Archivo con {count} filas (excluyendo cabecera)",
             "preview": "**Preview (primeras 5 filas):**",
@@ -558,10 +564,10 @@
             "section_features_title": "#### 🛠️ Características / Features",
             "enable_relevance_label": "Habilitar Análisis de Relevancia (NE/LI/SUP/TON)",
             "enable_relevance_help": "Si se desactiva, se ocultarán los campos y gráficos relacionados con la clasificación de gastos por relevancia.",
-            "enable_retentions_label": "Habilitar Retenciones de Inversión Automáticas",
-            "enable_retentions_help": "Si se desactiva, el sistema no calculará ni sugerirá retenciones de inversión (salario/remanente) durante el cierre de mes.",
+            "enable_retentions_label": "Habilitar Retenciones de Inversión/Ahorro Automáticas",
+            "enable_retentions_help": "Si se desactiva, el sistema no calculará ni sugerirá retenciones de inversión/ahorro (salario/remanente) durante el cierre de mes.",
             "enable_consequences_label": "Habilitar Cuenta de Consecuencias",
-            "enable_consequences_help": "Activa el sistema de reglas para penalizar gastos específicos con inversión adicional el mes siguiente.",
+            "enable_consequences_help": "Activa el sistema de reglas para penalizar gastos específicos con inversión/ahorro adicional el mes siguiente.",
             "enable_llm_label": "Habilitar Análisis con IA (LLM)",
             "enable_llm_help": "Activa el análisis financiero automático con Inteligencia Artificial usando Ollama. Requiere tener Ollama instalado y un modelo descargado.",
             "llm_model_label": "Seleccionar Modelo de IA",

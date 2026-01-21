@@ -283,7 +283,7 @@ def get_ledger_by_month(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Lis
         rows = conn.execute(
             """SELECT * FROM LEDGER 
                WHERE mes_fiscal = ? 
-               ORDER BY fecha_real DESC""",
+               ORDER BY fecha_real DESC, id DESC""",
             (mes_fiscal,)
         ).fetchall()
         return [_row_to_ledger_entry(row) for row in rows]

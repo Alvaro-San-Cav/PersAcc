@@ -28,7 +28,7 @@ def render_manual_en():
     -  **Editable Table** - Modify transactions with closed month validation
     -  **Historical Dashboard** - Annual KPIs and monthly evolution
     -  **🤖 AI with Ollama** - Smart comments and deep analysis
-    -  **📈 ML Projections** - Expense and investment predictions
+    -  **📈 ML Projections** - Expense and investments/savings predictions
     -  **💬 Chat Assistant** - Ask about your finances in natural language
     -  **📝 Annotations** - Personal notes per period
     -  **Multi-language** - Spanish and English
@@ -53,7 +53,7 @@ def render_manual_en():
     2. **Type** - Choose from:
        - **Expense** - Any money outflow
        - **Income** - Money inflows (salary, gifts, etc.)
-       - **Investment** - Savings or investments
+       - **Investments/Savings** - Savings or investments
        - **Transfer In/Out** - Movements between accounts
     
     3. **Category** - Choose the appropriate category
@@ -155,7 +155,7 @@ def render_manual_en():
     When executing **Month Closing**, the system:
     1. Evaluates all active rules
     2. Calculates total consequences
-    3. Creates an automatic **Investment** entry with that amount
+    3. Creates an automatic **Investments/Savings** entry with that amount
     4. You can see it in the closing summary
     
     > 💡 **Tip**: Use this feature to force extra savings based on your habits.
@@ -191,10 +191,10 @@ def render_manual_en():
     
     5. **Review consequences** (if enabled):
        - The system shows the total consequences calculated according to your rules
-       - This will be automatically added as investment
+       - This will be automatically added as investments/savings
     
     6. **Execute closing** - The system:
-       - Creates automatic investment entries (retentions + consequences)
+       - Creates automatic investments/savings entries (retentions + consequences)
        - Generates salary as income in the new month
        - Marks the month as CLOSED and immutable
        - Automatically switches to the next month
@@ -230,7 +230,7 @@ def render_manual_en():
     | Toggle | Description |
     |--------|-------------|
     | **Relevance Analysis** | NE/LI/SUP/TON system |
-    | **Automatic Retentions** | Automatic investments at closing |
+    | **Automatic Retentions** | Automatic investments/savings at closing |
     | **Consequences Account** | Advanced rule system |
     | **🤖 AI Analysis** | Smart comments with Ollama |
     
@@ -289,7 +289,7 @@ def render_manual_en():
     Import data from old CSV files:
     - **Expenses**: DATE, CONCEPT, CATEGORY, RELEVANCE, AMOUNT
     - **Income**: DATE, CONCEPT, AMOUNT
-    - **Investments**: DATE, CONCEPT, AMOUNT, CATEGORY
+    - **Investments/Savings**: DATE, CONCEPT, AMOUNT, CATEGORY
     
     ### Clean DB
     - **Option 1**: Delete entries and closings (keeps categories)
@@ -300,7 +300,7 @@ def render_manual_en():
     ### Category Management
     - Add, edit, or delete categories
     - Categories with history are archived instead of deleted
-    - You can change the transaction type (EXPENSE→INVESTMENT, etc.)
+    - You can change the transaction type (EXPENSE→INVESTMENTS/SAVINGS, etc.)
     
     ### Consequences
     > Requires activation in Configuration
@@ -322,7 +322,7 @@ def render_manual_en():
     ### Monthly View
     
     The main screen shows:
-    - **Month KPIs**: Income, expenses, investment, balance
+    - **Month KPIs**: Income, expenses, investments/savings, balance
     - **Transaction table**: Editable (if month is open)
     - **Relevance analysis**: NE/LI/SUP/TON distribution
     
@@ -409,7 +409,7 @@ def render_manual_en():
     - Estimated salary evolution
     - Based on income history
     
-    #### 📊 Investment Projection
+    #### 📊 Investments/Savings Projection
     - Projected growth of invested capital
     - Considers automatic retentions
     

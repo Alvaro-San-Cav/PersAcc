@@ -281,7 +281,10 @@ def render_analisis():
             if enable_relevance:
                 col_order.append("Relevancia")
             
-            # Mostrar tabla editable
+            # Mostrar tabla editable - altura dinámica para mostrar todas las entradas
+            # Calcular altura: ~35px por fila + 38px header
+            table_height = min(max(len(df) * 35 + 38, 150), 800)
+            
             edited_df = st.data_editor(
                 df,
                 key=f"editor_movs_{mes_seleccionado}",
@@ -290,6 +293,7 @@ def render_analisis():
                 hide_index=True,
                 column_order=col_order,
                 num_rows="fixed", # No permitir agregar filas aquí, usar formulario
+                height=table_height,
                 disabled=["id", "Tipo"] if not mes_cerrado else ["id", "Borrar", "Fecha", "Categoría", "Concepto", "Importe", "Tipo", "Relevancia"]
             )
             

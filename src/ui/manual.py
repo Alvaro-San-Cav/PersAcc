@@ -28,7 +28,7 @@ def render_manual():
     -  **Tabla Editable** - Modifica movimientos con validación de meses cerrados
     -  **Dashboard Histórico** - KPIs anuales y evolución mensual
     -  **🤖 IA con Ollama** - Comentarios inteligentes y análisis profundo
-    -  **📈 Proyecciones ML** - Predicciones de gastos e inversiones
+    -  **📈 Proyecciones ML** - Predicciones de gastos e inversiones/ahorros
     -  **💬 Chat Asistente** - Pregunta sobre tus finanzas en lenguaje natural
     -  **📝 Anotaciones** - Notas personales por período
     -  **Multi-idioma** - Español e Inglés
@@ -53,7 +53,7 @@ def render_manual():
     2. **Tipo** - Selecciona entre:
        - **Gasto** - Cualquier salida de dinero
        - **Ingreso** - Entradas de dinero (salarios, regalos, etc.)
-       - **Inversión** - Ahorros o inversiones
+       - **Inversión/Ahorro** - Ahorros o inversiones
        - **Traspaso Entrada/Salida** - Movimientos entre cuentas
     
     3. **Categoría** - Elige la categoría apropiada
@@ -155,7 +155,7 @@ def render_manual():
     Al ejecutar el **Cierre de Mes**, el sistema:
     1. Evalúa todas las reglas activas
     2. Calcula las consecuencias totales
-    3. Crea una entrada de **Inversión** automática con ese importe
+    3. Crea una entrada de **Inversión/Ahorro** automática con ese importe
     4. Puedes verlo en el resumen del cierre
     
     > 💡 **Tip**: Usa esta funcionalidad para forzar ahorro extra basado en tus hábitos.
@@ -191,10 +191,10 @@ def render_manual():
     
     5. **Revisa las consecuencias** (si está activado):
        - El sistema muestra el total de consecuencias calculado según tus reglas
-       - Esto se sumará automáticamente como inversión
+       - Esto se sumará automáticamente como inversión/ahorro
     
     6. **Ejecuta el cierre** - El sistema:
-       - Crea entradas de inversión automáticas (retenciones + consecuencias)
+       - Crea entradas de inversión/ahorro automáticas (retenciones + consecuencias)
        - Genera el salario como ingreso en el nuevo mes
        - Marca el mes como CERRADO e inmutable
        - Cambia automáticamente al mes siguiente
@@ -230,7 +230,7 @@ def render_manual():
     | Toggle | Descripción |
     |--------|-------------|
     | **Análisis de Relevancia** | Sistema NE/LI/SUP/TON |
-    | **Retenciones Automáticas** | Inversiones automáticas en cierre |
+    | **Retenciones Automáticas** | Inversiones/Ahorros automáticos en cierre |
     | **Cuenta de Consecuencias** | Sistema de reglas avanzado |
     | **🤖 Análisis con IA** | Comentarios inteligentes con Ollama |
     
@@ -289,7 +289,7 @@ def render_manual():
     Importa datos desde archivos CSV antiguos:
     - **Gastos**: DATE, CONCEPT, CATEGORY, RELEVANCE, AMOUNT
     - **Ingresos**: DATE, CONCEPT, AMOUNT
-    - **Inversiones**: DATE, CONCEPT, AMOUNT, CATEGORY
+    - **Inversiones/Ahorros**: DATE, CONCEPT, AMOUNT, CATEGORY
     
     ### Limpiar BD
     - **Opción 1**: Borrar entradas y cierres (mantiene categorías)
@@ -300,7 +300,7 @@ def render_manual():
     ### Gestión Categorías
     - Añade, edita o elimina categorías
     - Las categorías con historial se archivan en lugar de borrarse
-    - Puedes cambiar el tipo de movimiento (GASTO→INVERSIÓN, etc.)
+    - Puedes cambiar el tipo de movimiento (GASTO→INVERSIÓN/AHORRO, etc.)
     
     ### Consecuencias
     > Requiere activar en Configuración
@@ -322,7 +322,7 @@ def render_manual():
     ### Visión Mensual
     
     La pantalla principal muestra:
-    - **KPIs del mes**: Ingresos, gastos, inversión, saldo
+    - **KPIs del mes**: Ingresos, gastos, inversión/ahorro, saldo
     - **Tabla de movimientos**: Editable (si el mes está abierto)
     - **Análisis de relevancia**: Distribución NE/LI/SUP/TON
     
@@ -409,7 +409,7 @@ def render_manual():
     - Evolución estimada del salario
     - Basada en histórico de ingresos
     
-    #### 📊 Proyección de Inversiones
+    #### 📊 Proyección de Inversiones/Ahorros
     - Crecimiento proyectado del capital invertido
     - Considera retenciones automáticas
     

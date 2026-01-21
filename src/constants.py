@@ -18,9 +18,9 @@ DEFAULT_PCT_RETENCION_SALARIO = 0.30  # 30%
 
 # Nombres de categorías con significado especial en el sistema
 CATEGORIA_SALARIO = "Salario"
-CATEGORIA_INVERSION_SALARIO = "Inversion retención de salario"
-CATEGORIA_INVERSION_REMANENTE = "Inversion retención de remanente"
-CATEGORIA_INVERSION_EXTRA = "Inversion extra"
+CATEGORIA_INVERSION_SALARIO = "Inversion/Ahorro retención de salario"
+CATEGORIA_INVERSION_REMANENTE = "Inversion/Ahorro retención de remanente"
+CATEGORIA_INVERSION_EXTRA = "Inversion/Ahorro extra"
 
 # ============================================================================
 # PALABRAS CLAVE DE DETECCIÓN

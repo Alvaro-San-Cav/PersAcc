@@ -16,7 +16,14 @@ class TipoMovimiento(Enum):
     INGRESO = "INGRESO"                     # Dinero nuevo generado (Suma patrimonio)
     TRASPASO_ENTRADA = "TRASPASO_ENTRADA"   # Dinero que entra desde otra cuenta propia (Neutro)
     TRASPASO_SALIDA = "TRASPASO_SALIDA"     # Dinero que sale a otra cuenta propia (Neutro)
-    INVERSION = "INVERSION"                 # Dinero que sale a inversión (Suma Ahorro/Patrimonio)
+    INVERSION = "INVERSION_AHORRO"          # Dinero que sale a inversión/ahorro (Suma Ahorro/Patrimonio)
+    
+    @classmethod
+    def _missing_(cls, value):
+        """Compatibilidad con bases de datos antiguas que usan 'INVERSION'."""
+        if value == "INVERSION":
+            return cls.INVERSION
+        return None
 
 
 class RelevanciaCode(Enum):

@@ -27,7 +27,7 @@ def create_tables(conn: sqlite3.Connection):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE,
             tipo_movimiento TEXT NOT NULL CHECK(
-                tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION')
+                tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION_AHORRO')
             ),
             es_activo BOOLEAN DEFAULT 1
         )
@@ -49,7 +49,7 @@ def create_tables(conn: sqlite3.Connection):
             fecha_contable DATE NOT NULL,
             mes_fiscal TEXT NOT NULL,
             tipo_movimiento TEXT NOT NULL CHECK(
-                tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION')
+                tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION_AHORRO')
             ),
             categoria_id INTEGER REFERENCES CAT_MAESTROS(id),
             relevancia_code TEXT REFERENCES CAT_RELEVANCIA(code),
@@ -164,10 +164,10 @@ def insert_default_categories(conn: sqlite3.Connection):
         ("Salud", "GASTO"),
         ("Hogar", "GASTO"),
         
-        # INVERSION
-        ("Inversion extra", "INVERSION"),
-        ("Inversion retención de salario", "INVERSION"),
-        ("Inversion retención de remanente", "INVERSION"),
+        # INVERSION/AHORRO
+        ("Inversion/Ahorro extra", "INVERSION_AHORRO"),
+        ("Inversion/Ahorro retención de salario", "INVERSION_AHORRO"),
+        ("Inversion/Ahorro retención de remanente", "INVERSION_AHORRO"),
         
         # TRASPASO SALIDA
         ("Traspaso a otra cuenta", "TRASPASO_SALIDA"),

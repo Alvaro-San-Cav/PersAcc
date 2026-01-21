@@ -5,7 +5,7 @@ Renderiza el formulario de entrada rápida de transacciones en el sidebar.
 import streamlit as st
 from datetime import date
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, RELEVANCIA_DESCRIPTIONS
+from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
 from src.database import (
     get_all_categorias, insert_ledger_entry, is_mes_cerrado, get_category_usage_stats
 )
@@ -174,7 +174,7 @@ def render_sidebar():
                 relevancia_code = st.radio(
                     t('sidebar.quick_add.relevance_label'),
                     options=relevancia_options,
-                    format_func=lambda x: f"{x} - {RELEVANCIA_DESCRIPTIONS[RelevanciaCode(x)]}",
+                    format_func=lambda x: f"{x} - {t(f'sidebar.quick_add.relevance_descriptions.{x}')}",
                     horizontal=True,
                     label_visibility="collapsed",
                     key="relevancia_sel"

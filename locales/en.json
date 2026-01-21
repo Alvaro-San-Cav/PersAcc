@@ -26,7 +26,7 @@
         "to_year": "📅 To year",
         "calculating": "Calculating ML projections...",
         "salary_section": "Salary Projection",
-        "investment_section": "Investment Projection",
+        "investment_section": "Investments/Savings Projection",
         "expenses_section": "Expense Projection",
         "insights_section": "Insights & Recommendations",
         "trend": "Trend",
@@ -39,7 +39,7 @@
         "confidence": "Confidence",
         "yearly_breakdown": "📋 Yearly Breakdown",
         "salary": "Salary",
-        "investment": "Investment",
+        "investment": "Investments/Savings",
         "expenses": "Expenses",
         "savings_rate": "Savings Rate",
         "projected_annual": "Projection {year}",
@@ -79,7 +79,7 @@
             },
             "savings_rate_excellent": {
                 "title": "Excellent Savings Rate",
-                "message": "With a {rate}% investment rate, you are building wealth solidly. Keep it up."
+                "message": "With a {rate}% investment/savings rate, you are building wealth solidly. Keep it up."
             },
             "savings_rate_good": {
                 "title": "Good Savings Rate",
@@ -87,10 +87,10 @@
             },
             "savings_rate_improvable": {
                 "title": "Improvable Savings Rate",
-                "message": "You only invest {rate}% of your income. Review superfluous expenses to increase investment."
+                "message": "You only invest/save {rate}% of your income. Review superfluous expenses to increase investments/savings."
             },
             "savings_rate_none": {
-                "title": "No Investment Detected",
+                "title": "No Investments/Savings Detected",
                 "message": "No investments detected in your history. Consider allocating at least 10% of your income to savings/investment."
             },
             "expense_skyrocketing": {
@@ -227,6 +227,12 @@
             "date_label": "Date",
             "amount_label": "Amount",
             "relevance_label": "Relevance",
+            "relevance_descriptions": {
+                "NE": "Necessary / Inevitable",
+                "LI": "I like it / Conscious enjoyment",
+                "SUP": "Superfluous / Optimizable",
+                "TON": "Nonsense / Spending mistake"
+            },
             "liquidity_flag": "Liquidity shortage",
             "submit_button": "💾 Save Movement",
             "success_message": "✅ Movement saved successfully",
@@ -251,7 +257,7 @@
         "types": {
             "expense": "🔴 Expense",
             "income": "🟢 Income",
-            "investment": "🟣 Investment",
+            "investment": "🟣 Investments/Savings",
             "transfer_in": "🔵 Transfer In",
             "transfer_out": "🟠 Transfer Out"
         }
@@ -264,7 +270,7 @@
             "income": "🟢 Income",
             "expenses": "🔴 Expenses",
             "balance": "📊 Balance",
-            "investment": "💎 Investment",
+            "investment": "💎 Investments/Savings",
             "current_balance": "💰 Current Balance"
         },
         "initial_balance_config": {
@@ -336,8 +342,8 @@
                 "title": "Step 3: Retentions",
                 "surplus_label": "% to retain from surplus",
                 "salary_label": "% to retain from salary",
-                "surplus_help": "Percentage of surplus balance to transfer to investment",
-                "salary_help": "Percentage of new salary to transfer to investment",
+                "surplus_help": "Percentage of surplus balance to transfer to investments/savings",
+                "salary_help": "Percentage of new salary to transfer to investments/savings",
                 "back_button": "← Previous",
                 "next_button": "Calculate →"
             },
@@ -361,7 +367,7 @@
                 "metric_surplus_retention": "Surplus Retention",
                 "metric_salary_retention": "Salary Retention",
                 "metric_consequences": "⚖️ Consequences Retention",
-                "metric_total_investment": "💎 Total Investment",
+                "metric_total_investment": "💎 Total Investments/Savings",
                 "metric_new_transfer": "new",
                 "metric_new_month_balance": "🏦 New Month Starting Balance",
                 "metric_calculated_balance": "📊 Calculated Balance",
@@ -388,7 +394,7 @@
             "income": "🟢 Income",
             "expenses": "🔴 Expenses",
             "balance": "📊 Balance",
-            "investment": "💎 Investment Executed",
+            "investment": "💎 Investments/Savings Executed",
             "savings_percent": "📈 % Savings"
         },
         "notes_title": "📝 Annotations ({period})",
@@ -559,10 +565,10 @@
             "section_features_title": "#### 🛠️ Features",
             "enable_relevance_label": "Enable Relevance Analysis (NE/LI/SUP/TON)",
             "enable_relevance_help": "If disabled, fields and charts related to expense relevance classification will be hidden.",
-            "enable_retentions_label": "Enable Automatic Investment Retentions",
-            "enable_retentions_help": "If disabled, the system will not calculate or suggest investment retentions (salary/remaining) during month closing.",
+            "enable_retentions_label": "Enable Automatic Investments/Savings Retentions",
+            "enable_retentions_help": "If disabled, the system will not calculate or suggest investment/savings retentions (salary/remaining) during month closing.",
             "enable_consequences_label": "Enable Consequences Account",
-            "enable_consequences_help": "Activates the rule system to penalize specific expenses with additional investment next month.",
+            "enable_consequences_help": "Activates the rule system to penalize specific expenses with additional investments/savings next month.",
             "enable_llm_label": "Enable AI Analysis (LLM)",
             "enable_llm_help": "Activates automatic financial analysis with Artificial Intelligence using Ollama. Requires Ollama installed and a model downloaded.",
             "llm_model_label": "Select AI Model",
