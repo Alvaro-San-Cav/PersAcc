@@ -27,7 +27,7 @@ def load_translations(lang: str) -> dict:
     if not file_path.exists():
         return {}
     
-    return json.loads(file_path.read_text(encoding='utf-8'))
+    return json.loads(file_path.read_text(encoding='utf-8-sig'))
 
 
 def get_language() -> str:

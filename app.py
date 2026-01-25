@@ -78,6 +78,8 @@ def main():
         except Exception:
             logo_html = ""
         
+        loading_slogan = t('loading_slogan')
+        
         with loading_ph.container():
             st.markdown(f"""
             <div style="
@@ -89,7 +91,7 @@ def main():
             ">
                 <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0;">PersAcc</h1>
                 {logo_html}
-                <p style="color: #666; font-size: 1.2em; font-weight: 500;">💪 Capitalismo, Ahorro y Trabajo duro</p>
+                <p style="color: #666; font-size: 1.2em; font-weight: 500;">{loading_slogan}</p>
                 <div style="width: 300px; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden; margin-top: 20px;">
                     <div style="width: 100%; height: 100%; background: #4CAF50; animation: progress 2s linear forwards;"></div>
                 </div>
@@ -100,6 +102,20 @@ def main():
         time.sleep(3)
         loading_ph.empty()
         st.session_state['first_load_done'] = True
+    
+    # Verificar entradas pendientes en Notion (solo una vez por sesión)
+    if not st.session_state.get('notion_startup_check_done', False):
+        st.session_state['notion_startup_check_done'] = True
+        
+        # Recargar config para tener los valores más recientes
+        fresh_config = load_config()
+        notion_config = fresh_config.get('notion', {})
+        if (notion_config.get('enabled') and 
+            notion_config.get('check_on_startup', True) and
+            notion_config.get('api_token') and
+            notion_config.get('database_id')):
+            from src.ui.notion_sync import check_and_show_notion_sync
+            check_and_show_notion_sync()
 
     # ==========================================
     # NAVEGACIÓN CON LAZY LOADING (PARTE SUPERIOR)

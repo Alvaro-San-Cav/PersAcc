@@ -34,7 +34,13 @@ DEFAULT_CONFIG = {
         "alcohol": "Cerveza/Copas"
     },
     "importes_default": {},  # category_key -> default amount (float)
-    "relevancias_default": {}  # category_key -> default relevance code (NE, LI, SUP, TON)
+    "relevancias_default": {},  # category_key -> default relevance code (NE, LI, SUP, TON)
+    "notion": {  # Integración con Notion
+        "enabled": False,
+        "api_token": "",
+        "database_id": "",
+        "check_on_startup": True
+    }
 }
 
 

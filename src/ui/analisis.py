@@ -378,7 +378,7 @@ def render_analisis():
                             })
                     
                     with ai_summary_placeholder.container():
-                        with st.spinner("🤖 Generando comentario..."):
+                        with st.spinner(t('analisis.ai_generating')):
                             summary = generate_quick_summary(
                                 income=kpis['total_ingresos'],
                                 expenses=kpis['total_gastos'],
@@ -506,16 +506,16 @@ def _render_user_notes_section(period_type: str, period_identifier: str):
     # Mostrar notificación si viene de un guardado exitoso
     toast_key = f"toast_notes_{period_type}_{period_identifier}"
     if st.session_state.get(toast_key):
-        st.success("✅ Notas guardadas")
+        st.success(t('analisis.notes_saved'))
         st.session_state[toast_key] = False
 
-    st.markdown("### 📝 Notas del Mes")
+    st.markdown(f"### {t('analisis.notes_title')}")
     
     if quill_available:
         # Editor de texto enriquecido con streamlit-quill
         content = st_quill(
             value=current_notes,
-            placeholder="Escribe tus anotaciones, conclusiones o recordatorios...",
+            placeholder=t('analisis.notes_placeholder'),
             html=True,
             toolbar=[
                 [{'header': [1, 2, 3, False]}],
@@ -530,7 +530,7 @@ def _render_user_notes_section(period_type: str, period_identifier: str):
         # Botón de guardar fuera del editor
         col1, col2 = st.columns([1, 4])
         with col1:
-            if st.button("💾 Guardar Notas", type="primary", use_container_width=True):
+            if st.button(t('analisis.notes_save_button'), type="primary", use_container_width=True):
                 save_period_notes(period_type, period_identifier, content if content else "")
                 st.session_state[toast_key] = True
                 st.rerun()
@@ -540,13 +540,13 @@ def _render_user_notes_section(period_type: str, period_identifier: str):
         
         with st.form(form_key):
             new_notes = st.text_area(
-                "Espacio para tus anotaciones, conclusiones o recordatorios:",
+                t('analisis.notes_placeholder'),
                 value=current_notes,
                 height=150,
                 key=f"txt_{period_type}_{period_identifier}"
             )
             
-            if st.form_submit_button("Guardar Notas"):
+            if st.form_submit_button(t('analisis.notes_save_button')):
                 save_period_notes(period_type, period_identifier, new_notes)
                 st.session_state[toast_key] = True
                 st.rerun()

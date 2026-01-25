@@ -488,6 +488,15 @@ def _render_config_tab():
         config['retenciones'] = {'pct_remanente_default': default_rem, 'pct_salario_default': default_sal}
         config['cierre'] = {'metodo_saldo': metodo_saldo}
         
+        # Guardar configuración de Notion
+        if 'notion' not in config:
+            config['notion'] = {}
+        config['notion']['enabled'] = st.session_state.get('config_notion_enabled', False)
+        if config['notion']['enabled']:
+            config['notion']['api_token'] = st.session_state.get('config_notion_api_token', '')
+            config['notion']['database_id'] = st.session_state.get('config_notion_database_id', '')
+            config['notion']['check_on_startup'] = st.session_state.get('config_notion_check_startup', True)
+        
         save_config(config)
         
         if idioma_seleccionado != current_lang:
@@ -565,6 +574,106 @@ def _render_config_tab():
              index=0 if metodo_actual == 'antes_salario' else 1,
              help=t('utilidades.config.closing_method_help'), key="config_metodo_saldo", horizontal=True)
     
+    # =====================
+    # INTEGRACIÓN NOTION
+    # =====================
+    st.markdown("---")
+    st.markdown(f"#### {t('notion.config_title')}")
+    
+    notion_config = config.get('notion', {})
+    notion_enabled = st.toggle(
+        t('notion.config_enable'),
+        value=notion_config.get('enabled', False),
+        help=t('notion.config_enable_help'),
+        key="config_notion_enabled"
+    )
+    
+    # Solo mostrar campos si está habilitado
+    if notion_enabled:
+        st.info(t('notion.config_info'))
+        
+        # API Token
+        api_token = st.text_input(
+            t('notion.config_api_token'),
+            value=notion_config.get('api_token', ''),
+            type="password",
+            help=t('notion.config_api_token_help'),
+            key="config_notion_api_token"
+        )
+        
+        # Database ID
+        database_id = st.text_input(
+            t('notion.config_database_id'),
+            value=notion_config.get('database_id', ''),
+            help=t('notion.config_database_id_help'),
+            key="config_notion_database_id"
+        )
+        
+        # Check on startup
+        check_startup = st.toggle(
+            t('notion.config_check_startup'),
+            value=notion_config.get('check_on_startup', True),
+            help=t('notion.config_check_startup_help'),
+            key="config_notion_check_startup"
+        )
+        
+        # Botón de probar conexión
+        col_test, col_info = st.columns([1, 2])
+        with col_test:
+            if st.button(t('notion.config_test_connection'), key="test_notion_connection"):
+                if api_token and database_id:
+                    # Guardar temporalmente para probar
+                    temp_config = config.copy()
+                    if 'notion' not in temp_config:
+                        temp_config['notion'] = {}
+                    temp_config['notion']['api_token'] = api_token
+                    temp_config['notion']['database_id'] = database_id
+                    temp_config['notion']['enabled'] = True
+                    save_config(temp_config)
+                    
+                    # Probar conexión
+                    try:
+                        from src.integrations.notion import get_notion_client
+                        client = get_notion_client()
+                        success, message = client.test_connection()
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                        else:
+                            st.error(f"❌ {message}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.warning(t('notion.config_test_missing_fields'))
+        
+        with col_info:
+            with st.expander(t('notion.config_how_to')):
+                st.markdown(t('notion.config_how_to_content'))
+        
+        # Botón de sincronización manual
+        st.markdown("---")
+        if st.button(t('notion.config_sync_now'), key="manual_notion_sync", use_container_width=True):
+            try:
+                from src.integrations.notion import get_notion_client
+                client = get_notion_client()
+                
+                if not client.is_configured():
+                    st.error(t('notion.error_title').format(error=t('notion.error_not_configured')))
+                else:
+                    entries = client.get_all_entries()
+                    if entries:
+                        st.info(t('notion.config_found_entries').format(count=len(entries)))
+                        # Limpiar estado previo para forzar recarga
+                        keys_to_remove = [k for k in st.session_state.keys() if k.startswith('notion_') and k != 'notion_checked_this_session']
+                        for key in keys_to_remove:
+                            del st.session_state[key]
+                        from src.ui.notion_sync import show_notion_sync_dialog
+                        show_notion_sync_dialog()
+                    else:
+                        st.info(t('notion.no_entries'))
+            except Exception as e:
+                st.error(t('notion.error_title').format(error=str(e)))
+
     # Config IA
     if enable_llm:
         from src.ai.llm_service import check_ollama_running, get_available_models
