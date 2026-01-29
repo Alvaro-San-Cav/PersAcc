@@ -1,5 +1,7 @@
 {
-    "page_title": "PersAcc - Personal Finance",    "loading_slogan": "💪 Capitalism, Savings and Hard work",    "navigation": {
+    "page_title": "PersAcc - Personal Finance",
+    "loading_slogan": "💪 Capitalism, Savings and Hard work",
+    "navigation": {
         "ledger": "📊 Ledger",
         "cierre": "🔒 Month Closing",
         "historico": "📅 History",
@@ -359,7 +361,7 @@
                 "new_closure_button": "🆕 New Closure"
             },
             "step4": {
-                "title": "Step 4: Confirmation",
+                "title": "Step 3: Retentions & Confirmation",
                 "summary_title": "📋 Closing Summary",
                 "back_button": "← Previous",
                 "execute_button": "✅ CONFIRM CLOSING",
@@ -374,9 +376,14 @@
                 "metric_total_investment": "💎 Total Investments/Savings",
                 "metric_new_transfer": "new",
                 "metric_new_month_balance": "🏦 New Month Starting Balance",
+                "metric_new_month_balance_help": "Balance in your account before receiving next month's salary (after surplus retentions)",
+                "metric_balance_with_salary": "💰 Available Balance Next Month",
+                "metric_balance_with_salary_help": "Total available balance at start of next month: base balance + salary - salary retentions",
                 "metric_calculated_balance": "📊 Calculated Balance",
+                "metric_calculated_balance_help": "Theoretical balance based on recorded movements (income - expenses - investments)",
                 "metric_deviation_ok": "✅ Deviation",
                 "metric_deviation_warn": "⚠️ Deviation",
+                "metric_deviation_help": "Difference between calculated and actual bank balance. If high, check for missing movements",
                 "metric_review": "Review"
             }
         }

@@ -139,6 +139,13 @@ def calcular_kpis(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Dict:
     total_traspasos_salida = _sum_by_type(entries, TipoMovimiento.TRASPASO_SALIDA)
     total_inversion = _sum_by_type(entries, TipoMovimiento.INVERSION)
     
+    # Calcular inversiones manuales (excluyendo auto-generadas)
+    inversion_manual = sum(
+        e.importe for e in entries 
+        if e.tipo_movimiento == TipoMovimiento.INVERSION 
+        and not (e.concepto and "(auto-generada)" in e.concepto.lower())
+    )
+    
     # Balance = (Ingresos + Entradas) - (Gastos + Salidas)
     ahorro_total = (total_ingresos + total_traspasos_entrada) - (total_gastos + total_traspasos_salida)
     
@@ -152,6 +159,7 @@ def calcular_kpis(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Dict:
         "total_traspasos_entrada": total_traspasos_entrada,
         "total_traspasos_salida": total_traspasos_salida,
         "total_inversion": total_inversion,
+        "inversion_manual": inversion_manual,
         "pct_salary_retention": pct_salary_retention,
         "balance_mes": ahorro_total,
     }
@@ -190,13 +198,14 @@ def calcular_inversion_cierre(
     saldo_banco_real: float,
     nomina_nueva: float,
     pct_retencion_remanente: float = 0.0,
-    pct_retencion_salario: float = 0.0
+    pct_retencion_salario: float = 0.0,
+    consequences_amount: float = 0.0
 ) -> float:
     """
     Calcula el total a transferir a inversión al cerrar el mes.
     
     Fórmula:
-    Inversión = (Σ Retenciones Manuales) + (SaldoBancoReal × %Ret.Remanente) + (NuevaNómina × %Ret.Salario)
+    Inversión = (Σ Retenciones Manuales) + (SaldoBancoReal × %Ret.Remanente) + (NuevaNómina × %Ret.Salario) + Consecuencias
     
     Nota: Las retenciones manuales ya salieron del banco, así que el cálculo 
     de transferencia final solo ejecuta la parte del Remanente y Salario.
@@ -207,6 +216,7 @@ def calcular_inversion_cierre(
         nomina_nueva: Importe de la nueva nómina
         pct_retencion_remanente: % a retener del saldo remanente (0-1)
         pct_retencion_salario: % a retener de la nómina nueva (0-1)
+        consequences_amount: Retención por reglas de consecuencias
     
     Returns:
         Total a transferir a inversión
@@ -214,8 +224,8 @@ def calcular_inversion_cierre(
     retencion_remanente = saldo_banco_real * pct_retencion_remanente
     retencion_salario = nomina_nueva * pct_retencion_salario
     
-    # Total contabilizado (ya transferido + a transferir ahora)
-    total_inversion = retenciones_manuales + retencion_remanente + retencion_salario
+    # Total contabilizado (ya transferido + a transferir ahora + consecuencias)
+    total_inversion = retenciones_manuales + retencion_remanente + retencion_salario + consequences_amount
     
     return total_inversion
 
@@ -264,27 +274,29 @@ def ejecutar_cierre_mes(
     cierre_actual = get_cierre_mes(mes_fiscal, db_path)
     saldo_inicio = cierre_actual.saldo_inicio if cierre_actual else 0.0
     
-    # PASO 4: Calcular retención total a invertir
-    retencion_ejecutada = calcular_inversion_cierre(
-        retenciones_manuales=kpis["total_inversion"],
-        saldo_banco_real=saldo_banco_real,
-        nomina_nueva=nomina_nueva,
-        pct_retencion_remanente=pct_retencion_remanente,
-        pct_retencion_salario=pct_retencion_salario
-    )
-    
-    # Nota: La variable transferencia_nueva no se usa actualmente pero se calcula
-    # para posible uso futuro o debugging
-    transferencia_nueva = retencion_ejecutada - kpis["total_inversion"]
-    
-    # PASO 5: Calcular saldo base para retención de remanente
+    # PASO 4: Calcular saldo base para retención de remanente
     # Si salario_ya_incluido=True, restamos la nómina para obtener el saldo real del mes
     if salario_ya_incluido:
         saldo_base_remanente = saldo_banco_real - nomina_nueva
     else:
         saldo_base_remanente = saldo_banco_real
     
-    # Calcular retenciones separadas
+    # PASO 5: Calcular retención total a invertir (usando solo inversiones manuales)
+    # IMPORTANTE: Pasar saldo_base_remanente, NO saldo_banco_real
+    retencion_ejecutada = calcular_inversion_cierre(
+        retenciones_manuales=kpis["inversion_manual"],
+        saldo_banco_real=saldo_base_remanente,  # Usar el saldo ajustado
+        nomina_nueva=nomina_nueva,
+        pct_retencion_remanente=pct_retencion_remanente,
+        pct_retencion_salario=pct_retencion_salario,
+        consequences_amount=consequences_amount
+    )
+    
+    # Nota: La variable transferencia_nueva no se usa actualmente pero se calcula
+    # para posible uso futuro o debugging
+    transferencia_nueva = retencion_ejecutada - kpis["inversion_manual"]
+    
+    # Calcular retenciones separadas (para crear entradas en el ledger)
     retencion_remanente = saldo_base_remanente * pct_retencion_remanente
     retencion_salario = nomina_nueva * pct_retencion_salario
     

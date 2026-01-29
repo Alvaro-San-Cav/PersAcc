@@ -138,7 +138,7 @@ def _render_step2():
     with c2:
         if st.button(t('cierre.wizard.step2.next_button'), key="btn_s2_next", use_container_width=True):
             st.session_state['nomina_nuevo_mes'] = nomina
-            st.session_state['cierre_step'] = 3
+            st.session_state['cierre_step'] = 4  # Skip step 3, go directly to step 4
             st.rerun(scope="fragment")
 
 
@@ -198,9 +198,37 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
     
     saldo = st.session_state.get('saldo_banco_real', 0)
     nomina = st.session_state.get('nomina_nuevo_mes', 0)
-    pct_rem = st.session_state.get('pct_remanente', 0)
-    # Consistent default: 20% = 0.2
-    pct_sal = st.session_state.get('pct_salario', 0.2)
+    
+    # Retention sliders integrated in step 4 for dynamic adjustment
+    retenciones = config.get('retenciones', {})
+    enable_retentions = config.get('enable_retentions', True)
+    
+    default_pct_rem = retenciones.get('pct_remanente_default', 0)
+    default_pct_sal = retenciones.get('pct_salario_default', 20)
+    
+    if enable_retentions:
+        st.markdown(f"##### {t('cierre.wizard.step3.title')}")
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            pct_rem = st.slider(
+                t('cierre.wizard.step3.surplus_label'),
+                min_value=0, max_value=100,
+                value=st.session_state.get('pct_remanente_value', default_pct_rem),
+                help=t('cierre.wizard.step3.surplus_help'),
+                key="slider_rem_step4"
+            ) / 100
+        with sc2:
+            pct_sal = st.slider(
+                t('cierre.wizard.step3.salary_label'),
+                min_value=0, max_value=100,
+                value=st.session_state.get('pct_salario_value', default_pct_sal),
+                help=t('cierre.wizard.step3.salary_help'),
+                key="slider_sal_step4"
+            ) / 100
+        st.markdown("---")
+    else:
+        pct_rem = 0.0
+        pct_sal = 0.0
     
     enable_consequences = config.get('enable_consequences', False)
     consequences_data = {'total': 0.0, 'breakdown': []}
@@ -217,7 +245,8 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
     retencion_remanente = saldo_base_remanente * pct_rem
     retencion_salario = nomina * pct_sal
     
-    total_inversion = kpis['total_inversion'] + retencion_remanente + retencion_salario + consequences_amount
+    # Usar inversion_manual (excluye auto-generadas) para el cálculo total
+    total_inversion = kpis['inversion_manual'] + retencion_remanente + retencion_salario + consequences_amount
     transferencia_nueva = retencion_remanente + retencion_salario + consequences_amount
     saldo_fin_mes = saldo_base_remanente - retencion_remanente
     
@@ -227,19 +256,29 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
     with rc1:
         st.metric(t('cierre.wizard.step4.metric_bank_balance'), format_currency(saldo))
         st.metric(t('cierre.wizard.step4.metric_new_salary'), format_currency(nomina))
-        st.metric(t('cierre.wizard.step4.metric_manual_retentions'), format_currency(kpis['total_inversion']))
+        st.metric(t('cierre.wizard.step4.metric_manual_retentions'), format_currency(kpis['inversion_manual']))
     
     with rc2:
         st.metric(t('cierre.wizard.step4.metric_surplus_retention'), format_currency(retencion_remanente))
         st.metric(t('cierre.wizard.step4.metric_salary_retention'), format_currency(retencion_salario))
         if consequences_amount > 0:
-             st.metric(t('cierre.wizard.step4.metric_consequences'), format_currency(consequences_amount))
+            st.metric(t('cierre.wizard.step4.metric_consequences'), format_currency(consequences_amount))
+            # Show breakdown if available
+            if consequences_data.get('breakdown'):
+                with st.expander(t('consequences.closing_breakdown')):
+                    for item in consequences_data['breakdown']:
+                        rule_name = item.get('rule_name', 'Unknown')
+                        amount = item.get('amount', 0.0)
+                        count = item.get('count', 0)
+                        st.write(f"**{rule_name}**: {format_currency(amount)} ({count} gasto{'s' if count != 1 else ''})")
         
         st.metric(t('cierre.wizard.step4.metric_total_investment'), format_currency(total_inversion), 
                  delta=f"+{format_currency(transferencia_nueva)} {t('cierre.wizard.step4.metric_new_transfer')}")
     
     st.markdown("---")
-    st.markdown(f"### {t('cierre.wizard.step4.metric_new_month_balance')}: **{format_currency(saldo_fin_mes)}**")
+    
+    # Calculate balances
+    saldo_con_salario = saldo_fin_mes + nomina - retencion_salario - consequences_amount
     
     cierre_mes = get_cierre_mes(mes_actual)
     saldo_inicial_mes = cierre_mes.saldo_inicio if (cierre_mes and cierre_mes.saldo_inicio > 0) else 0.0
@@ -247,22 +286,46 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
     balance_esperado = saldo_inicial_mes + kpis['balance_mes'] - kpis['total_inversion']
     saldo_comparar = saldo - nomina if salario_ya_incluido else saldo
     desviacion = balance_esperado - saldo_comparar if saldo > 0 else 0
+    sym = get_currency_symbol()
     
-    dc1, dc2 = st.columns(2)
-    with dc1:
-        st.metric(t('cierre.wizard.step4.metric_calculated_balance'), format_currency(balance_esperado))
-    with dc2:
-        sym = get_currency_symbol()
-        if abs(desviacion) <= 10:
-            st.metric(t('cierre.wizard.step4.metric_deviation_ok'), f"{desviacion:+,.2f} {sym}")
-        else:
-            st.metric(t('cierre.wizard.step4.metric_deviation_warn'), f"{desviacion:+,.2f} {sym}", 
-                     delta=t('cierre.wizard.step4.metric_review'), delta_color="inverse")
+    # VALIDATION SECTION: Real vs Calculated balance
+    st.markdown(f"##### 🔍 Validación de Saldos")
+    val_col1, val_col2, val_col3 = st.columns(3)
+    with val_col1:
+        st.metric(
+            t('cierre.wizard.step4.metric_bank_balance'), 
+            format_currency(saldo_comparar),
+            help="Saldo real actual en tu cuenta bancaria"
+        )
+    with val_col2:
+        st.metric(
+            t('cierre.wizard.step4.metric_calculated_balance'), 
+            format_currency(balance_esperado),
+            help=t('cierre.wizard.step4.metric_calculated_balance_help')
+        )
+    with val_col3:
+        dev_label = t('cierre.wizard.step4.metric_deviation_ok') if abs(desviacion) <= 10 else t('cierre.wizard.step4.metric_deviation_warn')
+        st.metric(
+            dev_label, 
+            f"{desviacion:+,.2f} {sym}",
+            delta=t('cierre.wizard.step4.metric_review') if abs(desviacion) > 10 else None,
+            delta_color="inverse" if abs(desviacion) > 10 else "off",
+            help=t('cierre.wizard.step4.metric_deviation_help')
+        )
+    
+    st.markdown("---")
+    
+    # MAIN BALANCE: What user will have available next month
+    main_col, info_col = st.columns([4, 1])
+    with main_col:
+        st.markdown(f"### {t('cierre.wizard.step4.metric_balance_with_salary')}: **{format_currency(saldo_con_salario)}**")
+    with info_col:
+        st.caption(f"ℹ️ {t('cierre.wizard.step4.metric_balance_with_salary_help')}")
     
     ac1, ac2 = st.columns(2)
     with ac1:
         if st.button(t('cierre.wizard.step4.back_button'), key="btn_s4_back", use_container_width=True):
-            st.session_state['cierre_step'] = 3
+            st.session_state['cierre_step'] = 2  # Go back to step 2 (skip step 3)
             st.rerun(scope="fragment")
     with ac2:
         if st.button(t('cierre.wizard.step4.execute_button'), key="btn_s4_exec", type="primary", use_container_width=True):
@@ -279,6 +342,7 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
                 )
                 st.session_state['cierre_step'] = 5
                 st.session_state['snapshot'] = snapshot
+                st.session_state['transferencia_nueva'] = transferencia_nueva
                 st.rerun(scope="fragment")
             except Exception as e:
                 st.session_state['cierre_error'] = str(e)
@@ -290,13 +354,14 @@ def _render_step5():
                unsafe_allow_html=True)
     
     snapshot = st.session_state.get('snapshot')
+    transferencia_nueva = st.session_state.get('transferencia_nueva', 0)
     if snapshot:
         year_s, month_s = map(int, snapshot.mes_cierre.split('-'))
         mes_sig = f"{year_s}-{month_s+1:02d}" if month_s < 12 else f"{year_s+1}-01"
         
         st.markdown(f"""
         - **{t('cierre.wizard.step5.closed_month')}:** {snapshot.mes_cierre}
-        - **{t('cierre.wizard.step5.retention_executed')}:** {format_currency(snapshot.retencion_ejecutada)}
+        - **{t('cierre.wizard.step5.retention_executed')}:** {format_currency(transferencia_nueva)}
         - **{t('cierre.wizard.step5.new_month_balance')}:** {format_currency(snapshot.saldo_inicial_nuevo)}
         """)
         

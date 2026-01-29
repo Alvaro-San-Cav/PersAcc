@@ -60,6 +60,25 @@ st.markdown(
 # ============================================================================
 
 def main():
+    # Establecer el mes abierto por defecto al inicio (antes del primer render)
+    if 'mes_global' not in st.session_state:
+        from src.database import get_all_meses_fiscales_cerrados
+        from src.business_logic import calcular_mes_fiscal
+        from datetime import date, timedelta
+        
+        cerrados = get_all_meses_fiscales_cerrados()
+        if cerrados:
+            # Calcular el primer mes abierto (siguiente al último cerrado)
+            ultimo_cerrado = sorted([c.mes_fiscal for c in cerrados])[-1]
+            y, m = map(int, ultimo_cerrado.split('-'))
+            dt_ultimo = date(y, m, 1)
+            next_month_date = (dt_ultimo + timedelta(days=32)).replace(day=1)
+            mes_abierto = next_month_date.strftime("%Y-%m")
+            st.session_state['mes_global'] = mes_abierto
+        else:
+            # Si no hay cierres, usar el mes actual
+            st.session_state['mes_global'] = calcular_mes_fiscal(date.today())
+    
     # Flag para saber si es primera carga
     is_first_load = 'first_load_done' not in st.session_state
     

@@ -361,7 +361,7 @@
                 "new_closure_button": "🆕 Nuevo Cierre"
             },
             "step4": {
-                "title": "Paso 4: Confirmación",
+                "title": "Paso 3: Retenciones y Confirmación",
                 "summary_title": "📋 Resumen del Cierre",
                 "back_button": "← Anterior",
                 "execute_button": "✅ CONFIRMAR CIERRE",
@@ -376,9 +376,14 @@
                 "metric_total_investment": "💎 Total a Inversión/Ahorro",
                 "metric_new_transfer": "nueva",
                 "metric_new_month_balance": "🏦 Saldo Inicio Nuevo Mes",
+                "metric_new_month_balance_help": "Saldo en tu cuenta antes de recibir la nómina del mes siguiente (después de retenciones del remanente)",
+                "metric_balance_with_salary": "💰 Balance Disponible Mes Siguiente",
+                "metric_balance_with_salary_help": "Saldo total disponible al inicio del mes siguiente: saldo base + nómina - retenciones de nómina",
                 "metric_calculated_balance": "📊 Saldo Calculado",
+                "metric_calculated_balance_help": "Saldo teórico según los movimientos registrados (ingresos - gastos - inversiones)",
                 "metric_deviation_ok": "✅ Desviación",
                 "metric_deviation_warn": "⚠️ Desviación",
+                "metric_deviation_help": "Diferencia entre saldo calculado y saldo real del banco. Si es alta, revisa si falta algún movimiento",
                 "metric_review": "Revisar"
             }
         }

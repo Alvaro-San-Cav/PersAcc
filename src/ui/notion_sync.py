@@ -236,6 +236,8 @@ def _notion_sync_content():
         TipoMovimiento.GASTO: get_categorias_by_tipo(TipoMovimiento.GASTO),
         TipoMovimiento.INGRESO: get_categorias_by_tipo(TipoMovimiento.INGRESO),
         TipoMovimiento.INVERSION: get_categorias_by_tipo(TipoMovimiento.INVERSION),
+        TipoMovimiento.TRASPASO_ENTRADA: get_categorias_by_tipo(TipoMovimiento.TRASPASO_ENTRADA),
+        TipoMovimiento.TRASPASO_SALIDA: get_categorias_by_tipo(TipoMovimiento.TRASPASO_SALIDA),
     }
     
     # Opciones de acción
