@@ -50,7 +50,21 @@ def render_proyecciones():
     
     years_ahead = end_year - current_year
     
+    # Botón para refrescar proyecciones (limpia caché)
+    col_refresh, _ = st.columns([1, 4])
+    with col_refresh:
+        if st.button("🔄 Recalcular", help="Fuerza el recálculo de proyecciones con los últimos datos"):
+            # Limpiar caché de session_state
+            keys_to_delete = [k for k in st.session_state.keys() if k.startswith('projections_')]
+            for k in keys_to_delete:
+                del st.session_state[k]
+            # Limpiar caché de funciones
+            get_projection_summary.clear()
+            generate_insights.clear()
+            st.rerun()
+    
     st.markdown("---")
+    
     
     # Obtener proyecciones (con caché)
     cache_key = f"projections_{start_year}_{end_year}"
@@ -248,48 +262,70 @@ def render_proyecciones():
 
 
 def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Figure:
-    """Crea gráfico de proyección de salarios."""
+    """Crea gráfico de proyección de salarios con fechas en eje X."""
     fig = go.Figure()
     
     # Datos históricos
     historical = data.get('historical', {})
+    hist_dates = []
+    hist_values = []
+    
     if historical:
         hist_months = sorted(historical.keys())
+        hist_dates = hist_months  # Ya están en formato YYYY-MM
         hist_values = [historical[m] for m in hist_months]
         
         fig.add_trace(go.Scatter(
-            x=list(range(len(hist_values))),
+            x=hist_dates,
             y=hist_values,
             mode='lines+markers',
             name=t('proyecciones.chart_historical'),
             line=dict(color='#00ff88', width=2),
-            marker=dict(size=6)
+            marker=dict(size=6),
+            hovertemplate='%{x}<br>%{y:,.0f} ' + get_currency_symbol() + '<extra></extra>'
         ))
     
     # Datos proyectados
     projected = data.get('projected', {})
     if projected:
         proj_values = []
-        proj_labels = []
+        proj_dates = []
         
         for year in sorted(projected.keys()):
             if year >= current_year:
                 monthly = projected[year].get('monthly_values', [])
+                # Calcular el mes inicial para este año
+                if year == current_year and hist_dates:
+                    # Continuamos desde el último mes histórico
+                    last_hist = hist_dates[-1]
+                    last_year, last_month = int(last_hist[:4]), int(last_hist[5:7])
+                    start_month = last_month + 1
+                    start_year = last_year
+                    if start_month > 12:
+                        start_month = 1
+                        start_year += 1
+                else:
+                    start_month = 1
+                    start_year = year
+                
                 for i, val in enumerate(monthly):
+                    month = start_month + i
+                    y = start_year
+                    while month > 12:
+                        month -= 12
+                        y += 1
+                    proj_dates.append(f"{y}-{month:02d}")
                     proj_values.append(val)
-                    proj_labels.append(f"{year}-{i+1:02d}")
-        
-        start_idx = len(historical) if historical else 0
-        x_proj = list(range(start_idx, start_idx + len(proj_values)))
         
         fig.add_trace(go.Scatter(
-            x=x_proj,
+            x=proj_dates,
             y=proj_values,
             mode='lines',
             name=t('proyecciones.chart_projected'),
             line=dict(color='#8a2be2', width=2, dash='dash'),
             fill='tonexty' if historical else None,
-            fillcolor='rgba(138, 43, 226, 0.1)'
+            fillcolor='rgba(138, 43, 226, 0.1)',
+            hovertemplate='%{x}<br>%{y:,.0f} ' + get_currency_symbol() + '<extra></extra>'
         ))
     
     fig.update_layout(
@@ -300,7 +336,7 @@ def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Fig
         height=300,
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months')),
+        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months'), tickangle=-45, dtick="M6"),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title=get_currency_symbol())
     )
     
@@ -359,45 +395,69 @@ def _create_investment_chart(data: dict, current_year: int, end_year: int) -> go
 
 
 def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Figure:
-    """Crea gráfico de proyección de gastos."""
+    """Crea gráfico de proyección de gastos con fechas en eje X."""
     fig = go.Figure()
     
     # Datos históricos
     historical = data.get('historical', {})
+    hist_dates = []
+    hist_values = []
+    
     if historical:
         hist_months = sorted(historical.keys())
+        hist_dates = hist_months  # Ya están en formato YYYY-MM
         hist_values = [historical[m] for m in hist_months]
         
         fig.add_trace(go.Scatter(
-            x=list(range(len(hist_values))),
+            x=hist_dates,
             y=hist_values,
             mode='lines+markers',
             name=t('proyecciones.chart_historical'),
             line=dict(color='#ff6b6b', width=2),
-            marker=dict(size=6)
+            marker=dict(size=6),
+            hovertemplate='%{x}<br>%{y:,.0f} ' + get_currency_symbol() + '<extra></extra>'
         ))
     
     # Datos proyectados
     projected = data.get('projected', {})
     if projected:
         proj_values = []
+        proj_dates = []
         
         for year in sorted(projected.keys()):
             if year >= current_year:
                 monthly = projected[year].get('monthly_values', [])
-                proj_values.extend(monthly)
-        
-        start_idx = len(historical) if historical else 0
-        x_proj = list(range(start_idx, start_idx + len(proj_values)))
+                # Calcular el mes inicial para este año
+                if year == current_year and hist_dates:
+                    last_hist = hist_dates[-1]
+                    last_year, last_month = int(last_hist[:4]), int(last_hist[5:7])
+                    start_month = last_month + 1
+                    start_year = last_year
+                    if start_month > 12:
+                        start_month = 1
+                        start_year += 1
+                else:
+                    start_month = 1
+                    start_year = year
+                
+                for i, val in enumerate(monthly):
+                    month = start_month + i
+                    y = start_year
+                    while month > 12:
+                        month -= 12
+                        y += 1
+                    proj_dates.append(f"{y}-{month:02d}")
+                    proj_values.append(val)
         
         fig.add_trace(go.Scatter(
-            x=x_proj,
+            x=proj_dates,
             y=proj_values,
             mode='lines',
             name=t('proyecciones.chart_projected'),
             line=dict(color='#ff9966', width=2, dash='dash'),
             fill='tonexty' if historical else None,
-            fillcolor='rgba(255, 107, 107, 0.1)'
+            fillcolor='rgba(255, 107, 107, 0.1)',
+            hovertemplate='%{x}<br>%{y:,.0f} ' + get_currency_symbol() + '<extra></extra>'
         ))
     
     fig.update_layout(
@@ -408,7 +468,7 @@ def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Fi
         height=300,
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months')),
+        xaxis=dict(showgrid=False, title=t('proyecciones.axis_months'), tickangle=-45, dtick="M6"),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title=get_currency_symbol())
     )
     

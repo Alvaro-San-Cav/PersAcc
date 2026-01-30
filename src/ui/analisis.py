@@ -355,7 +355,8 @@ def render_analisis():
         _render_user_notes_section("month", mes_seleccionado)
         
         # Lógica lenta de IA al final para no bloquear el renderizado de las notas
-        if entries and mes_seleccionado == calcular_mes_fiscal(date.today()):
+        # Generar resumen de IA para cualquier mes que tenga entradas
+        if entries:
             from src.ai.llm_service import is_llm_enabled, generate_quick_summary
             from src.i18n import get_language
             

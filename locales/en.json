@@ -340,6 +340,7 @@
             "step2": {
                 "title": "Step 2: New Salary",
                 "description": "Amount of your **next salary** (for the following month):",
+                "expected_salary_info": "💡 Previous salary: {amount}",
                 "input_label": "Salary",
                 "back_button": "← Previous",
                 "next_button": "Next →"

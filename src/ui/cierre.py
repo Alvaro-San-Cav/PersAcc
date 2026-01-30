@@ -100,8 +100,15 @@ def _render_step1(metodo_saldo: str):
     default_saldo = 0.0
     last_snapshot = get_latest_snapshot()
     if last_snapshot:
+         # saldo_inicial_nuevo es el saldo al cierre (sin la nómina del mes que empieza)
          default_saldo = last_snapshot.saldo_inicial_nuevo
-         st.info(t('cierre.wizard.step1.expected_balance_info', amount=default_saldo))
+         
+         # Si el método es "despues_salario", el usuario ya habrá cobrado la nómina,
+         # así que el saldo esperado debe incluirla
+         if metodo_saldo == 'despues_salario' and last_snapshot.nomina_nuevo_mes > 0:
+             default_saldo += last_snapshot.nomina_nuevo_mes
+         
+         st.info(t('cierre.wizard.step1.expected_balance_info', amount=format_currency(default_saldo)))
     
     saldo = st.number_input(
         t(f'cierre.wizard.step1.input_label_{suffix}'),
@@ -122,10 +129,18 @@ def _render_step2():
     st.markdown(f"#### {t('cierre.wizard.step2.title')}")
     st.markdown(t('cierre.wizard.step2.description'))
     
+    # Obtener nómina del cierre anterior como valor por defecto
+    default_nomina = 0.0
+    last_snapshot = get_latest_snapshot()
+    if last_snapshot and last_snapshot.nomina_nuevo_mes > 0:
+        default_nomina = last_snapshot.nomina_nuevo_mes
+        st.info(t('cierre.wizard.step2.expected_salary_info', amount=format_currency(default_nomina)))
+    
     nomina = st.number_input(
         t('cierre.wizard.step2.input_label'),
         min_value=0.0,
         step=100.0,
+        value=default_nomina,
         format="%.2f",
         key="nomina_nueva_input"
     )

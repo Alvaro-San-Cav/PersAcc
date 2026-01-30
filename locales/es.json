@@ -61,63 +61,74 @@
         "axis_months": "Meses",
         "axis_year": "Año",
         "current_year_note": "ℹ️ **Año {year}**: La media mensual muestra el promedio REAL de {historical_months} mes(es) transcurrido(s). El total anual combina datos reales + proyección de los {projected_months} meses restantes.",
+        "models_section": "🧠 Modelos de Proyección",
+        "retrain_button": "🔄 Reentrenar Modelos NN",
+        "retraining": "Entrenando modelos de red neuronal...",
+        "retrain_success": "✅ Modelos de red neuronal actualizados correctamente",
+        "retrain_info": "Reentrena los modelos cuando tengas nuevos datos. Las redes neuronales capturan patrones más complejos que la regresión lineal.",
         "insights": {
             "income_trend_positive": {
-                "title": "Tendencia de ingresos positiva",
-                "message": "Tus ingresos crecen ~{increase}€/año. Proyección basada en {months} meses de datos. Confianza del modelo: {confidence}%."
+                "title": "Ingresos en crecimiento",
+                "message": "Tus ingresos crecen ~{increase}€/año ({monthly_increase}€/mes). Datos de {months} meses.{variability_note}"
             },
             "income_trend_negative": {
-                "title": "Alerta: Ingresos en descenso",
-                "message": "Se detecta una caída de ~{decrease}€/año en tus ingresos. Revisa si hay cambios en tu situación laboral o fuentes de ingreso."
+                "title": "Ingresos en descenso",
+                "message": "Caída detectada: ~{decrease}€/año. Revisa cambios en tu situación laboral. Actual: {current_avg}€/mes."
             },
             "income_trend_stable": {
                 "title": "Ingresos estables",
-                "message": "Tus ingresos se mantienen estables en torno a {avg}€/mes. No hay cambios significativos proyectados."
+                "message": "Media mensual: {avg}€. Sin cambios significativos detectados en {months} meses de datos."
             },
             "savings_rate_exceptional": {
-                "title": "Tasa de ahorro excepcional",
-                "message": "Inviertes el {rate}% de tus ingresos. Esto te sitúa en el top de ahorradores. A este ritmo, en 5 años habrás acumulado un fondo considerable."
+                "title": "Tasa de ahorro TOP",
+                "message": "Inviertes {rate}% (~{monthly_amount}€/mes). Proyección 5 años: ~{five_year_total}€ acumulados."
             },
             "savings_rate_excellent": {
-                "title": "Excelente tasa de ahorro",
-                "message": "Con un {rate}% de tasa de inversión, estás construyendo patrimonio de forma sólida. Mantén este ritmo."
+                "title": "Excelente ahorro",
+                "message": "Con {rate}% (~{monthly_amount}€/mes), acumularás ~{five_year_total}€ en 5 años. ¡Sigue así!"
             },
             "savings_rate_good": {
-                "title": "Buena tasa de ahorro",
-                "message": "Inviertes el {rate}%. Para llegar al objetivo del 20%, necesitarías aumentar ~{deficit}pp más."
+                "title": "Buen ahorro",
+                "message": "Inviertes {rate}% ({monthly_amount}€/mes). Para el 20% ideal, aumenta ~{deficit_amount}€/mes más."
             },
             "savings_rate_improvable": {
-                "title": "Tasa de ahorro mejorable",
-                "message": "Solo inviertes el {rate}% de tus ingresos. Revisa tus gastos superfluos para aumentar la inversión."
+                "title": "Ahorro bajo",
+                "message": "Solo {rate}% ({monthly_amount}€/mes). Objetivo mínimo: 10%. Revisa gastos superfluos para mejorar."
             },
             "savings_rate_none": {
-                "title": "Sin inversión detectada",
-                "message": "No se detectan inversiones en tu historial. Considera destinar al menos un 10% de tus ingresos a ahorro/inversión."
+                "title": "Sin inversión",
+                "message": "No hay inversiones registradas. Considera destinar al menos 10% de tus ingresos ({target_amount}€/mes)."
             },
-            "expense_skyrocketing": {
-                "title": "Gasto disparado: {category}"
+            "expense_spike": {
+                "title": "Pico en {category}",
+                "message": "{current_amount}€ este mes vs {avg}€ de media ({diff_pct}% más). {context}"
             },
-            "expense_increasing": {
-                "title": "Gasto en aumento: {category}"
+            "expense_yoy_increase": {
+                "title": "Subida interanual: {category}",
+                "message": "{current_amount}€ vs {last_year_amount}€ mismo período año pasado ({yoy_pct}% más)."
             },
             "expense_growing": {
-                "message": "Esta categoría crece un {pct}% mensual (media: {avg}€/mes). Si la tendencia continúa, duplicará en ~{doubling_time} meses."
+                "message": "{current_amount}€ este mes (media: {avg}€). {trend_note}"
             },
             "expense_decreasing": {
-                "title": "Reducción en: {category}",
-                "message": "Has reducido gastos en esta categoría un {pct}% mensual. ¡Buen control!"
+                "title": "Bajada en {category}",
+                "message": "De {prev_avg}€/mes a {current_avg}€/mes. Ahorro anual: ~{yearly_savings}€. ¡Buen control!"
             },
             "expense_ratio_high": {
                 "title": "Gastos muy elevados",
-                "message": "Tus gastos representan el {ratio}% de tus ingresos. Margen muy ajustado para imprevistos."
+                "message": "Gastas el {ratio}% de tus ingresos. Solo {margin}€/mes de margen para imprevistos."
             },
             "expense_ratio_excellent": {
                 "title": "Control de gastos excelente",
-                "message": "Solo gastas el {ratio}% de tus ingresos. Gran capacidad de ahorro."
+                "message": "Solo gastas {ratio}% de tus ingresos. Margen disponible: {margin}€/mes."
+            },
+            "top_expense_category": {
+                "title": "Mayor gasto: {category}",
+                "message": "{amount}€/mes ({pct}% del total). {comparison}"
             },
             "accumulating_data": {
                 "title": "Acumulando datos",
-                "message": "Tienes {entries} entradas registradas. Con más datos históricos (3+ meses), las predicciones serán más precisas."
+                "message": "{entries} entradas ({months} meses). Con 3+ meses las predicciones serán más precisas."
             },
             "insufficient_data_error": "Datos insuficientes (mínimo 3 meses)"
         }
@@ -340,6 +351,7 @@
             "step2": {
                 "title": "Paso 2: Nueva Nómina",
                 "description": "Importe de tu **próxima nómina** (para el mes siguiente):",
+                "expected_salary_info": "💡 Nómina anterior: {amount}",
                 "input_label": "Nómina",
                 "back_button": "← Anterior",
                 "next_button": "Siguiente →"

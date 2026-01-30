@@ -7,8 +7,42 @@ from typing import List, Dict, Any, Optional
 from datetime import date
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
-from src.database import get_all_categorias, get_categorias_by_tipo, insert_ledger_entry
+from src.database import get_all_categorias, get_categorias_by_tipo, insert_ledger_entry, is_mes_cerrado
 from src.business_logic import calcular_fecha_contable, calcular_mes_fiscal
+
+
+def _get_next_open_month_date(fecha: date) -> date:
+    """
+    Si el mes fiscal de la fecha está cerrado, retorna el primer día del siguiente mes abierto.
+    Si el mes está abierto, retorna la fecha original.
+    """
+    from datetime import date as date_type
+    import calendar
+    
+    fecha_contable = calcular_fecha_contable(fecha, None)  # Tipo no importa para este cálculo
+    mes_fiscal = calcular_mes_fiscal(fecha_contable)
+    
+    if not is_mes_cerrado(mes_fiscal):
+        return fecha
+    
+    # El mes está cerrado, buscar el siguiente mes abierto
+    year, month = map(int, mes_fiscal.split('-'))
+    
+    # Avanzar mes por mes hasta encontrar uno abierto
+    max_iterations = 12  # Evitar bucle infinito
+    for _ in range(max_iterations):
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+        
+        next_mes_fiscal = f"{year:04d}-{month:02d}"
+        if not is_mes_cerrado(next_mes_fiscal):
+            # Retornar el primer día del mes abierto
+            return date_type(year, month, 1)
+    
+    # Si todos los meses están cerrados (caso improbable), retornar fecha original
+    return fecha
 from src.config import load_config, get_config_value
 from src.i18n import t
 
@@ -162,16 +196,25 @@ def _import_entries_to_db(entries: List[Dict[str, Any]]) -> tuple[int, List[str]
                 errors.append(f"'{entry['concepto']}': {t('notion.error_no_category')}")
                 continue
             
-            # Crear LedgerEntry
+            # Verificar si el mes está cerrado y ajustar fecha si es necesario
+            fecha_original = entry['fecha']
+            fecha_ajustada = _get_next_open_month_date(fecha_original)
+            
+            # Si la fecha cambió, significa que el mes original estaba cerrado
+            if fecha_ajustada != fecha_original:
+                # Log del ajuste (opcional: podría agregarse a warnings/info)
+                pass
+            
+            # Crear LedgerEntry con la fecha ajustada
             fecha_contable = calcular_fecha_contable(
-                entry['fecha'],
+                fecha_ajustada,
                 entry['tipo_movimiento']
             )
             mes_fiscal = calcular_mes_fiscal(fecha_contable)
             
             ledger_entry = LedgerEntry(
                 id=None,
-                fecha_real=entry['fecha'],
+                fecha_real=fecha_ajustada,  # Usar fecha ajustada
                 fecha_contable=fecha_contable,
                 mes_fiscal=mes_fiscal,
                 tipo_movimiento=entry['tipo_movimiento'],

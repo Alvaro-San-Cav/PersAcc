@@ -166,6 +166,40 @@ def check_model_available(model_name: str) -> bool:
     return any(model_name in model for model in available)
 
 
+def _generate_fallback_message(expenses: float, expense_items: list, lang: str = "es") -> str:
+    """
+    Generate a fallback message when LLM fails or returns empty.
+    
+    Args:
+        expenses: Total expenses
+        expense_items: List of expense items
+        lang: Language code
+        
+    Returns:
+        Contextual fallback message
+    """
+    num_expenses = len(expense_items) if expense_items else 0
+    
+    if lang == "es":
+        if expenses == 0 or num_expenses == 0:
+            return "💰 ¡Mes muy tranquilo! Casi sin gastos registrados."
+        elif num_expenses <= 2:
+            return "✨ Muy pocos gastos este mes. ¡Excelente control!"
+        elif num_expenses <= 5:
+            return "👍 Gastos bajo control. Buen trabajo."
+        else:
+            return "📊 Mes activo con varios movimientos."
+    else:  # English
+        if expenses == 0 or num_expenses == 0:
+            return "💰 Very quiet month! Almost no expenses recorded."
+        elif num_expenses <= 2:
+            return "✨ Very few expenses this month. Excellent control!"
+        elif num_expenses <= 5:
+            return "👍 Expenses under control. Good job."
+        else:
+            return "📊 Active month with several movements."
+
+
 def generate_quick_summary(income: float, expenses: float, balance: float, lang: str = "es", expense_items: list = None) -> str:
     """
     Generate a quick, witty commentary about current month finances.
@@ -266,18 +300,27 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
                     text = text[:(LLM_MAX_RESPONSE_LENGTH-3)] + "..."
                 return text
             else:
+                # LLM returned empty - provide fallback message
+                if not DEBUG:
+                    return _generate_fallback_message(expenses, expense_items, lang)
                 # Debug: show thinking content if available (v2 - with think:False)
                 if result.get("thinking"):
                     thinking_preview = result.get("thinking", "")[:150]
-                    return f"[v2 think:False={is_qwen}] thinking={thinking_preview}" if DEBUG else ""
-                return f"[v2] Respuesta vacía" if DEBUG else ""
+                    return f"[v2 think:False={is_qwen}] thinking={thinking_preview}"
+                return "[v2] Respuesta vacía"
         else:
-            return f"[DEBUG: Error HTTP {response.status_code} de Ollama]" if DEBUG else ""
+            if not DEBUG:
+                return _generate_fallback_message(expenses, expense_items, lang)
+            return f"[DEBUG: Error HTTP {response.status_code} de Ollama]"
         
     except requests.exceptions.Timeout:
-        return "[DEBUG: Timeout - el modelo tardó más de 15s]" if DEBUG else ""
+        if not DEBUG:
+            return _generate_fallback_message(expenses, expense_items, lang)
+        return "[DEBUG: Timeout - el modelo tardó más de 15s]"
     except Exception as e:
-        return f"[DEBUG: Error - {str(e)[:100]}]" if DEBUG else ""
+        if not DEBUG:
+            return _generate_fallback_message(expenses, expense_items, lang)
+        return f"[DEBUG: Error - {str(e)[:100]}]"
 
 
 def _resolve_model_name(requested_name: str, available_models: list = None) -> str:
