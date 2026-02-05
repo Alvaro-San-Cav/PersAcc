@@ -133,29 +133,62 @@ def render_sidebar():
         tracking_key = f"tracked_cat_{tipo_mov.value}"
         tracked_categoria = st.session_state.get(tracking_key, None)
         
+        # Key para rastrear si el usuario ha editado manualmente el concepto
+        user_edited_concepto_key = "user_edited_concepto"
+        
+        # Obtener el valor actual del concepto en el widget
+        current_concepto = st.session_state.get("concepto_input_widget", "")
+        
         # Determinar si debemos aplicar defaults
         should_reset_defaults = False
+        should_reset_concepto = False
         
         # Detectar cambio: tracked != actual
         if tracked_categoria != categoria_nombre:
             should_reset_defaults = True
+            
+            # Determinar si el concepto actual es un default o fue escrito por el usuario
+            # Solo resetear concepto si NO fue editado manualmente por el usuario
+            if not st.session_state.get(user_edited_concepto_key, False):
+                # El usuario no ha editado manualmente, podemos aplicar el nuevo default
+                should_reset_concepto = True
+            else:
+                # El usuario SÍ editó manualmente, verificar si el concepto actual 
+                # coincide con algún default conocido (en cuyo caso sí podemos cambiarlo)
+                all_conceptos_default = list(conceptos_default.values())
+                if current_concepto in all_conceptos_default or current_concepto.strip() == "":
+                    should_reset_concepto = True
+                # Si no coincide con ningún default y no está vacío, mantener el valor del usuario
         
+        # Reset explícito después de guardar una transacción
         if st.session_state.get("reset_concepto_flag", False):
             should_reset_defaults = True
+            should_reset_concepto = True
             st.session_state["reset_concepto_flag"] = False
+            # Limpiar el flag de edición manual al guardar
+            st.session_state[user_edited_concepto_key] = False
         
         # Aplicar defaults DIRECTAMENTE a las keys de los widgets
         if should_reset_defaults:
-            st.session_state["concepto_input_widget"] = concepto_default
+            # Solo resetear concepto si corresponde
+            if should_reset_concepto:
+                st.session_state["concepto_input_widget"] = concepto_default
+                # Resetear flag de edición manual cuando aplicamos un default
+                st.session_state[user_edited_concepto_key] = False
             st.session_state["quick_amount_widget"] = importe_default
             # Actualizar tracking DESPUÉS de aplicar defaults
             st.session_state[tracking_key] = categoria_nombre
+        
+        # Callback para detectar cuando el usuario edita el concepto manualmente
+        def on_concepto_change():
+            st.session_state[user_edited_concepto_key] = True
         
         # Concepto 
         concepto = st.text_input(
             f"📝 {t('sidebar.quick_add.concept_label')}", 
             placeholder=t('sidebar.quick_add.concept_placeholder'),
-            key="concepto_input_widget"
+            key="concepto_input_widget",
+            on_change=on_concepto_change
         )
         
         # Selector de relevancia (solo para GASTO)
