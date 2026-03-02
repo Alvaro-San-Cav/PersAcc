@@ -57,13 +57,29 @@ def render_analisis():
             """Callback al cambiar de mes para forzar actualización."""
             st.session_state['mes_global'] = st.session_state['mes_selector_analisis']
         
-        mes_seleccionado = st.selectbox(
-            t('analisis.month_selector', year=year_to_show),
-            options=meses,
-            index=default_index,
-            key="mes_selector_analisis",
-            on_change=on_mes_change
-        )
+        bank_url = config.get('bank_url', '')
+        
+        if bank_url:
+            sel_col, btn_col = st.columns([3, 1])
+            with sel_col:
+                mes_seleccionado = st.selectbox(
+                    t('analisis.month_selector', year=year_to_show),
+                    options=meses,
+                    index=default_index,
+                    key="mes_selector_analisis",
+                    on_change=on_mes_change
+                )
+            with btn_col:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                st.link_button(t('analisis.btn_bank_url'), bank_url, use_container_width=True)
+        else:
+            mes_seleccionado = st.selectbox(
+                t('analisis.month_selector', year=year_to_show),
+                options=meses,
+                index=default_index,
+                key="mes_selector_analisis",
+                on_change=on_mes_change
+            )
         # Guardar en session_state global
         st.session_state['mes_global'] = mes_seleccionado
     

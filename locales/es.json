@@ -277,6 +277,7 @@
     "analisis": {
         "title": "💰 PersAcc - Ledger",
         "month_selector": "📆 Mes Fiscal ({year})",
+        "btn_bank_url": "🏦 Ir al Banco",
         "kpis": {
             "initial_balance": "🏦 Inic. Mes",
             "income": "🟢 Ingresos",
@@ -396,7 +397,8 @@
                 "metric_deviation_ok": "✅ Desviación",
                 "metric_deviation_warn": "⚠️ Desviación",
                 "metric_deviation_help": "Diferencia entre saldo calculado y saldo real del banco. Si es alta, revisa si falta algún movimiento",
-                "metric_review": "Revisar"
+                "metric_review": "Revisar",
+                "btn_bank_url": "🏦 Ir a página del Banco"
             }
         }
     },
@@ -603,6 +605,9 @@
             "ollama_not_running_err": "❌ Ollama no está corriendo o no está instalado",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
+            "section_bank_title": "#### 🏦 Acceso a Banco",
+            "bank_url_label": "URL del Banco",
+            "bank_url_help": "Enlace a la página web de tu banco para tenerlo a mano en Ledger y Cierre de Mes (ej: https://bancosantander.es)",
             "section_closing_title": "#### 🔒 Método de Cierre de Mes",
             "closing_method_label": "¿Cuándo consultas el saldo del banco?",
             "closing_method_help": "Elige si revisas tu saldo antes o después de cobrar la nómina al hacer el cierre",

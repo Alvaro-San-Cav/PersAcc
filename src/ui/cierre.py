@@ -337,6 +337,11 @@ def _render_step4(mes_actual: str, config: dict, metodo_saldo: str):
     with info_col:
         st.caption(f"ℹ️ {t('cierre.wizard.step4.metric_balance_with_salary_help')}")
     
+    bank_url = config.get('bank_url', '')
+    if bank_url:
+        st.link_button(t('cierre.wizard.step4.btn_bank_url'), bank_url, use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
     ac1, ac2 = st.columns(2)
     with ac1:
         if st.button(t('cierre.wizard.step4.back_button'), key="btn_s4_back", use_container_width=True):

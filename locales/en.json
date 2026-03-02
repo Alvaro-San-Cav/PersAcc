@@ -266,6 +266,7 @@
     "analisis": {
         "title": "💰 PersAcc - Ledger",
         "month_selector": "📆 Fiscal Month ({year})",
+        "btn_bank_url": "🏦 Go to Bank",
         "kpis": {
             "initial_balance": "🏦 Initial",
             "income": "🟢 Income",
@@ -385,7 +386,8 @@
                 "metric_deviation_ok": "✅ Deviation",
                 "metric_deviation_warn": "⚠️ Deviation",
                 "metric_deviation_help": "Difference between calculated and actual bank balance. If high, check for missing movements",
-                "metric_review": "Review"
+                "metric_review": "Review",
+                "btn_bank_url": "🏦 Go to Bank Website"
             }
         }
     },
@@ -593,6 +595,9 @@
             "ollama_not_running_err": "❌ Ollama is not running or not installed",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
+            "section_bank_title": "#### 🏦 Bank Access",
+            "bank_url_label": "Bank URL",
+            "bank_url_help": "Link to your bank's website to have it handy in Ledger and Month Closing (e.g. https://bancosantander.es)",
             "section_closing_title": "#### 🔒 Month Closing Method",
             "closing_method_label": "When do you check your bank balance?",
             "closing_method_help": "Choose whether you check your balance before or after receiving salary when closing the month",

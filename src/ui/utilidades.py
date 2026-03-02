@@ -466,6 +466,7 @@ def _render_config_tab():
         enable_retentions = st.session_state.get('config_enable_retentions', True)
         enable_consequences = st.session_state.get('config_enable_consequences', False)
         enable_llm = st.session_state.get('config_enable_llm', False)
+        bank_url = st.session_state.get('config_bank_url', '')
         
         current_lang = get_language()
         idioma_seleccionado = st.session_state.get('config_language', current_lang)
@@ -475,6 +476,7 @@ def _render_config_tab():
         config['enable_relevance'] = enable_relevance
         config['enable_retentions'] = enable_retentions
         config['enable_consequences'] = enable_consequences
+        config['bank_url'] = bank_url
         
         if 'llm' not in config:
             config['llm'] = {}
@@ -565,6 +567,16 @@ def _render_config_tab():
         st.slider(t('utilidades.config.slider_sal_label'), 0, 100,
                   config.get('retenciones', {}).get('pct_salario_default', 20),
                   help=t('utilidades.config.slider_sal_help'), key="config_pct_salario")
+    
+    st.markdown("---")
+    
+    st.markdown(t('utilidades.config.section_bank_title'))
+    st.text_input(t('utilidades.config.bank_url_label'), 
+                  value=config.get('bank_url', ''), 
+                  help=t('utilidades.config.bank_url_help'), 
+                  key="config_bank_url")
+
+    st.markdown("---")
     
     # Método de cierre
     st.markdown(t('utilidades.config.section_closing_title'))
