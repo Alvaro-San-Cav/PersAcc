@@ -33,6 +33,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Forzar limpieza de cache (evita error "Failed to fetch dynamically imported module")
+if "first_run" not in st.session_state:
+    st.session_state.first_run = True
+    st.cache_data.clear()
+    st.cache_resource.clear()
+
 # Aplicar CSS personalizado
 apply_custom_css(st)
 
