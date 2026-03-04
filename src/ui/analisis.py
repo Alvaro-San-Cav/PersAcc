@@ -285,7 +285,7 @@ def render_analisis():
             
             # Add Relevance column only if enabled
             if enable_relevance:
-                column_config["Relevance"] = st.column_config.SelectboxColumn(
+                column_config["Relevancia"] = st.column_config.SelectboxColumn(
                     t('analisis.movements.columns.relevance'),
                     options=["NE", "LI", "SUP", "TON"],
                     required=False,

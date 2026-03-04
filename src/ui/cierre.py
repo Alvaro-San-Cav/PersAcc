@@ -84,8 +84,6 @@ def _render_wizard_fragment(mes_actual: str):
         _render_step1(metodo_saldo)
     elif step == 2:
         _render_step2()
-    elif step == 3:
-        _render_step3(config)
     elif step == 4:
         _render_step4(mes_actual, config, metodo_saldo)
     elif step == 5:
@@ -154,54 +152,6 @@ def _render_step2():
         if st.button(t('cierre.wizard.step2.next_button'), key="btn_s2_next", use_container_width=True):
             st.session_state['nomina_nuevo_mes'] = nomina
             st.session_state['cierre_step'] = 4  # Skip step 3, go directly to step 4
-            st.rerun(scope="fragment")
-
-
-def _render_step3(config: dict):
-    st.markdown(f"#### {t('cierre.wizard.step3.title')}")
-    
-    sc1, sc2 = st.columns(2)
-    
-    retenciones = config.get('retenciones', {})
-    enable_retentions = config.get('enable_retentions', True)
-    
-    default_pct_rem = retenciones.get('pct_remanente_default', 0)
-    default_pct_sal = retenciones.get('pct_salario_default', 20)
-
-    if enable_retentions:
-        with sc1:
-            pct_remanente = st.slider(
-                t('cierre.wizard.step3.surplus_label'),
-                min_value=0, max_value=100,
-                value=default_pct_rem,
-                help=t('cierre.wizard.step3.surplus_help'),
-                key="slider_rem"
-            ) / 100
-        with sc2:
-            pct_salario = st.slider(
-                t('cierre.wizard.step3.salary_label'),
-                min_value=0, max_value=100,
-                value=default_pct_sal,
-                help=t('cierre.wizard.step3.salary_help'),
-                key="slider_sal"
-            ) / 100
-    else:
-        pct_remanente = 0.0
-        pct_salario = 0.0
-        st.info(t('utilidades.config.enable_retentions_help'))
-    
-    st.markdown("---")
-    
-    nc1, nc2 = st.columns(2)
-    with nc1:
-        if st.button(t('cierre.wizard.step3.back_button'), key="btn_s3_back", use_container_width=True):
-            st.session_state['cierre_step'] = 2
-            st.rerun(scope="fragment")
-    with nc2:
-        if st.button(t('cierre.wizard.step3.next_button'), key="btn_s3_next", use_container_width=True):
-            st.session_state['pct_remanente'] = pct_remanente
-            st.session_state['pct_salario'] = pct_salario
-            st.session_state['cierre_step'] = 4
             st.rerun(scope="fragment")
 
 
