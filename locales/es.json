@@ -422,6 +422,14 @@
             "investment": "💎 Inversión/Ahorro Ejecutado",
             "savings_percent": "📈 % Ahorro"
         },
+        "retentions_breakdown": {
+            "title": "Desglose de Inversiones (Automático vs Manual)",
+            "salary": "Retención Salario",
+            "surplus": "Retención Remanente",
+            "consequences": "⚖️ Consecuencias",
+            "manual": "Aportaciones Manuales",
+            "total_auto": "Total Automatizado"
+        },
         "notes_title": "📝 Anotaciones ({period})",
         "notes_success": "✅ Anotaciones de {period} guardadas",
         "no_notes": "No hay anotaciones registradas para {period}",

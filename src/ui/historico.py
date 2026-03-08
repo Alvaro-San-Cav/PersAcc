@@ -166,9 +166,8 @@ def _render_period_notes(period_type: str, period_identifier: str, readonly: boo
                 allowed_attrs = {'span': ['style'], '*': ['class']}
                 safe_notes = bleach.clean(current_notes, tags=allowed_tags, attributes=allowed_attrs)
             except ImportError:
-                # Fallback: escape HTML if bleach not available
-                import html
-                safe_notes = html.escape(current_notes)
+                # Fallback: without bleach, we trust the local user input
+                safe_notes = current_notes
             
             with st.container(border=True):
                 st.markdown(safe_notes, unsafe_allow_html=True)
@@ -222,6 +221,77 @@ def _render_period_notes(period_type: str, period_identifier: str, readonly: boo
                 save_period_notes(period_type, period_identifier, new_notes)
                 st.session_state[toast_key] = True
                 st.rerun()
+
+
+def _render_retentions_breakdown(entries):
+    """Renderiza el desglose de las inversiones (Automático vs Manual)"""
+    from src.models import TipoMovimiento
+    from src.i18n import t
+    from src.config import format_currency
+    
+    inversiones = [e for e in entries if e.tipo_movimiento == TipoMovimiento.INVERSION]
+    if not inversiones:
+        return
+
+    ret_salario = 0.0
+    ret_remanente = 0.0
+    ret_consecuencias = 0.0
+    inv_manual = 0.0
+
+    for e in inversiones:
+        concepto = (e.concepto or "").lower()
+        if "retención salario" in concepto:
+            ret_salario += e.importe
+        elif "retención remanente" in concepto:
+            ret_remanente += e.importe
+        elif "consecuencias" in concepto:
+            ret_consecuencias += e.importe
+        else:
+            inv_manual += e.importe
+
+    total_auto = ret_salario + ret_remanente + ret_consecuencias
+    
+    # We only show the breakdown if there are automatic retentions 
+    if total_auto == 0:
+        return
+        
+    st.markdown(f"#### 💎 {t('historico.retentions_breakdown.title')}")
+    
+    cols = st.columns(4)
+    
+    with cols[0]:
+        st.markdown(f'''
+        <div style="background-color: rgba(68, 138, 255, 0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #448aff; height: 100%;">
+            <p style="margin:0; font-size: 0.85em; color: #a0a0a0; text-transform: uppercase; font-weight: 600;">{t('historico.retentions_breakdown.salary')}</p>
+            <h3 style="margin:5px 0 0 0; color: #448aff;">{format_currency(ret_salario, 0)}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with cols[1]:
+        st.markdown(f'''
+        <div style="background-color: rgba(0, 200, 83, 0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #00c853; height: 100%;">
+            <p style="margin:0; font-size: 0.85em; color: #a0a0a0; text-transform: uppercase; font-weight: 600;">{t('historico.retentions_breakdown.surplus')}</p>
+            <h3 style="margin:5px 0 0 0; color: #00c853;">{format_currency(ret_remanente, 0)}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with cols[2]:
+        st.markdown(f'''
+        <div style="background-color: rgba(255, 171, 0, 0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #ffab00; height: 100%;">
+            <p style="margin:0; font-size: 0.85em; color: #a0a0a0; text-transform: uppercase; font-weight: 600;">{t('historico.retentions_breakdown.consequences')}</p>
+            <h3 style="margin:5px 0 0 0; color: #ffab00;">{format_currency(ret_consecuencias, 0)}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with cols[3]:
+        st.markdown(f'''
+        <div style="background-color: rgba(150, 150, 150, 0.1); padding: 15px; border-radius: 10px; border-left: 4px solid #999; height: 100%;">
+            <p style="margin:0; font-size: 0.85em; color: #a0a0a0; text-transform: uppercase; font-weight: 600;">{t('historico.retentions_breakdown.manual')}</p>
+            <h3 style="margin:5px 0 0 0; color: #ccc;">{format_currency(inv_manual, 0)}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
 
 
 def render_month_view(entries, mes_sel, anio_sel):
@@ -286,7 +356,10 @@ def render_month_view(entries, mes_sel, anio_sel):
     
     st.markdown("---")
     
+    _render_retentions_breakdown(entries)
+    
     # AI Commentary Section (if enabled)
+
     if is_llm_enabled():
         _render_ai_commentary_section(
             period_type="month",
@@ -342,6 +415,53 @@ def render_month_view(entries, mes_sel, anio_sel):
                 showlegend=False
             )
             st.plotly_chart(fig_cat, use_container_width=True)
+            
+            # Category Breakdown Table
+            st.markdown("##### Desglose por Categoría")
+            import pandas as pd
+            df_cats = pd.DataFrame(sorted_cats, columns=["Categoría", "Importe (€)"])
+            
+            st.dataframe(
+                df_cats,
+                column_config={
+                    "Categoría": st.column_config.TextColumn(
+                        "Categoría",
+                        width="medium"
+                    ),
+                    "Importe (€)": st.column_config.NumberColumn(
+                        "Importe (€)",
+                        format="%.2f €",
+                        width="small"
+                    )
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            with st.expander("🔍 Explorar movimientos por categoría"):
+                cat_seleccionada = st.selectbox(
+                    "Selecciona una categoría:", 
+                    [c[0] for c in sorted_cats], 
+                    key="sel_cat_month_detalle",
+                    label_visibility="collapsed"
+                )
+                if cat_seleccionada:
+                    cat_entries = []
+                    seen_keys = set()
+                    
+                    for e in entries:
+                        if e.tipo_movimiento == TipoMovimiento.GASTO and cats_dict.get(e.categoria_id) == cat_seleccionada:
+                            # Use a unique key for deduplication to avoid showing raw identical copies
+                            key = f"{e.fecha_real.strftime('%Y%m%d')}_{e.concepto or ''}_{e.importe}"
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                cat_entries.append({
+                                    "Fecha": e.fecha_real.strftime("%d/%m/%Y"), 
+                                    "Concepto": (e.concepto or ""), 
+                                    "Importe": format_currency(e.importe)
+                                })
+                                
+                    st.dataframe(cat_entries, use_container_width=True, hide_index=True)
         else:
             st.info(t('historico.overview.no_expenses'))
     
@@ -481,6 +601,8 @@ def render_year_view(entries, anio_sel):
     
     st.markdown("---")
     
+    _render_retentions_breakdown(entries)
+    
     # AI Commentary Section (if enabled)
     if is_llm_enabled():
         _render_ai_commentary_section(
@@ -569,6 +691,53 @@ def render_year_view(entries, anio_sel):
                     showlegend=False
                 )
                 st.plotly_chart(fig_cat, use_container_width=True)
+                
+                # Category Breakdown Table
+                st.markdown("##### Desglose por Categoría")
+                import pandas as pd
+                df_cats = pd.DataFrame(sorted_cats, columns=["Categoría", "Importe (€)"])
+                
+                st.dataframe(
+                    df_cats,
+                    column_config={
+                        "Categoría": st.column_config.TextColumn(
+                            "Categoría",
+                            width="medium"
+                        ),
+                        "Importe (€)": st.column_config.NumberColumn(
+                            "Importe (€)",
+                            format="%.2f €",
+                            width="small"
+                        )
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                with st.expander("🔍 Explorar movimientos por categoría"):
+                    cat_seleccionada = st.selectbox(
+                        "Selecciona una categoría:", 
+                        [c[0] for c in sorted_cats], 
+                        key="sel_cat_year_detalle",
+                        label_visibility="collapsed"
+                    )
+                    if cat_seleccionada:
+                        cat_entries = []
+                        seen_keys = set()
+                        
+                        for e in entries:
+                            if e.tipo_movimiento == TipoMovimiento.GASTO and cats_dict.get(e.categoria_id) == cat_seleccionada:
+                                # Use a unique key for deduplication to avoid showing raw identical copies
+                                key = f"{e.fecha_real.strftime('%Y%m%d')}_{e.concepto or ''}_{e.importe}"
+                                if key not in seen_keys:
+                                    seen_keys.add(key)
+                                    cat_entries.append({
+                                        "Fecha": e.fecha_real.strftime("%d/%m/%Y"), 
+                                        "Concepto": (e.concepto or ""), 
+                                        "Importe": format_currency(e.importe)
+                                    })
+                                    
+                        st.dataframe(cat_entries, use_container_width=True, hide_index=True)
             else:
                 st.info(t('historico.overview.no_expenses'))
 
