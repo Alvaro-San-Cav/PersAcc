@@ -962,7 +962,7 @@ def _render_ai_commentary_section(period_type: str, period_identifier: str, kpis
                             })
                     
                     # Generate commentary
-                    model_tier = llm_config.get('model_tier', 'light')
+                    model_tier = llm_config.get('model_analysis', llm_config.get('model_tier', 'light'))
                     commentary = analyze_financial_period(
                         data=kpis_data,
                         period_type=period_type,
@@ -992,7 +992,7 @@ def _render_ai_commentary_section(period_type: str, period_identifier: str, kpis
                 except requests.exceptions.Timeout:
                     st.error(
                         "⏱️ **Timeout - El modelo tardó más de 3 minutos**\n\n"
-                        f"Tu modelo actual: `{llm_config.get('model_tier', 'desconocido')}`\n\n"
+                        f"Tu modelo actual: `{llm_config.get('model_analysis', llm_config.get('model_tier', 'desconocido'))}`\n\n"
                         "**Soluciones:**\n"
                         "1. Prueba con un modelo más rápido (tinyllama, phi3)\n"
                         "2. Reduce `max_tokens` en config.json (actual: " + str(llm_config.get('max_tokens', 600)) + ")\n"

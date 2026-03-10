@@ -14,6 +14,7 @@ Installation:
 import json
 import requests
 import logging
+import re
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -226,7 +227,7 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
             return "[DEBUG: Ollama no está corriendo - ejecuta 'ollama serve']" if DEBUG else ""
         
         llm_config = get_llm_config()
-        model_name = llm_config.get('model_tier', 'tinyllama')
+        model_name = llm_config.get('model_summary', llm_config.get('model_tier', 'tinyllama'))
         
         # Resolve model with fallback
         available_models = get_available_models()
@@ -289,6 +290,9 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
         if response.status_code == 200:
             result = response.json()
             text = result.get("response", "").strip()
+            
+            # Limpiar tags de think si están presentes
+            text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
             
             # Limpiar y limitar longitud
             if text:
@@ -371,13 +375,11 @@ def analyze_financial_period(
             "Instala Ollama desde https://ollama.com/download y asegúrate de que esté corriendo."
         )
     
-    # Determine model name - can be a legacy tier or direct model name
+    # Determine model name - can be a legacy tier or direct model name. model_analysis takes priority over model_tier.
+    model_name = model_tier
     if model_tier in MODEL_TIERS:
         # Legacy tier name -> convert to model name
         model_name = MODEL_TIERS[model_tier]
-    else:
-        # Use as direct model name
-        model_name = model_tier
     
     # Get available models
     available_models = get_available_models()
@@ -448,6 +450,9 @@ def analyze_financial_period(
         if response.status_code == 200:
             result = response.json()
             text = result.get("response", "").strip()
+            
+            # Limpiar tags de think si están presentes
+            text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
             
             # Log detailed response info
             logger.info(f"Response received: {len(text)} characters")
@@ -652,12 +657,14 @@ def get_llm_config() -> Dict[str, Any]:
         config = load_config()
         return config.get("llm", {
             "enabled": False,
-            "model_tier": "phi3",
+            "model_analysis": "phi3",
+            "model_chat": "phi3",
+            "model_summary": "phi3",
             "max_tokens": 400
         })
     except Exception as e:
         logger.error(f"Error reading LLM config: {e}")
-        return {"enabled": False, "model_tier": "phi3", "max_tokens": 400}
+        return {"enabled": False, "model_analysis": "phi3", "model_chat": "phi3", "model_summary": "phi3", "max_tokens": 400}
 
 
 def _validate_and_normalize_params(
@@ -786,7 +793,7 @@ def _llm_extract_tool_and_params(user_message: str, available_tools: List[Dict[s
         return None
     
     llm_config = get_llm_config()
-    model_name = llm_config.get('model_tier', 'phi3')
+    model_name = llm_config.get('model_chat', llm_config.get('model_tier', 'phi3'))
     
     # Construir descripción de herramientas
     tools_desc = []

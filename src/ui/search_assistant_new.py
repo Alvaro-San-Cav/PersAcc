@@ -29,7 +29,7 @@ def render_chat_search():
     
     llm_config = get_llm_config()
     # El modelo se guarda directamente como nombre en config.json
-    target_model = llm_config.get('model_tier', 'phi3')
+    target_model = llm_config.get('model_chat', llm_config.get('model_tier', 'phi3'))
         
     # 2. Verificar disponibilidad real usando helper centralizado
     from src.ai.llm_service import _resolve_model_name
@@ -102,8 +102,7 @@ def _extract_params(query, model_name=None):
             
         if not model_name:
             llm_config = get_llm_config()
-            # El modelo se guarda directamente como nombre
-            model_name = llm_config.get('model_tier', 'phi3')
+            model_name = llm_config.get('model_chat', llm_config.get('model_tier', 'phi3'))
         
         st.success(t('chat_search.analyzing', model=model_name))
         
@@ -169,6 +168,9 @@ FORMATO RESPUESTA:
             response.raise_for_status()
             result = response.json()
             content = result.get('message', {}).get('content', '{}')
+            
+            # Limpiar tags de think (para modelos como qwen3 / deepseek-r1)
+            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
             
             # Limpiar respuesta (algunos modelos añaden texto antes/después del JSON)
             content = content.strip()

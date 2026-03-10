@@ -42,6 +42,12 @@ def apply_custom_css(st_instance):
         text-align: center;
         border: 1px solid rgba(255,255,255,0.1);
         transition: transform 0.2s;
+        height: 100%;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex: 1;
     }}
     
     .kpi-card:hover {{
@@ -59,6 +65,21 @@ def apply_custom_css(st_instance):
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
+    }}
+    
+    /* Ensure markdown container stretches for KPI cards */
+    div[data-testid="stVerticalBlock"] > div.element-container:has(.kpi-card) {{
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }}
+    div[data-testid="stMarkdownContainer"]:has(.kpi-card),
+    div[data-testid="stMarkdown"]:has(.kpi-card),
+    div.st-emotion-cache-6c7yup:has(.kpi-card) {{
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
     }}
     
     /* Colores de relevancia */

@@ -483,9 +483,9 @@ def _render_config_tab():
         config['llm']['enabled'] = enable_llm
         
         if enable_llm:
-            selected_model = st.session_state.get('config_llm_model')
-            if selected_model:
-                config['llm']['model_tier'] = selected_model
+            config['llm']['model_analysis'] = st.session_state.get('config_llm_model_analysis', 'phi3')
+            config['llm']['model_chat'] = st.session_state.get('config_llm_model_chat', 'phi3')
+            config['llm']['model_summary'] = st.session_state.get('config_llm_model_summary', 'phi3')
         
         config['retenciones'] = {'pct_remanente_default': default_rem, 'pct_salario_default': default_sal}
         config['cierre'] = {'metodo_saldo': metodo_saldo}
@@ -696,10 +696,26 @@ def _render_config_tab():
             available_models = get_available_models()
             if available_models:
                 st.success(t('utilidades.config.ollama_detected', count=len(available_models)))
-                current_model = config.get('llm', {}).get('model_tier', 'light')
-                default_index = available_models.index(current_model) if current_model in available_models else 0
-                st.selectbox(t('utilidades.config.llm_model_label'), options=available_models,
-                            index=default_index, help=t('utilidades.config.llm_model_help'), key="config_llm_model")
+                
+                # Fetch currently configured models or fallbacks
+                current_analysis = config.get('llm', {}).get('model_analysis', config.get('llm', {}).get('model_tier', 'light'))
+                current_chat = config.get('llm', {}).get('model_chat', config.get('llm', {}).get('model_tier', 'light'))
+                current_summary = config.get('llm', {}).get('model_summary', config.get('llm', {}).get('model_tier', 'light'))
+                
+                idx_analysis = available_models.index(current_analysis) if current_analysis in available_models else 0
+                idx_chat = available_models.index(current_chat) if current_chat in available_models else 0
+                idx_summary = available_models.index(current_summary) if current_summary in available_models else 0
+                
+                # Layout the 3 combo boxes in columns or rows
+                st.markdown("**Modelo para Análisis Histórico (Recomendado: Modelos Pesados)**")
+                st.selectbox("Modelo Análisis", options=available_models, index=idx_analysis, key="config_llm_model_analysis", label_visibility="collapsed")
+                
+                st.markdown("**Modelo para Asistente Chat (Recomendado: Modelos Medios/Pesados)**")
+                st.selectbox("Modelo Chat", options=available_models, index=idx_chat, key="config_llm_model_chat", label_visibility="collapsed")
+                
+                st.markdown("**Modelo para Resúmenes de Dashboard (Recomendado: Modelos Ligeros/Rápidos)**")
+                st.selectbox("Modelo Resumen", options=available_models, index=idx_summary, key="config_llm_model_summary", label_visibility="collapsed")
+                
             else:
                 st.warning(t('utilidades.config.ollama_no_models_warn'))
         else:
