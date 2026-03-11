@@ -154,7 +154,7 @@ def render_analisis():
     col_bal, col1, col2, col3, col4, col5 = st.columns(6)
     
     with col_bal:
-         st.markdown(f"""
+        st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">{t('analisis.kpis.initial_balance')}</div>
             <div class="kpi-value">{format_currency(saldo_inicial)}</div>

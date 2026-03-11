@@ -98,7 +98,7 @@ def _render_import_tab():
         ```
         """)
     elif is_inversion:
-         st.markdown(f"""
+        st.markdown(f"""
         {t('utilidades.import.format_investments')}
         ```
         DATE,CONCEPT,AMOUNT,CATEGORY
@@ -622,7 +622,7 @@ def _render_config_tab():
         )
         
         # Check on startup
-        check_startup = st.toggle(
+        st.toggle(
             t('notion.config_check_startup'),
             value=notion_config.get('check_on_startup', True),
             help=t('notion.config_check_startup_help'),

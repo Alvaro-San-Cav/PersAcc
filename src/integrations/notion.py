@@ -5,6 +5,7 @@ Permite leer entradas de una base de datos y eliminarlas después de importar.
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import date, datetime
+import requests
 
 try:
     from notion_client import Client
@@ -154,14 +155,11 @@ class NotionClient:
             return []
         
         try:
-            import requests
-            
             entries = []
             has_more = True
             start_cursor = None
             
             # Obtener el token de la config
-            from src.config import load_config
             config = load_config()
             api_token = config.get('notion', {}).get('api_token', '')
             

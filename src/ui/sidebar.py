@@ -11,7 +11,7 @@ from src.database import (
 )
 from src.business_logic import calcular_fecha_contable, calcular_mes_fiscal
 from src.config import load_config
-from src.i18n import t, get_language, set_language, get_language_flag
+from src.i18n import t
 
 
 def render_sidebar():
@@ -282,6 +282,8 @@ def render_sidebar():
                 st.session_state["calc_operation"] = None
             if "calc_new_number" not in st.session_state:
                 st.session_state["calc_new_number"] = True
+            if "calc_display_widget" not in st.session_state:
+                st.session_state["calc_display_widget"] = 0.0
             
             # Procesar acciones pendientes ANTES de crear el widget
             if "calc_pending_action" in st.session_state:
@@ -384,9 +386,8 @@ def render_sidebar():
                 """, unsafe_allow_html=True)
             
             # Display editable (number input)
-            display_value = st.number_input(
+            st.number_input(
                 "Display",
-                value=float(st.session_state["calc_display"]),
                 step=0.01,
                 format="%.2f",
                 key="calc_display_widget",

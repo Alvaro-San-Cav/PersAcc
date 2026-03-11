@@ -292,9 +292,7 @@ def ejecutar_cierre_mes(
         consequences_amount=consequences_amount
     )
     
-    # Nota: La variable transferencia_nueva no se usa actualmente pero se calcula
-    # para posible uso futuro o debugging
-    transferencia_nueva = retencion_ejecutada - kpis["inversion_manual"]
+    # El total de retención ejecutada incluye la suma de las manuales más la retención de remanente/salario.
     
     # Calcular retenciones separadas (para crear entradas en el ledger)
     retencion_remanente = saldo_base_remanente * pct_retencion_remanente
@@ -339,9 +337,7 @@ def ejecutar_cierre_mes(
     else:
         saldo_fin = saldo_banco_real - retencion_remanente
     
-    # Nota: saldo_inicio_siguiente se calcula pero no se usa directamente
-    # (el mes siguiente se abre con saldo_fin, el salario se registra como ingreso)
-    saldo_inicio_siguiente = saldo_fin + nomina_nueva - retencion_salario
+    # El mes siguiente se abre con saldo_fin, el salario se registra como ingreso.
     
     # PASO 8: Calcular identificador del mes siguiente
     year, month = map(int, mes_fiscal.split('-'))

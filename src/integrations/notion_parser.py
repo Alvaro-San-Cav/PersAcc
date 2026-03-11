@@ -178,11 +178,15 @@ def _suggest_category_with_ai(
         ID de la categoría sugerida o None
     """
     try:
-        from src.ai.ollama_client import get_ollama_client
+        from src.ai.llm_service import is_llm_enabled, get_llm_config, get_ollama_urls
+        import requests
         
-        client = get_ollama_client()
-        if not client.is_available():
+        if not is_llm_enabled():
             return None
+            
+        config = get_llm_config()
+        model_name = config.get("model_chat", config.get("model_tier", "phi3"))
+        urls = get_ollama_urls()
         
         cat_names = [f"- {cat.nombre}" for cat in categorias]
         cat_list = "\n".join(cat_names)
@@ -195,12 +199,23 @@ def _suggest_category_with_ai(
 
 Responde SOLO con el nombre exacto de la categoría, sin explicación."""
         
-        response = client.generate(prompt, max_tokens=50)
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 50
+            }
+        }
         
-        if response:
-            response_clean = response.strip().strip('"').strip("'")
+        response = requests.post(urls["api"], json=payload, timeout=5)
+        
+        if response.status_code == 200:
+            result = response.json()
+            response_text = result.get("response", "").strip().strip('"').strip("'")
             for cat in categorias:
-                if cat.nombre.lower() == response_clean.lower():
+                if cat.nombre.lower() == response_text.lower():
                     return cat.id
                     
     except Exception as e:
@@ -267,11 +282,15 @@ def _suggest_relevancia_with_ai(
         RelevanciaCode sugerido o None
     """
     try:
-        from src.ai.ollama_client import get_ollama_client
+        from src.ai.llm_service import is_llm_enabled, get_llm_config, get_ollama_urls
+        import requests
         
-        client = get_ollama_client()
-        if not client.is_available():
+        if not is_llm_enabled():
             return None
+            
+        config = get_llm_config()
+        model_name = config.get("model_chat", config.get("model_tier", "phi3"))
+        urls = get_ollama_urls()
         
         prompt = f"""Clasifica este gasto según su relevancia psicológica:
 Concepto: "{concepto}"
@@ -285,10 +304,21 @@ Opciones:
 
 Responde SOLO con el código: NE, LI, SUP o TON"""
         
-        response = client.generate(prompt, max_tokens=10)
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 10
+            }
+        }
         
-        if response:
-            code = response.strip().upper()
+        response = requests.post(urls["api"], json=payload, timeout=3)
+        
+        if response.status_code == 200:
+            result = response.json()
+            code = result.get("response", "").strip().upper()
             try:
                 return RelevanciaCode(code)
             except ValueError:

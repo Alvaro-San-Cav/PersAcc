@@ -2,12 +2,7 @@
 Módulo de estilos CSS centralizados para PersAcc.
 Define todos los estilos personalizados de la aplicación.
 """
-import streamlit as st
-from src.constants import (
-    PRIMARY_COLOR, SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, INFO_COLOR,
-    TEXT_PRIMARY, TEXT_SECONDARY, BG_LIGHT, BG_TRANSPARENT,
-    COLOR_RELEVANCIA_NE, COLOR_RELEVANCIA_LI, COLOR_RELEVANCIA_SUP, COLOR_RELEVANCIA_TON
-)
+from src.constants import PRIMARY_COLOR, COLOR_RELEVANCIA_NE, COLOR_RELEVANCIA_LI, COLOR_RELEVANCIA_SUP, COLOR_RELEVANCIA_TON
 
 
 def apply_custom_css(st_instance):
