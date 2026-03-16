@@ -21,7 +21,7 @@ from src.i18n import t
 def render_analisis():
     """Renderiza la página de análisis."""
     st.markdown(f'<div class="main-header"><h1>{t("analisis.title")}</h1></div>', unsafe_allow_html=True)
-    
+
     # Cargar configuración
     from src.config import load_config
     config = load_config()
@@ -212,6 +212,16 @@ def render_analisis():
     
     with col_tabla:
         st.markdown(f"### {t('analisis.movements.title')}")
+
+        # Flash messages: sobreviven un rerun y se consumen al mostrarse.
+        # Se muestran aquí para no desplazar toda la página desde el header.
+        flash_warning = st.session_state.pop("analisis_flash_warning", None)
+        flash_success = st.session_state.pop("analisis_flash_success", None)
+        if flash_warning:
+            st.warning(flash_warning)
+        if flash_success:
+            st.success(flash_success)
+
         entries = get_ledger_by_month(mes_seleccionado)
         
         if entries:
@@ -228,7 +238,9 @@ def render_analisis():
             
             # Crear lista de diccionarios
             data = []
+            tipo_por_id = {}
             for e in entries:
+                tipo_por_id[e.id] = e.tipo_movimiento
                 es_positivo = e.tipo_movimiento in [TipoMovimiento.INGRESO, TipoMovimiento.TRASPASO_ENTRADA]
                 data.append({
                     "id": e.id,
@@ -301,9 +313,11 @@ def render_analisis():
             # Calcular altura: ~35px por fila + 38px header
             table_height = min(max(len(df) * 35 + 38, 150), 800)
             
+            editor_key = f"editor_movs_{mes_seleccionado}"
+
             edited_df = st.data_editor(
                 df,
-                key=f"editor_movs_{mes_seleccionado}",
+                key=editor_key,
                 column_config=column_config,
                 use_container_width=True,
                 hide_index=True,
@@ -339,6 +353,7 @@ def render_analisis():
                 if hay_cambios:
                     if st.button(t('analisis.movements.save_changes')):
                         count_updates = 0
+                        invalid_relevance_rows = 0
                         for index, row in edited_df.iterrows():
                             original_row = df.loc[index]
                             
@@ -347,6 +362,11 @@ def render_analisis():
                                 # Obtener ID categoría nuevo
                                 nuevo_cat_id = cats_inv_map.get(row["Categoría"])
                                 prueba_rel = row["Relevancia"] if (enable_relevance and row["Relevancia"]) else None
+
+                                tipo_original = tipo_por_id.get(int(row['id']))
+                                if tipo_original != TipoMovimiento.GASTO and prueba_rel:
+                                    invalid_relevance_rows += 1
+                                    continue
                                 
                                 # Actualizar en BD usando la función importada
                                 update_ledger_entry(
@@ -357,8 +377,19 @@ def render_analisis():
                                     relevancia_code=prueba_rel
                                 )
                                 count_updates += 1
-                        
-                        st.success(t('analisis.movements.update_success', count=count_updates))
+
+                        if invalid_relevance_rows:
+                            st.session_state["analisis_flash_warning"] = t(
+                                'analisis.movements.invalid_relevance_non_expense', count=invalid_relevance_rows
+                            )
+
+                        st.session_state["analisis_flash_success"] = t(
+                            'analisis.movements.update_success', count=count_updates
+                        )
+
+                        # Limpiar estado del editor para que recargue desde BD y
+                        # elimine selecciones inválidas persistidas en session_state.
+                        st.session_state.pop(editor_key, None)
                         st.rerun()
         else:
             st.info(t('analisis.movements.no_movements'))

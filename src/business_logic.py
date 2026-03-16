@@ -9,10 +9,9 @@ import calendar
 
 from src.models import TipoMovimiento, LedgerEntry, SnapshotMensual, CierreMensual, Categoria
 from src.database import (
-    get_ledger_by_month, insert_snapshot, get_latest_snapshot,
-    insert_ledger_entry, get_all_categorias,
-    get_cierre_mes, upsert_cierre_mes, is_mes_cerrado, abrir_mes,
-    DEFAULT_DB_PATH
+    get_ledger_by_month, get_all_categorias,
+    get_cierre_mes, is_mes_cerrado,
+    execute_month_closure_transaction, DEFAULT_DB_PATH
 )
 from src.constants import (
     CATEGORIA_SALARIO, CATEGORIA_INVERSION_SALARIO, CATEGORIA_INVERSION_REMANENTE,
@@ -298,7 +297,10 @@ def ejecutar_cierre_mes(
     retencion_remanente = saldo_base_remanente * pct_retencion_remanente
     retencion_salario = nomina_nueva * pct_retencion_salario
     
-    # PASO 6: Crear entrada de inversión por retención de remanente (mes actual)
+    entries_to_insert: List[LedgerEntry] = []
+    categorias = get_all_categorias(db_path)
+
+    # PASO 6: Preparar entrada de inversión por retención de remanente (mes actual)
     if retencion_remanente > 0:
         # Calcular último día del mes actual
 
@@ -307,17 +309,16 @@ def ejecutar_cierre_mes(
         fecha_retencion = date(year_cierre, month_cierre, last_day)
         
         # Buscar categoría específica "Inversion retención de remanente"
-        categorias_all = get_all_categorias(db_path)
-        cat_remanente = next((c for c in categorias_all if c.nombre.lower() == CATEGORIA_INVERSION_REMANENTE.lower()), None)
+        cat_remanente = next((c for c in categorias if c.nombre.lower() == CATEGORIA_INVERSION_REMANENTE.lower()), None)
         
         # Fallback
         if not cat_remanente:
-            cat_remanente = next((c for c in categorias_all if c.nombre.lower() == CATEGORIA_INVERSION_EXTRA.lower()), None)
+            cat_remanente = next((c for c in categorias if c.nombre.lower() == CATEGORIA_INVERSION_EXTRA.lower()), None)
         if not cat_remanente:
-             cat_remanente = next((c for c in categorias_all if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
+             cat_remanente = next((c for c in categorias if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
              
         if cat_remanente:
-            entry_remanente = LedgerEntry(
+            entries_to_insert.append(LedgerEntry(
                 id=None,
                 fecha_real=fecha_retencion,
                 fecha_contable=fecha_retencion,
@@ -328,8 +329,7 @@ def ejecutar_cierre_mes(
                 importe=retencion_remanente,
                 relevancia_code=None,
                 flag_liquidez=False
-            )
-            insert_ledger_entry(entry_remanente, db_path)
+            ))
     
     # PASO 7: Calcular saldo final del mes (después de retención, antes del salario nuevo)
     if salario_ya_incluido:
@@ -348,13 +348,12 @@ def ejecutar_cierre_mes(
         mes_siguiente = f"{year}-{month+1:02d}"
         dia_salario = date(year, month+1, 1)
     
-    # PASO 9: Crear entradas para el mes siguiente (salario + retenciones)
-    categorias = get_all_categorias(db_path)
+    # PASO 9: Preparar entradas para el mes siguiente (salario + retenciones)
     cat_salario = next((c for c in categorias if c.nombre.lower() == CATEGORIA_SALARIO.lower() and c.tipo_movimiento == TipoMovimiento.INGRESO), None)
     
     if cat_salario and nomina_nueva > 0:
         # 9a. Crear entrada de Salario para el mes siguiente
-        entrada_salario = LedgerEntry(
+        entries_to_insert.append(LedgerEntry(
             id=None,
             fecha_real=dia_salario,
             fecha_contable=dia_salario,
@@ -365,8 +364,7 @@ def ejecutar_cierre_mes(
             importe=nomina_nueva,
             relevancia_code=None,
             flag_liquidez=True
-        )
-        insert_ledger_entry(entrada_salario, db_path)
+        ))
         
         # 9b. Crear entrada de Inversión por retención de salario
         if retencion_salario > 0:
@@ -378,7 +376,7 @@ def ejecutar_cierre_mes(
                 cat_inversion = next((c for c in categorias if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
             
             if cat_inversion:
-                entrada_retencion_salario = LedgerEntry(
+                entries_to_insert.append(LedgerEntry(
                     id=None,
                     fecha_real=dia_salario,
                     fecha_contable=dia_salario,
@@ -389,33 +387,31 @@ def ejecutar_cierre_mes(
                     importe=retencion_salario,
                     relevancia_code=None,
                     flag_liquidez=False
-                )
-                insert_ledger_entry(entrada_retencion_salario, db_path)
+                ))
 
-        # 9c. Crear entrada de Inversión por consecuencias (reglas automáticas)
-        if consequences_amount > 0:
-             # Buscar o crear categoría "Inversión consecuencias"
-             cat_cons = next((c for c in categorias if c.nombre.lower() == "inversión consecuencias"), None)
+    # 9c. Crear entrada de Inversión por consecuencias (reglas automáticas)
+    # Importante: independiente de que exista o no categoría de salario/nómina.
+    if consequences_amount > 0:
+         cat_cons = next((c for c in categorias if c.nombre.lower() == "inversión consecuencias"), None)
+         
+         if not cat_cons:
+             cat_cons = next((c for c in categorias if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
              
-             if not cat_cons:
-                 cat_cons = next((c for c in categorias if c.tipo_movimiento == TipoMovimiento.INVERSION), None)
-                 
-             if cat_cons:
-                 entrada_consecuencias = LedgerEntry(
-                     id=None,
-                     fecha_real=dia_salario,
-                     fecha_contable=dia_salario,
-                     mes_fiscal=mes_siguiente,
-                     tipo_movimiento=TipoMovimiento.INVERSION,
-                     categoria_id=cat_cons.id,
-                     concepto=f"Retención Consecuencias {mes_fiscal} (auto-generada)",
-                     importe=consequences_amount,
-                     relevancia_code=None,
-                     flag_liquidez=False
-                 )
-                 insert_ledger_entry(entrada_consecuencias, db_path)
+         if cat_cons:
+             entries_to_insert.append(LedgerEntry(
+                 id=None,
+                 fecha_real=dia_salario,
+                 fecha_contable=dia_salario,
+                 mes_fiscal=mes_siguiente,
+                 tipo_movimiento=TipoMovimiento.INVERSION,
+                 categoria_id=cat_cons.id,
+                 concepto=f"Retención Consecuencias {mes_fiscal} (auto-generada)",
+                 importe=consequences_amount,
+                 relevancia_code=None,
+                 flag_liquidez=False
+             ))
     
-    # PASO 10: Guardar cierre en la tabla CIERRES_MENSUALES
+    # PASO 10: Preparar cierre para persistencia atómica
     cierre = CierreMensual(
         mes_fiscal=mes_fiscal,
         estado='CERRADO',
@@ -429,14 +425,6 @@ def ejecutar_cierre_mes(
         nomina_siguiente=nomina_nueva,
         notas=None
     )
-    upsert_cierre_mes(cierre, db_path)
-    
-    # PASO 11: Abrir el mes siguiente con el saldo final como saldo inicial
-    # El salario ya está registrado como ingreso vía la entrada del PASO 9a
-    try:
-        abrir_mes(mes_siguiente, saldo_inicio=saldo_fin, db_path=db_path)
-    except ValueError:
-        pass  # El mes siguiente ya existe, ignorar
     
     # PASO 12: Calcular desviación y crear snapshot (para auditoría)
     balance_esperado = kpis["balance_mes"] + kpis["total_traspasos_entrada"] - kpis["total_inversion"]
@@ -452,7 +440,15 @@ def ejecutar_cierre_mes(
         retencion_ejecutada=retencion_ejecutada,
         saldo_inicial_nuevo=saldo_fin  # Balance al cierre del mes (sin salario siguiente)
     )
-    insert_snapshot(snapshot, db_path)
+    # PASO 13: Persistir TODO el cierre en una única transacción
+    execute_month_closure_transaction(
+        ledger_entries=entries_to_insert,
+        cierre=cierre,
+        snapshot=snapshot,
+        mes_siguiente=mes_siguiente,
+        saldo_inicio_mes_siguiente=saldo_fin,
+        db_path=db_path,
+    )
     
     return snapshot
 

@@ -16,6 +16,7 @@ from src.ai.llm_service import is_llm_enabled, get_llm_config
 from src.database import get_all_ledger_entries, get_all_categorias
 from src.models import TipoMovimiento
 from src.config import format_currency
+from src.constants import STOPWORDS_ES
 
 
 def render_chat_search():
@@ -349,9 +350,9 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
         return ' '.join(stemmed)
     
     def tokenize(text: str) -> list:
-        stop_words = {"el", "la", "los", "las", "un", "una", "de", "del", "al", "en", "para", "por", "y", "que", "con"}
+        normalized_stop_words = {normalize_text(w) for w in STOPWORDS_ES if w}
         words = normalize_text(text).split()
-        return [w for w in words if w not in stop_words and len(w) > 1]
+        return [w for w in words if w not in normalized_stop_words and len(w) > 1]
     
     def fuzzy_match(word1: str, word2: str, threshold: float = 0.75) -> bool:
         if word1 == word2:

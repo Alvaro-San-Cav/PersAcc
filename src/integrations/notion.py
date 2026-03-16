@@ -6,6 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 import requests
+import re
 
 try:
     from notion_client import Client
@@ -60,6 +61,73 @@ class NotionClient:
             except Exception as e:
                 logger.error(f"Error inicializando cliente Notion: {e}")
                 self._client = None
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        """Normaliza texto para comparaciones robustas."""
+        if not value:
+            return ""
+        return re.sub(r'[^\w\s]', '', value).strip().lower()
+
+    def _get_field_map(self) -> Dict[str, List[str]]:
+        """
+        Resuelve mapeo de propiedades Notion usando config existente.
+
+        Prioridad:
+        1) notion.field_map (opcional)
+        2) defaults por idioma (config.language)
+        """
+        config = load_config()
+        notion_config = config.get("notion", {}) if isinstance(config, dict) else {}
+        language = str(config.get("language", "es")).lower()
+
+        defaults_es = {
+            "concepto": ["Concepto"],
+            "importe": ["Importe"],
+            "tipo": ["Tipo"],
+            "categoria": ["Categoría", "Categoria"],
+            "relevancia": ["Relevancia"],
+            "fecha": ["Fecha"],
+        }
+        defaults_en = {
+            "concepto": ["Concept", "Title", "Concepto"],
+            "importe": ["Amount", "Importe"],
+            "tipo": ["Type", "Tipo"],
+            "categoria": ["Category", "Categoría", "Categoria"],
+            "relevancia": ["Relevance", "Relevancia"],
+            "fecha": ["Date", "Fecha"],
+        }
+
+        resolved = defaults_en if language == "en" else defaults_es
+        custom_map = notion_config.get("field_map", {}) if isinstance(notion_config, dict) else {}
+        if not isinstance(custom_map, dict):
+            return resolved
+
+        merged = {k: list(v) for k, v in resolved.items()}
+        for key, raw in custom_map.items():
+            if key not in merged:
+                continue
+            if isinstance(raw, str) and raw.strip():
+                merged[key] = [raw]
+            elif isinstance(raw, list):
+                merged[key] = [x for x in raw if isinstance(x, str) and x.strip()]
+                if not merged[key]:
+                    merged[key] = resolved[key]
+        return merged
+
+    def _pick_property(self, properties: Dict[str, Any], candidates: List[str]) -> Dict[str, Any]:
+        """Retorna la primera propiedad existente según candidatos exactos o normalizados."""
+        for name in candidates:
+            prop = properties.get(name)
+            if prop:
+                return prop
+
+        normalized_candidates = {self._normalize_text(c) for c in candidates}
+        for prop_name, prop_data in properties.items():
+            if self._normalize_text(str(prop_name)) in normalized_candidates:
+                return prop_data
+
+        return {}
     
     def is_available(self) -> bool:
         """Retorna True si la librería notion-client está instalada."""
@@ -215,10 +283,11 @@ class NotionClient:
         """
         try:
             properties = page.get('properties', {})
+            field_map = self._get_field_map()
             
             # Concepto (título - requerido)
             concepto = ""
-            title_prop = properties.get('Concepto', {})
+            title_prop = self._pick_property(properties, field_map['concepto'])
             if title_prop.get('type') == 'title':
                 title_items = title_prop.get('title', [])
                 if title_items:
@@ -230,7 +299,7 @@ class NotionClient:
             
             # Importe (número - requerido)
             importe = 0.0
-            number_prop = properties.get('Importe', {})
+            number_prop = self._pick_property(properties, field_map['importe'])
             if number_prop.get('type') == 'number':
                 importe = number_prop.get('number') or 0.0
             
@@ -240,7 +309,7 @@ class NotionClient:
             
             # Tipo (select - requerido)
             tipo = "Gasto"  # default
-            select_prop = properties.get('Tipo', {})
+            select_prop = self._pick_property(properties, field_map['tipo'])
             if select_prop.get('type') == 'select':
                 select_value = select_prop.get('select')
                 if select_value:
@@ -248,7 +317,7 @@ class NotionClient:
             
             # Categoría (puede ser select o rich_text)
             categoria = ""
-            cat_prop = properties.get('Categoría', properties.get('Categoria', {}))
+            cat_prop = self._pick_property(properties, field_map['categoria'])
             prop_type = cat_prop.get('type', '')
             
             if prop_type == 'select':
@@ -262,7 +331,7 @@ class NotionClient:
             
             # Relevancia (select - opcional, solo para gastos)
             relevancia = ""
-            rel_prop = properties.get('Relevancia', {})
+            rel_prop = self._pick_property(properties, field_map['relevancia'])
             if rel_prop.get('type') == 'select':
                 rel_value = rel_prop.get('select')
                 if rel_value:
@@ -281,7 +350,7 @@ class NotionClient:
             
             # Fecha (date - opcional, default = hoy)
             fecha = date.today()
-            date_prop = properties.get('Fecha', {})
+            date_prop = self._pick_property(properties, field_map['fecha'])
             if date_prop.get('type') == 'date':
                 date_value = date_prop.get('date')
                 if date_value and date_value.get('start'):
@@ -352,29 +421,42 @@ class NotionClient:
             return False
         
         try:
+            field_map = self._get_field_map()
+
+            def first_name(key: str, fallback: str) -> str:
+                names = field_map.get(key, [])
+                return names[0] if names else fallback
+
+            field_concepto = first_name('concepto', 'Concepto')
+            field_importe = first_name('importe', 'Importe')
+            field_tipo = first_name('tipo', 'Tipo')
+            field_categoria = first_name('categoria', 'Categoría')
+            field_relevancia = first_name('relevancia', 'Relevancia')
+            field_fecha = first_name('fecha', 'Fecha')
+
             properties = {}
             
             # Concepto (title)
             if 'concepto' in data:
-                properties['Concepto'] = {
+                properties[field_concepto] = {
                     'title': [{'text': {'content': data['concepto']}}]
                 }
             
             # Importe (number)
             if 'importe' in data:
-                properties['Importe'] = {
+                properties[field_importe] = {
                     'number': float(data['importe'])
                 }
             
             # Tipo (select)
             if 'tipo' in data:
-                properties['Tipo'] = {
+                properties[field_tipo] = {
                     'select': {'name': data['tipo']}
                 }
             
             # Categoría (select) - puede estar vacía
             if 'categoria' in data and data['categoria']:
-                properties['Categoría'] = {
+                properties[field_categoria] = {
                     'select': {'name': data['categoria']}
                 }
             
@@ -388,7 +470,7 @@ class NotionClient:
                     'TON': 'TON - Tontería'
                 }
                 rel_name = relevancia_map.get(data['relevancia'], data['relevancia'])
-                properties['Relevancia'] = {
+                properties[field_relevancia] = {
                     'select': {'name': rel_name}
                 }
             
@@ -399,7 +481,7 @@ class NotionClient:
                     fecha_str = fecha.isoformat()
                 else:
                     fecha_str = str(fecha)
-                properties['Fecha'] = {
+                properties[field_fecha] = {
                     'date': {'start': fecha_str}
                 }
             

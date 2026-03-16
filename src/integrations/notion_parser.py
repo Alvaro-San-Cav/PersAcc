@@ -5,6 +5,7 @@ Sugiere categorías y relevancias usando IA cuando no se especifican.
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import date
+import re
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, Categoria
 from src.database import get_categorias_by_tipo
@@ -13,8 +14,8 @@ from src.config import load_config
 logger = logging.getLogger(__name__)
 
 
-# Mapeo de tipos Notion a TipoMovimiento
-TIPO_MAPPING = {
+# Mapeo base de tipos Notion a TipoMovimiento
+DEFAULT_TIPO_MAPPING = {
     "Gasto": TipoMovimiento.GASTO,
     "gasto": TipoMovimiento.GASTO,
     "GASTO": TipoMovimiento.GASTO,
@@ -35,7 +36,61 @@ TIPO_MAPPING = {
 }
 
 
-def map_tipo_movimiento(tipo_str: str) -> TipoMovimiento:
+def _normalize_text(value: str) -> str:
+    """Normaliza texto para matching flexible (sin emojis/símbolos, minúsculas)."""
+    if not value:
+        return ""
+    return re.sub(r'[^\w\s]', '', value).strip().lower()
+
+
+def _build_tipo_mapping(config: Optional[Dict[str, Any]] = None) -> Dict[str, TipoMovimiento]:
+    """
+    Construye mapeo de tipos a partir del mapeo base + aliases opcionales en config.
+
+    Config opcional soportada:
+    notion.tipo_aliases: {
+        "GASTO": ["Expense", "Cost"],
+        "INGRESO": ["Income"],
+        "INVERSION_AHORRO": ["Savings", "Investment"],
+        "TRASPASO_ENTRADA": ["Transfer In"],
+        "TRASPASO_SALIDA": ["Transfer Out"]
+    }
+    """
+    mapping = dict(DEFAULT_TIPO_MAPPING)
+
+    if not config:
+        return mapping
+
+    notion_cfg = config.get("notion", {}) if isinstance(config, dict) else {}
+    aliases = notion_cfg.get("tipo_aliases", {}) if isinstance(notion_cfg, dict) else {}
+    if not isinstance(aliases, dict):
+        return mapping
+
+    enum_by_key = {
+        "GASTO": TipoMovimiento.GASTO,
+        "INGRESO": TipoMovimiento.INGRESO,
+        "INVERSION_AHORRO": TipoMovimiento.INVERSION,
+        "INVERSION": TipoMovimiento.INVERSION,
+        "TRASPASO_ENTRADA": TipoMovimiento.TRASPASO_ENTRADA,
+        "TRASPASO_SALIDA": TipoMovimiento.TRASPASO_SALIDA,
+    }
+
+    for key, values in aliases.items():
+        tipo_enum = enum_by_key.get(str(key).upper())
+        if not tipo_enum:
+            continue
+        if isinstance(values, str):
+            values = [values]
+        if not isinstance(values, list):
+            continue
+        for raw in values:
+            if isinstance(raw, str) and raw.strip():
+                mapping[raw] = tipo_enum
+
+    return mapping
+
+
+def map_tipo_movimiento(tipo_str: str, tipo_mapping: Optional[Dict[str, TipoMovimiento]] = None) -> TipoMovimiento:
     """
     Mapea el string de tipo de Notion a TipoMovimiento con matching flexible.
     
@@ -48,13 +103,19 @@ def map_tipo_movimiento(tipo_str: str) -> TipoMovimiento:
     if not tipo_str:
         return TipoMovimiento.GASTO
     
+    mapping = tipo_mapping or DEFAULT_TIPO_MAPPING
+
     # Primero intenta match directo
-    if tipo_str in TIPO_MAPPING:
-        return TIPO_MAPPING[tipo_str]
+    if tipo_str in mapping:
+        return mapping[tipo_str]
     
     # Limpiar: quitar emojis, espacios extra, etc.
-    import re
-    tipo_clean = re.sub(r'[^\w\s]', '', tipo_str).strip().lower()
+    tipo_clean = _normalize_text(tipo_str)
+
+    # Buscar también por equivalencias configuradas normalizadas
+    for raw_key, mapped_tipo in mapping.items():
+        if _normalize_text(raw_key) == tipo_clean:
+            return mapped_tipo
     
     # Buscar match con palabras clave flexibles
     if 'traspaso' in tipo_clean and 'entrada' in tipo_clean:
@@ -100,23 +161,21 @@ def find_best_category(
     
     # Si hay hint, buscar match con diferentes niveles de tolerancia
     if categoria_hint:
-        import re
-        
         # Normalizar hint (quitar emojis, espacios extra, etc.)
-        hint_clean = re.sub(r'[^\w\s]', '', categoria_hint).strip().lower()
+        hint_clean = _normalize_text(categoria_hint)
         
         if not hint_clean:
             return None
         
         # 1. Match exacto (ignorando mayúsculas)
         for cat in categorias:
-            cat_clean = re.sub(r'[^\w\s]', '', cat.nombre).strip().lower()
+            cat_clean = _normalize_text(cat.nombre)
             if cat_clean == hint_clean:
                 return cat.id
         
         # 2. Match parcial (uno contiene al otro)
         for cat in categorias:
-            cat_clean = re.sub(r'[^\w\s]', '', cat.nombre).strip().lower()
+            cat_clean = _normalize_text(cat.nombre)
             if hint_clean in cat_clean or cat_clean in hint_clean:
                 return cat.id
         
@@ -126,7 +185,7 @@ def find_best_category(
         best_match_score = 0.0
         
         for cat in categorias:
-            cat_clean = re.sub(r'[^\w\s]', '', cat.nombre).strip().lower()
+            cat_clean = _normalize_text(cat.nombre)
             cat_words = set(cat_clean.split())
             
             # Calcular Jaccard similarity
@@ -148,9 +207,10 @@ def find_best_category(
     # Intentar con IA si está disponible
     config = load_config()
     llm_config = config.get('llm', {})
+    lang = config.get('language', 'es')
     
     if llm_config.get('enabled', False):
-        suggested_id = _suggest_category_with_ai(concepto, tipo, categorias)
+        suggested_id = _suggest_category_with_ai(concepto, tipo, categorias, lang=lang)
         if suggested_id:
             return suggested_id
     
@@ -169,7 +229,8 @@ def find_best_category(
 def _suggest_category_with_ai(
     concepto: str,
     tipo: TipoMovimiento,
-    categorias: List[Categoria]
+    categorias: List[Categoria],
+    lang: str = "es"
 ) -> Optional[int]:
     """
     Usa Ollama para sugerir la mejor categoría.
@@ -191,13 +252,22 @@ def _suggest_category_with_ai(
         cat_names = [f"- {cat.nombre}" for cat in categorias]
         cat_list = "\n".join(cat_names)
         
-        prompt = f"""Dado el siguiente concepto de {tipo.value.lower()}:
-"{concepto}"
+        if lang == "en":
+            prompt = f"""Given the following {tipo.value.lower()} concept:
+    "{concepto}"
 
-¿Cuál de estas categorías es la más apropiada?
-{cat_list}
+    Which category is the best match?
+    {cat_list}
 
-Responde SOLO con el nombre exacto de la categoría, sin explicación."""
+    Reply ONLY with the exact category name, no explanation."""
+        else:
+            prompt = f"""Dado el siguiente concepto de {tipo.value.lower()}:
+    "{concepto}"
+
+    ¿Cuál de estas categorías es la más apropiada?
+    {cat_list}
+
+    Responde SOLO con el nombre exacto de la categoría, sin explicación."""
         
         payload = {
             "model": model_name,
@@ -240,9 +310,10 @@ def suggest_relevancia(
     """
     config = load_config()
     llm_config = config.get('llm', {})
+    lang = config.get('language', 'es')
     
     if llm_config.get('enabled', False):
-        suggested = _suggest_relevancia_with_ai(concepto, categoria_nombre)
+        suggested = _suggest_relevancia_with_ai(concepto, categoria_nombre, lang=lang)
         if suggested:
             return suggested
     
@@ -250,10 +321,13 @@ def suggest_relevancia(
     concepto_lower = concepto.lower()
     
     # Palabras clave para cada tipo
-    necesario_keywords = ['factura', 'luz', 'agua', 'gas', 'alquiler', 'hipoteca', 
-                          'seguro', 'médico', 'farmacia', 'transporte', 'metro', 'bus']
-    superfluo_keywords = ['capricho', 'impulso', 'innecesario']
-    tonteria_keywords = ['error', 'multa', 'penalización', 'recargo']
+    necesario_keywords = [
+        'factura', 'luz', 'agua', 'gas', 'alquiler', 'hipoteca',
+        'seguro', 'médico', 'medico', 'farmacia', 'transporte', 'metro', 'bus',
+        'bill', 'rent', 'insurance', 'medical', 'pharmacy', 'transport',
+    ]
+    superfluo_keywords = ['capricho', 'impulso', 'innecesario', 'unnecessary', 'impulse']
+    tonteria_keywords = ['error', 'multa', 'penalización', 'penalizacion', 'recargo', 'fine', 'penalty', 'late fee']
     
     for kw in necesario_keywords:
         if kw in concepto_lower:
@@ -273,7 +347,8 @@ def suggest_relevancia(
 
 def _suggest_relevancia_with_ai(
     concepto: str,
-    categoria_nombre: str
+    categoria_nombre: str,
+    lang: str = "es"
 ) -> Optional[RelevanciaCode]:
     """
     Usa Ollama para sugerir relevancia.
@@ -292,17 +367,30 @@ def _suggest_relevancia_with_ai(
         model_name = config.get("model_chat", config.get("model_tier", "phi3"))
         urls = get_ollama_urls()
         
-        prompt = f"""Clasifica este gasto según su relevancia psicológica:
-Concepto: "{concepto}"
-Categoría: "{categoria_nombre or 'No especificada'}"
+        if lang == "en":
+            prompt = f"""Classify this expense by psychological relevance:
+    Concept: "{concepto}"
+    Category: "{categoria_nombre or 'Not specified'}"
 
-Opciones:
-- NE: Necesario/Inevitable (facturas, transporte al trabajo, comida básica)
-- LI: Me gusta/Disfrute consciente (ocio planificado, hobbies)
-- SUP: Superfluo/Optimizable (podría haber sido más barato)
-- TON: Tontería/Error de gasto (compras impulsivas, multas evitables)
+    Options:
+    - NE: Necessary/Inevitable (bills, commuting, basic food)
+    - LI: I like it/Conscious enjoyment (planned leisure, hobbies)
+    - SUP: Superfluous/Optimizable (it could have been cheaper)
+    - TON: Nonsense/Spending mistake (impulse buys, avoidable fines)
 
-Responde SOLO con el código: NE, LI, SUP o TON"""
+    Reply ONLY with the code: NE, LI, SUP or TON"""
+        else:
+            prompt = f"""Clasifica este gasto según su relevancia psicológica:
+    Concepto: "{concepto}"
+    Categoría: "{categoria_nombre or 'No especificada'}"
+
+    Opciones:
+    - NE: Necesario/Inevitable (facturas, transporte al trabajo, comida básica)
+    - LI: Me gusta/Disfrute consciente (ocio planificado, hobbies)
+    - SUP: Superfluo/Optimizable (podría haber sido más barato)
+    - TON: Tontería/Error de gasto (compras impulsivas, multas evitables)
+
+    Responde SOLO con el código: NE, LI, SUP o TON"""
         
         payload = {
             "model": model_name,
@@ -346,7 +434,9 @@ def create_proposed_entry(
     Returns:
         Diccionario con todos los campos necesarios para crear un LedgerEntry
     """
-    tipo = map_tipo_movimiento(notion_entry.get('tipo', 'Gasto'))
+    config = load_config()
+    tipo_mapping = _build_tipo_mapping(config)
+    tipo = map_tipo_movimiento(notion_entry.get('tipo', 'Gasto'), tipo_mapping=tipo_mapping)
     
     # Resolver categoría si no se proporcionó
     if categoria_id is None:

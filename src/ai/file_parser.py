@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import logging
 import re
+import sys
 from enum import Enum, auto
 from typing import Optional
 
@@ -289,14 +290,26 @@ def parse_sepa(content_bytes: bytes) -> str:
 # Parseo Excel
 # ---------------------------------------------------------------------------
 
-def parse_excel(content_bytes: bytes) -> str:
+def parse_excel(content_bytes: bytes, filename: str = "") -> str:
     """
     Parsea la primera hoja de un fichero Excel y devuelve representación CSV.
-    Requiere openpyxl.
+    Usa el motor adecuado por extensión:
+      - .xlsx/.xlsm/.xltx/.xltm -> openpyxl
+      - .xls -> xlrd
     """
     try:
         import pandas as pd
-        df = pd.read_excel(io.BytesIO(content_bytes), sheet_name=0)
+
+        lower_name = filename.lower()
+        engine: Optional[str]
+        if lower_name.endswith((".xlsx", ".xlsm", ".xltx", ".xltm")):
+            engine = "openpyxl"
+        elif lower_name.endswith(".xls"):
+            engine = "xlrd"
+        else:
+            engine = None
+
+        df = pd.read_excel(io.BytesIO(content_bytes), sheet_name=0, engine=engine)
         # Limitar a 200 filas para no saturar el LLM
         if len(df) > 200:
             df = df.head(200)
@@ -304,8 +317,17 @@ def parse_excel(content_bytes: bytes) -> str:
         for _, row in df.iterrows():
             lines.append(",".join(str(v) for v in row.values))
         return "\n".join(lines)
-    except ImportError:
-        return "[Error: instala openpyxl con 'pip install openpyxl']"
+    except ImportError as e:
+        lower_name = filename.lower()
+        missing_pkg = "openpyxl"
+        if lower_name.endswith(".xls"):
+            missing_pkg = "xlrd"
+
+        return (
+            f"[Error leyendo Excel: falta la dependencia '{missing_pkg}' ({e}). "
+            f"Instala con '{sys.executable} -m pip install {missing_pkg}' "
+            "y reinicia la app.]"
+        )
     except Exception as e:
         return f"[Error leyendo Excel: {e}]"
 
@@ -325,7 +347,7 @@ def parse_file(filename: str, content_bytes: bytes) -> tuple[FileType, str]:
     elif ftype == FileType.AEB_SEPA:
         text = parse_sepa(content_bytes)
     elif ftype == FileType.EXCEL:
-        text = parse_excel(content_bytes)
+        text = parse_excel(content_bytes, filename=filename)
     else:
         # Intentar mostrar como texto plano
         decoded = _decode(content_bytes)

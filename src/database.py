@@ -3,6 +3,7 @@ Módulo de base de datos para el sistema de finanzas personales.
 Proporciona conexión SQLite y operaciones CRUD para todas las tablas.
 """
 import sqlite3
+import logging
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import date, datetime
@@ -11,8 +12,10 @@ from functools import wraps
 
 from src.models import (
     TipoMovimiento, RelevanciaCode, RELEVANCIA_DESCRIPTIONS,
-    Categoria, LedgerEntry, SnapshotMensual, CierreMensual
+    Categoria, LedgerEntry, SnapshotMensual, CierreMensual, EstadoCierre
 )
+
+logger = logging.getLogger(__name__)
 
 # Ruta por defecto de la base de datos
 DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
@@ -275,6 +278,23 @@ def delete_ledger_entry(entry_id: int, db_path: Path = DEFAULT_DB_PATH):
 def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe: float, relevancia_code: str = None, db_path: Path = DEFAULT_DB_PATH):
     """Actualiza una entrada del libro diario."""
     with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT tipo_movimiento FROM LEDGER WHERE id = ?",
+            (entry_id,)
+        ).fetchone()
+
+        if row is None:
+            raise ValueError(f"No existe entrada con id={entry_id}")
+
+        tipo_mov = TipoMovimiento(row["tipo_movimiento"])
+
+        # Regla de negocio: relevancia solo para gastos.
+        if tipo_mov != TipoMovimiento.GASTO:
+            relevancia_code = None
+        elif relevancia_code:
+            # Validar códigos permitidos para detectar errores antes de persistir.
+            RelevanciaCode(relevancia_code)
+
         conn.execute(
             """UPDATE LEDGER 
                SET categoria_id = ?, concepto = ?, importe = ?, relevancia_code = ?
@@ -333,14 +353,37 @@ def get_available_years(db_path: Path = DEFAULT_DB_PATH) -> List[int]:
 
 def _row_to_ledger_entry(row: sqlite3.Row) -> LedgerEntry:
     """Convierte una fila de base de datos a LedgerEntry."""
+    tipo_mov = TipoMovimiento(row["tipo_movimiento"])
+
+    rel_raw = row["relevancia_code"]
+    relevancia = None
+
+    if tipo_mov == TipoMovimiento.GASTO:
+        if rel_raw:
+            try:
+                relevancia = RelevanciaCode(rel_raw)
+            except ValueError:
+                logger.warning(
+                    "Invalid relevancia_code '%s' for LEDGER id=%s; setting to NULL in memory",
+                    rel_raw,
+                    row["id"],
+                )
+    elif rel_raw:
+        # Datos legacy inconsistentes: no romper la UI por registros inválidos.
+        logger.warning(
+            "Ignoring relevancia_code '%s' for non-GASTO LEDGER id=%s",
+            rel_raw,
+            row["id"],
+        )
+
     return LedgerEntry(
         id=row["id"],
         fecha_real=date.fromisoformat(row["fecha_real"]),
         fecha_contable=date.fromisoformat(row["fecha_contable"]),
         mes_fiscal=row["mes_fiscal"],
-        tipo_movimiento=TipoMovimiento(row["tipo_movimiento"]),
+        tipo_movimiento=tipo_mov,
         categoria_id=row["categoria_id"],
-        relevancia_code=RelevanciaCode(row["relevancia_code"]) if row["relevancia_code"] else None,
+        relevancia_code=relevancia,
         concepto=row["concepto"],
         importe=row["importe"],
         flag_liquidez=bool(row["flag_liquidez"])
@@ -370,6 +413,113 @@ def insert_snapshot(snapshot: SnapshotMensual, db_path: Path = DEFAULT_DB_PATH) 
             )
         )
         return snapshot.mes_cierre
+
+
+def execute_month_closure_transaction(
+    ledger_entries: List[LedgerEntry],
+    cierre: CierreMensual,
+    snapshot: SnapshotMensual,
+    mes_siguiente: str,
+    saldo_inicio_mes_siguiente: float,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> SnapshotMensual:
+    """
+    Persiste el cierre de mes completo de forma atómica.
+
+    Operaciones incluidas en UNA sola transacción:
+    1. Inserción de entradas LEDGER auto-generadas del cierre.
+    2. UPSERT del mes cerrado en CIERRES_MENSUALES.
+    3. Apertura/actualización del mes siguiente como ABIERTO (si no está CERRADO).
+    4. Inserción del snapshot de auditoría.
+    """
+    with get_connection(db_path) as conn:
+        for entry in ledger_entries:
+            conn.execute(
+                """INSERT INTO LEDGER
+                   (fecha_real, fecha_contable, mes_fiscal, tipo_movimiento,
+                    categoria_id, relevancia_code, concepto, importe, flag_liquidez)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entry.fecha_real.isoformat(),
+                    entry.fecha_contable.isoformat(),
+                    entry.mes_fiscal,
+                    entry.tipo_movimiento.value,
+                    entry.categoria_id,
+                    entry.relevancia_code.value if entry.relevancia_code else None,
+                    entry.concepto,
+                    entry.importe,
+                    entry.flag_liquidez,
+                ),
+            )
+
+        conn.execute(
+            """INSERT OR REPLACE INTO CIERRES_MENSUALES
+               (mes_fiscal, estado, fecha_cierre, saldo_inicio, salario_mes,
+                total_ingresos, total_gastos, total_inversion, saldo_fin,
+                nomina_siguiente, notas)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                cierre.mes_fiscal,
+                cierre.estado.value,
+                cierre.fecha_cierre.isoformat() if cierre.fecha_cierre else None,
+                cierre.saldo_inicio,
+                cierre.salario_mes,
+                cierre.total_ingresos,
+                cierre.total_gastos,
+                cierre.total_inversion,
+                cierre.saldo_fin,
+                cierre.nomina_siguiente,
+                cierre.notas,
+            ),
+        )
+
+        row = conn.execute(
+            "SELECT estado FROM CIERRES_MENSUALES WHERE mes_fiscal = ?",
+            (mes_siguiente,),
+        ).fetchone()
+
+        # Mantener compatibilidad con el flujo previo: si el mes siguiente ya está
+        # cerrado, no se abre ni se modifica.
+        if not row or row["estado"] != "CERRADO":
+            conn.execute(
+                """INSERT OR REPLACE INTO CIERRES_MENSUALES
+                   (mes_fiscal, estado, fecha_cierre, saldo_inicio, salario_mes,
+                    total_ingresos, total_gastos, total_inversion, saldo_fin,
+                    nomina_siguiente, notas)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    mes_siguiente,
+                    "ABIERTO",
+                    None,
+                    saldo_inicio_mes_siguiente,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            )
+
+        conn.execute(
+            """INSERT INTO SNAPSHOTS_MENSUALES
+               (mes_cierre, fecha_ejecucion, saldo_banco_real, nomina_nuevo_mes,
+                desviacion_registrada, retencion_ejecutada, saldo_inicial_nuevo)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                snapshot.mes_cierre,
+                snapshot.fecha_ejecucion.isoformat(),
+                snapshot.saldo_banco_real,
+                snapshot.nomina_nuevo_mes,
+                snapshot.desviacion_registrada,
+                snapshot.retencion_ejecutada,
+                snapshot.saldo_inicial_nuevo,
+            ),
+        )
+
+    _clear_cache()
+    return snapshot
 
 
 def get_latest_snapshot(db_path: Path = DEFAULT_DB_PATH) -> Optional[SnapshotMensual]:
@@ -465,7 +615,7 @@ def upsert_cierre_mes(cierre: CierreMensual, db_path: Path = DEFAULT_DB_PATH) ->
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 cierre.mes_fiscal,
-                cierre.estado,
+                cierre.estado.value,
                 cierre.fecha_cierre.isoformat() if cierre.fecha_cierre else None,
                 cierre.saldo_inicio,
                 cierre.salario_mes,
@@ -483,13 +633,13 @@ def upsert_cierre_mes(cierre: CierreMensual, db_path: Path = DEFAULT_DB_PATH) ->
 def is_mes_cerrado(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> bool:
     """Verifica si un mes ya está cerrado."""
     cierre = get_cierre_mes(mes_fiscal, db_path)
-    return cierre is not None and cierre.estado == 'CERRADO'
+    return cierre is not None and cierre.estado == EstadoCierre.CERRADO
 
 
 def abrir_mes(mes_fiscal: str, saldo_inicio: float = 0.0, db_path: Path = DEFAULT_DB_PATH) -> str:
     """Crea o actualiza un registro de mes como ABIERTO con el saldo inicial dado."""
     cierre_existente = get_cierre_mes(mes_fiscal, db_path)
-    if cierre_existente and cierre_existente.estado == 'CERRADO':
+    if cierre_existente and cierre_existente.estado == EstadoCierre.CERRADO:
         raise ValueError(f"El mes {mes_fiscal} ya está cerrado.")
     
     nuevo_cierre = CierreMensual(

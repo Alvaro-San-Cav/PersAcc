@@ -471,6 +471,14 @@ def _render_config_tab():
         enable_consequences = st.session_state.get('config_enable_consequences', False)
         enable_llm = st.session_state.get('config_enable_llm', False)
         bank_url = st.session_state.get('config_bank_url', '')
+        auto_dedup_enabled = st.session_state.get('config_auto_dedup_enabled', True)
+        auto_same_type_only = st.session_state.get('config_auto_same_type_only', True)
+        auto_amount_tol = float(st.session_state.get('config_auto_amount_tol', 0.01))
+        auto_date_window = int(st.session_state.get('config_auto_date_window', 3))
+        auto_text_thr = float(st.session_state.get('config_auto_text_thr', 0.55))
+        auto_min_score = float(st.session_state.get('config_auto_min_score', 0.75))
+        auto_min_hits = int(st.session_state.get('config_auto_min_hits', 2))
+        auto_ignore_old = st.session_state.get('config_auto_ignore_old', True)
         
         current_lang = get_language()
         idioma_seleccionado = st.session_state.get('config_language', current_lang)
@@ -491,6 +499,17 @@ def _render_config_tab():
             config['llm']['model_chat'] = st.session_state.get('config_llm_model_chat', 'phi3')
             config['llm']['model_summary'] = st.session_state.get('config_llm_model_summary', 'phi3')
             config['llm']['model_import'] = st.session_state.get('config_llm_model_import', 'phi3')
+
+        config['automatic_load'] = {
+            'dedup_enabled': bool(auto_dedup_enabled),
+            'same_type_only': bool(auto_same_type_only),
+            'amount_abs_tolerance': float(auto_amount_tol),
+            'date_window_days': int(auto_date_window),
+            'text_similarity_threshold': float(auto_text_thr),
+            'min_score': float(auto_min_score),
+            'min_rule_hits': int(auto_min_hits),
+            'ignore_outside_current_period': bool(auto_ignore_old),
+        }
         
         config['retenciones'] = {'pct_remanente_default': default_rem, 'pct_salario_default': default_sal}
         config['cierre'] = {'metodo_saldo': metodo_saldo}
@@ -557,6 +576,76 @@ def _render_config_tab():
               help=t('utilidades.config.enable_consequences_help'), key="config_enable_consequences")
     enable_llm = st.toggle(t('utilidades.config.enable_llm_label'), value=config.get('llm', {}).get('enabled', False),
               help=t('utilidades.config.enable_llm_help'), key="config_enable_llm")
+
+    st.markdown("---")
+
+    # Carga automática (deduplicación y filtro temporal)
+    st.markdown(t('utilidades.config.section_auto_load_title'))
+    st.info(t('utilidades.config.section_auto_load_info'))
+    auto_cfg = config.get('automatic_load', {})
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.toggle(
+            t('utilidades.config.auto_dedup_enabled_label'),
+            value=auto_cfg.get('dedup_enabled', True),
+            help=t('utilidades.config.auto_dedup_enabled_help'),
+            key='config_auto_dedup_enabled',
+        )
+        st.toggle(
+            t('utilidades.config.auto_same_type_only_label'),
+            value=auto_cfg.get('same_type_only', True),
+            key='config_auto_same_type_only',
+        )
+        st.toggle(
+            t('utilidades.config.auto_ignore_old_label'),
+            value=auto_cfg.get('ignore_outside_current_period', True),
+            help=t('utilidades.config.auto_ignore_old_help'),
+            key='config_auto_ignore_old',
+        )
+
+    with c2:
+        st.number_input(
+            t('utilidades.config.auto_amount_tol_label'),
+            min_value=0.0,
+            max_value=9999.0,
+            value=float(auto_cfg.get('amount_abs_tolerance', 0.01)),
+            step=0.01,
+            format='%.2f',
+            key='config_auto_amount_tol',
+        )
+        st.slider(
+            t('utilidades.config.auto_date_window_label'),
+            min_value=0,
+            max_value=30,
+            value=int(auto_cfg.get('date_window_days', 3)),
+            key='config_auto_date_window',
+        )
+        st.slider(
+            t('utilidades.config.auto_text_thr_label'),
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            value=float(auto_cfg.get('text_similarity_threshold', 0.20)),
+            key='config_auto_text_thr',
+        )
+        st.slider(
+            t('utilidades.config.auto_min_score_label'),
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            value=float(auto_cfg.get('min_score', 0.40)),
+            key='config_auto_min_score',
+        )
+        st.selectbox(
+            t('utilidades.config.auto_min_hits_label'),
+            options=[1, 2, 3],
+            index=[1, 2, 3].index(int(auto_cfg.get('min_rule_hits', 1))),
+            key='config_auto_min_hits',
+        )
+
+    st.caption(t('utilidades.config.auto_weight_note'))
+    st.markdown(t('utilidades.config.auto_formula_explanation'))
 
     st.markdown("---")
 

@@ -5,7 +5,17 @@ Define enumeraciones y dataclasses para los tipos de movimiento y relevancia.
 from enum import Enum
 from dataclasses import dataclass
 from datetime import date, datetime
+import re
 from typing import Optional
+
+
+_YEAR_MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def _validate_year_month(field_name: str, value: str) -> None:
+    """Valida que el campo tenga formato estricto YYYY-MM."""
+    if not isinstance(value, str) or not _YEAR_MONTH_PATTERN.fullmatch(value):
+        raise ValueError(f"{field_name} debe tener formato 'YYYY-MM'. Recibido: {value!r}")
 
 
 class TipoMovimiento(Enum):
@@ -35,6 +45,12 @@ class RelevanciaCode(Enum):
     LI = "LI"    # Me gusta / Disfrute consciente
     SUP = "SUP"  # Superfluo / Optimizable
     TON = "TON"  # Tontería / Error de gasto
+
+
+class EstadoCierre(Enum):
+    """Estados permitidos para CIERRES_MENSUALES."""
+    ABIERTO = "ABIERTO"
+    CERRADO = "CERRADO"
 
 
 # Descripciones para CAT_RELEVANCIA
@@ -67,8 +83,20 @@ class LedgerEntry:
     categoria_id: int
     concepto: str
     importe: float  # Siempre positivo, el tipo define el signo
-    relevancia_code: Optional[RelevanciaCode] = None  # Obligatorio solo si GASTO
+    relevancia_code: Optional[RelevanciaCode] = None  # Solo aplica para GASTO
     flag_liquidez: bool = False  # Si True, ignora regla fecha salario
+
+    def __post_init__(self):
+        _validate_year_month("mes_fiscal", self.mes_fiscal)
+
+        if isinstance(self.tipo_movimiento, str):
+            self.tipo_movimiento = TipoMovimiento(self.tipo_movimiento)
+
+        if isinstance(self.relevancia_code, str):
+            self.relevancia_code = RelevanciaCode(self.relevancia_code)
+
+        if self.tipo_movimiento != TipoMovimiento.GASTO and self.relevancia_code is not None:
+            raise ValueError("relevancia_code solo se permite cuando tipo_movimiento es GASTO")
 
 
 @dataclass
@@ -82,13 +110,16 @@ class SnapshotMensual:
     retencion_ejecutada: Optional[float]
     saldo_inicial_nuevo: float
 
+    def __post_init__(self):
+        _validate_year_month("mes_cierre", self.mes_cierre)
+
 
 
 @dataclass
 class CierreMensual:
     """Representa el estado de un mes en el sistema (CIERRES_MENSUALES)."""
     mes_fiscal: str  # Formato: "YYYY-MM"
-    estado: str  # 'ABIERTO' o 'CERRADO'
+    estado: EstadoCierre
     fecha_cierre: Optional[datetime]
     saldo_inicio: float
     salario_mes: Optional[float]
@@ -98,5 +129,10 @@ class CierreMensual:
     saldo_fin: Optional[float]
     nomina_siguiente: Optional[float]
     notas: Optional[str] = None
+
+    def __post_init__(self):
+        _validate_year_month("mes_fiscal", self.mes_fiscal)
+        if isinstance(self.estado, str):
+            self.estado = EstadoCierre(self.estado)
 
 

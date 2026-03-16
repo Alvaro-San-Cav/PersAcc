@@ -510,22 +510,22 @@ def render_sidebar():
                 if is_mes_cerrado(mes_fiscal):
                     st.error(t('sidebar.quick_add.validation.month_closed', month=mes_fiscal))
                 else:
-                    # Crear entrada
-                    entry = LedgerEntry(
-                        id=None,
-                        fecha_real=fecha,
-                        fecha_contable=fecha_contable,
-                        mes_fiscal=mes_fiscal,
-                        tipo_movimiento=tipo_mov,
-                        categoria_id=categoria_sel.id,
-                        concepto=concepto.strip(),
-                        importe=importe,
-                        relevancia_code=relevancia,
-                        flag_liquidez=flag_liquidez
-                    )
-                    
-                    # Guardar
                     try:
+                        # Crear entrada
+                        entry = LedgerEntry(
+                            id=None,
+                            fecha_real=fecha,
+                            fecha_contable=fecha_contable,
+                            mes_fiscal=mes_fiscal,
+                            tipo_movimiento=tipo_mov,
+                            categoria_id=categoria_sel.id,
+                            concepto=concepto.strip(),
+                            importe=importe,
+                            relevancia_code=relevancia,
+                            flag_liquidez=flag_liquidez
+                        )
+
+                        # Guardar
                         insert_ledger_entry(entry)
                         st.success(t('sidebar.quick_add.success_message'))
                         

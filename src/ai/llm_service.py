@@ -24,7 +24,7 @@ from src.ai import prompts as llm_prompts
 from src.config import get_currency_symbol
 from src.constants import (
     LLM_TIMEOUT_QUICK, LLM_TIMEOUT_LONG, 
-    LLM_MAX_RESPONSE_LENGTH
+    LLM_MAX_RESPONSE_LENGTH, LLM_MAX_MOVEMENTS_DISPLAY
 )
 
 # Configure logging
@@ -513,10 +513,10 @@ def _build_movements_text(movements: list, period_type: str) -> str:
             signo = "+" if total >= 0 else ""
             movements_text += f"• {categoria}: {count} mov, {signo}{total:.2f}{currency}\n"
     else:
-        # Para análisis mensual: lista de movimientos individuales (hasta 30)
+        # Para análisis mensual: lista de movimientos individuales (límite configurable)
         currency = get_currency_symbol()
         movements_text = "\n\n📋 MOVIMIENTOS REGISTRADOS:\n"
-        for i, mov in enumerate(movements[:30], 1):
+        for i, mov in enumerate(movements[:LLM_MAX_MOVEMENTS_DISPLAY], 1):
             tipo = mov.get('tipo', '?')
             categoria = mov.get('categoria', '?')
             concepto = mov.get('concepto', '?')[:30]
@@ -524,8 +524,8 @@ def _build_movements_text(movements: list, period_type: str) -> str:
             fecha = mov.get('fecha', '?')
             movements_text += f"{i}. {fecha} | {tipo} | {categoria} | {concepto} | {importe:.2f}{currency}\n"
         
-        if len(movements) > 30:
-            movements_text += f"\n... y {len(movements) - 30} movimientos más\n"
+        if len(movements) > LLM_MAX_MOVEMENTS_DISPLAY:
+            movements_text += f"\n... y {len(movements) - LLM_MAX_MOVEMENTS_DISPLAY} movimientos más\n"
     
     return movements_text
 

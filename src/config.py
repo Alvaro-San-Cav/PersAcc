@@ -24,6 +24,16 @@ DEFAULT_CONFIG = {
         "model_summary": "light",   # Modelo a usar para resúmenes rápidos
         "max_tokens": 2000  # Máximo de tokens en respuestas (suficiente para análisis completo)
     },
+    "automatic_load": {
+        "dedup_enabled": True,
+        "same_type_only": True,
+        "amount_abs_tolerance": 0.01,
+        "date_window_days": 3,
+        "text_similarity_threshold": 0.20,
+        "min_score": 0.40,
+        "min_rule_hits": 1,
+        "ignore_outside_current_period": True
+    },
     "retenciones": {
         "pct_remanente_default": 0,
         "pct_salario_default": 20
