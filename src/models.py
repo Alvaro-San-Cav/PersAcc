@@ -53,6 +53,7 @@ class Categoria:
     nombre: str
     tipo_movimiento: TipoMovimiento
     es_activo: bool = True
+    descripcion_ia: Optional[str] = None
 
 
 @dataclass

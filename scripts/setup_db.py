@@ -29,7 +29,8 @@ def create_tables(conn: sqlite3.Connection):
             tipo_movimiento TEXT NOT NULL CHECK(
                 tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION_AHORRO')
             ),
-            es_activo BOOLEAN DEFAULT 1
+            es_activo BOOLEAN DEFAULT 1,
+            descripcion_ia TEXT
         )
     """)
     

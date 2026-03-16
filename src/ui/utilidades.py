@@ -248,7 +248,8 @@ def _render_categories_tab():
             "nombre": c.nombre, 
             "tipo": c.tipo_movimiento.value, 
             "activo": c.es_activo,
-            "conteo": counts.get(c.id, 0)
+            "conteo": counts.get(c.id, 0),
+            "descripcion_ia": c.descripcion_ia or ""
         } 
         for c in cats
     ]
@@ -267,9 +268,10 @@ def _render_categories_tab():
             ),
             "activo": st.column_config.CheckboxColumn(t('utilidades.categories.columns.active'), disabled=True), 
             "nombre": st.column_config.TextColumn(t('utilidades.categories.columns.name'), width="large", required=True),
-            "conteo": st.column_config.NumberColumn(t('utilidades.categories.columns.count'), disabled=True, width="small")
+            "conteo": st.column_config.NumberColumn(t('utilidades.categories.columns.count'), disabled=True, width="small"),
+            "descripcion_ia": st.column_config.TextColumn("Descripción IA (Opcional)", width="large")
         },
-        column_order=("tipo", "nombre", "conteo", "activo"),
+        column_order=("tipo", "nombre", "descripcion_ia", "conteo", "activo"),
         hide_index=True,
         key="editor_categorias",
         use_container_width=True,
@@ -301,13 +303,14 @@ def _render_categories_tab():
                 cid = row.get("id")
                 nombre = row["nombre"]
                 tipo_str = row["tipo"]
+                descripcion = str(row.get("descripcion_ia", "")).strip() or None
                 
                 if not nombre or not tipo_str:
                     continue
                 
                 if cid is None:
                     try:
-                        new_cat = Categoria(None, nombre, TipoMovimiento(tipo_str), True)
+                        new_cat = Categoria(None, nombre, TipoMovimiento(tipo_str), True, descripcion)
                         insert_categoria(new_cat)
                         count_created += 1
                     except Exception as e:
@@ -317,11 +320,12 @@ def _render_categories_tab():
                     if original:
                         cambio_nombre = original.nombre != nombre
                         cambio_tipo = original.tipo_movimiento.value != tipo_str
+                        cambio_desc = original.descripcion_ia != descripcion
                         
-                        if cambio_nombre or cambio_tipo:
+                        if cambio_nombre or cambio_tipo or cambio_desc:
                             try:
                                 tipo_enum = TipoMovimiento(tipo_str) if cambio_tipo else None
-                                update_categoria(cid, nombre, tipo_enum)
+                                update_categoria(cid, nombre, tipo_enum, descripcion)
                                 count_updated += 1
                             except Exception as e:
                                 st.error(f"Error ({cid}): {e}")
@@ -486,6 +490,7 @@ def _render_config_tab():
             config['llm']['model_analysis'] = st.session_state.get('config_llm_model_analysis', 'phi3')
             config['llm']['model_chat'] = st.session_state.get('config_llm_model_chat', 'phi3')
             config['llm']['model_summary'] = st.session_state.get('config_llm_model_summary', 'phi3')
+            config['llm']['model_import'] = st.session_state.get('config_llm_model_import', 'phi3')
         
         config['retenciones'] = {'pct_remanente_default': default_rem, 'pct_salario_default': default_sal}
         config['cierre'] = {'metodo_saldo': metodo_saldo}
@@ -701,12 +706,13 @@ def _render_config_tab():
                 current_analysis = config.get('llm', {}).get('model_analysis', config.get('llm', {}).get('model_tier', 'light'))
                 current_chat = config.get('llm', {}).get('model_chat', config.get('llm', {}).get('model_tier', 'light'))
                 current_summary = config.get('llm', {}).get('model_summary', config.get('llm', {}).get('model_tier', 'light'))
+                current_import = config.get('llm', {}).get('model_import', config.get('llm', {}).get('model_tier', 'light'))
                 
                 idx_analysis = available_models.index(current_analysis) if current_analysis in available_models else 0
                 idx_chat = available_models.index(current_chat) if current_chat in available_models else 0
                 idx_summary = available_models.index(current_summary) if current_summary in available_models else 0
+                idx_import = available_models.index(current_import) if current_import in available_models else 0
                 
-                # Layout the 3 combo boxes in columns or rows
                 st.markdown("**Modelo para Análisis Histórico (Recomendado: Modelos Pesados)**")
                 st.selectbox("Modelo Análisis", options=available_models, index=idx_analysis, key="config_llm_model_analysis", label_visibility="collapsed")
                 
@@ -715,6 +721,9 @@ def _render_config_tab():
                 
                 st.markdown("**Modelo para Resúmenes de Dashboard (Recomendado: Modelos Ligeros/Rápidos)**")
                 st.selectbox("Modelo Resumen", options=available_models, index=idx_summary, key="config_llm_model_summary", label_visibility="collapsed")
+
+                st.markdown("**Modelo para Carga Automática de Ficheros (Recomendado: Modelos Medios/Pesados)**")
+                st.selectbox("Modelo Importación", options=available_models, index=idx_import, key="config_llm_model_import", label_visibility="collapsed")
                 
             else:
                 st.warning(t('utilidades.config.ollama_no_models_warn'))

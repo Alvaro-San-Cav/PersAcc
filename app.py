@@ -146,15 +146,27 @@ def main():
     # NAVEGACIÓN CON LAZY LOADING (PARTE SUPERIOR)
     # ==========================================
     
+    # Controlar si mostramos Cargar Datos (requiere LLM)
+    from src.ai.llm_service import is_llm_enabled
+    mostrar_carga = is_llm_enabled()
+    
     # Definir opciones de navegación
     nav_options = [
         t('navigation.ledger'),        # 0: Ledger (default)
         t('navigation.cierre'),        # 1: Cierre de Mes
-        t('navigation.historico'),     # 2: Histórico
-        t('navigation.proyecciones'),  # 3: Proyecciones
-        t('navigation.chat_search'),   # 4: Asistente IA
-        t('navigation.utilidades')     # 5: Utilidades
     ]
+    if mostrar_carga:
+        nav_options.append(t('navigation.cargar_datos'))
+        
+    nav_options.extend([
+        t('navigation.historico'),
+        t('navigation.proyecciones'),
+        t('navigation.chat_search'),
+        t('navigation.utilidades')
+    ])
+    
+    # Índices estáticos para el mapeo posterior
+    # Para mantener el código limpio de if/else anidados, comprobamos el contenido del array:
     
     # Inicializar sección activa
     if 'active_section' not in st.session_state:
@@ -195,19 +207,23 @@ def main():
         from src.ui.cierre import render_cierre
         render_cierre()
     
-    elif selected_section == nav_options[2]:  # Histórico
+    elif selected_section == t('navigation.cargar_datos'):  # Cargar Datos
+        from src.ui.cargar_datos import render_cargar_datos
+        render_cargar_datos()
+    
+    elif selected_section == t('navigation.historico'):  # Histórico
         from src.ui.historico import render_historico
         render_historico()
     
-    elif selected_section == nav_options[3]:  # Proyecciones
+    elif selected_section == t('navigation.proyecciones'):  # Proyecciones
         from src.ui.proyecciones import render_proyecciones
         render_proyecciones()
     
-    elif selected_section == nav_options[4]:  # Asistente IA
+    elif selected_section == t('navigation.chat_search'):  # Asistente IA
         from src.ui.search_assistant_new import render_chat_search
         render_chat_search()
     
-    elif selected_section == nav_options[5]:  # Utilidades
+    elif selected_section == t('navigation.utilidades'):  # Utilidades
         from src.ui.utilidades import render_utilidades
         render_utilidades()
 

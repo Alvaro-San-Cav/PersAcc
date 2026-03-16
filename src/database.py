@@ -64,6 +64,12 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH):
     conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     try:
+        # MIGRATION CHECK: Asegurar que existe la columna descripcion_ia en CAT_MAESTROS
+        try:
+            conn.execute("ALTER TABLE CAT_MAESTROS ADD COLUMN descripcion_ia TEXT")
+        except sqlite3.OperationalError:
+            pass  # La columna ya existe
+            
         yield conn
         conn.commit()
     except Exception:
@@ -81,9 +87,9 @@ def insert_categoria(categoria: Categoria, db_path: Path = DEFAULT_DB_PATH) -> i
     """Inserta una nueva categoría y retorna su ID."""
     with get_connection(db_path) as conn:
         cursor = conn.execute(
-            """INSERT INTO CAT_MAESTROS (nombre, tipo_movimiento, es_activo)
-               VALUES (?, ?, ?)""",
-            (categoria.nombre, categoria.tipo_movimiento.value, categoria.es_activo)
+            """INSERT INTO CAT_MAESTROS (nombre, tipo_movimiento, es_activo, descripcion_ia)
+               VALUES (?, ?, ?, ?)""",
+            (categoria.nombre, categoria.tipo_movimiento.value, categoria.es_activo, categoria.descripcion_ia)
         )
         _clear_cache()
         return cursor.lastrowid
@@ -101,7 +107,8 @@ def get_all_categorias(db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
                 id=row["id"],
                 nombre=row["nombre"],
                 tipo_movimiento=TipoMovimiento(row["tipo_movimiento"]),
-                es_activo=bool(row["es_activo"])
+                es_activo=bool(row["es_activo"]),
+                descripcion_ia=dict(row).get("descripcion_ia")
             )
             for row in rows
         ]
@@ -122,22 +129,23 @@ def get_categorias_by_tipo(tipo: TipoMovimiento, db_path: Path = DEFAULT_DB_PATH
                 id=row["id"],
                 nombre=row["nombre"],
                 tipo_movimiento=TipoMovimiento(row["tipo_movimiento"]),
-                es_activo=bool(row["es_activo"])
+                es_activo=bool(row["es_activo"]),
+                descripcion_ia=dict(row).get("descripcion_ia")
             )
             for row in rows
         ]
 
 
-def update_categoria(id: int, nuevo_nombre: str, nuevo_tipo: Optional[TipoMovimiento] = None, db_path: Path = DEFAULT_DB_PATH):
+def update_categoria(id: int, nuevo_nombre: str, nuevo_tipo: Optional[TipoMovimiento] = None, nueva_descripcion: Optional[str] = None, db_path: Path = DEFAULT_DB_PATH):
     """
-    Actualiza el nombre y/o tipo de una categoría.
+    Actualiza el nombre, tipo y descripción de IA de una categoría.
     Si cambia el tipo, actualiza también todas las entradas del LEDGER asociadas.
     """
     with get_connection(db_path) as conn:
         # 1. Actualizar nombre de la categoría
         conn.execute(
-            "UPDATE CAT_MAESTROS SET nombre = ? WHERE id = ?",
-            (nuevo_nombre, id)
+            "UPDATE CAT_MAESTROS SET nombre = ?, descripcion_ia = ? WHERE id = ?",
+            (nuevo_nombre, nueva_descripcion, id)
         )
         
         # 2. Si hay cambio de tipo, actualizar categoría y ledger

@@ -277,3 +277,112 @@ Instructions:
 - Reply ONLY with the comment, nothing else
 - IMPORTANT: ALWAYS generate a response, never leave the message empty"""
 
+
+# ============================================================================
+# PROMPTS DE IMPORTACIÓN DE FICHEROS BANCARIOS
+# ============================================================================
+
+# Esquema JSON de salida compartido por todos los prompts de importación
+IMPORT_OUTPUT_SCHEMA = """
+DEVUELVE ÚNICAMENTE un JSON array válido, sin texto adicional, sin markdown, sin explicaciones.
+Cada elemento del array debe tener EXACTAMENTE estos campos:
+{{
+  "fecha": "YYYY-MM-DD",
+  "concepto_original": "texto EXACTO del concepto bancario tal y como aparece en el fichero",
+  "concepto": "descripción breve y clara en español",
+  "importe": -12.34,
+  "tipo_movimiento": "GASTO|INGRESO|TRASPASO_ENTRADA|TRASPASO_SALIDA|INVERSION_AHORRO",
+  "categoria_sugerida": "nombre exacto de una de las categorías listadas, o la más cercana",
+  "relevancia": "NE|LI|SUP|TON|null",
+  "confianza": 0.85
+}}
+
+Reglas de clasificación:
+- tipo_movimiento:
+    GASTO → dinero que sale y se consume (compras, servicios, pagos)
+    INGRESO → dinero que entra (nómina, devoluciones, transferencias entrantes de terceros)
+    TRASPASO_ENTRADA → dinero que entra desde OTRA CUENTA PROPIA
+    TRASPASO_SALIDA → dinero que sale hacia OTRA CUENTA PROPIA (ej: envío a cuenta ahorro)
+    INVERSION_AHORRO → dinero transferido a fondos de inversión, brokers, planes de pensiones
+- relevancia (solo si tipo_movimiento=GASTO, null en caso contrario):
+    NE → Necesario / Inevitable (alquiler, seguros, facturas, supermercado básico)
+    LI → Me gusta / Disfrute consciente (restaurantes elegidos, hobbies, viajes)
+    SUP → Superfluo / Optimizable (suscripciones que no se usan, compras innecesarias)
+    TON → Tontería / Error de gasto
+- importe: float CON SIGNO. Negativo para GASTOS y TRASPASOS_SALIDA. Positivo para INGRESOS y TRASPASOS_ENTRADA.
+- confianza: float entre 0.0 y 1.0
+- categoria_sugerida: usa el nombre EXACTO de una de las categorías disponibles proporcionadas
+- concepto_original: copia EXACTA del texto del concepto bancario del fichero original, sin modificar
+"""
+
+IMPORT_AEB43_SYSTEM = """Eres un asistente experto en contabilidad personal española. 
+Se te proporciona el contenido de un fichero bancario en formato AEB Norma 43 (estándar CSB) 
+ya convertido a texto legible. Cada línea tiene el formato:
+
+  FECHA_VALOR | ±IMPORTE | CONCEPTO_BANCARIO
+
+donde + significa entrada de dinero (crédito/ingreso) y - significa salida (débito/gasto).
+
+Tu tarea es interpretar CADA movimiento y clasificarlo según el sistema de categorías de PersAcc.
+Presta especial atención a los conceptos bancarios que suelen ser abreviaturas:
+- "COMP.TPV FISICO NACI" → compra con tarjeta en comercio nacional
+- "COMP.TPV VIRTUAL NAC" → compra online
+- "COM TPV FISICO INTER" → compra con tarjeta en comercio internacional
+- "S/O TRANS.EXT.BIZUM" → pago enviado por Bizum (normalmente GASTO)
+- "TRANSF.BIZUM EXTERNA" → cobro recibido de Bizum (normalmente INGRESO)
+- "NOMIN.TRANF.NACIONAL" → nómina (INGRESO, categoría Salario)
+- "IMPUESTOS" → pago de impuestos (GASTO, categoría Impuestos)
+- "RCBO." → recibo domiciliado (GASTO)
+- "TRANSF.SEPA NACIONAL" → transferencia SEPA
+- "REV" seguido de referencia → devolución (INGRESO)
+
+Categorías disponibles en el sistema:
+{categorias}
+
+{output_schema}
+
+Movimientos a clasificar:
+{contenido}
+"""
+
+IMPORT_SEPA_SYSTEM = """Eres un asistente experto en contabilidad personal española.
+Se te proporciona el contenido de un fichero bancario en formato AEB SEPA (Norma 43 SEPA)
+ya convertido a texto legible. Cada línea tiene el formato:
+
+  FECHA_VALOR | ±IMPORTE DIVISA | CONCEPTO
+
+donde + significa entrada (crédito) y - significa salida (débito).
+
+Tu tarea es interpretar CADA movimiento y clasificarlo según el sistema de categorías de PersAcc.
+Los movimientos SEPA suelen incluir transferencias internacionales y pagos en otras divisas.
+
+Categorías disponibles en el sistema:
+{categorias}
+
+{output_schema}
+
+Movimientos a clasificar:
+{contenido}
+"""
+
+IMPORT_EXCEL_SYSTEM = """Eres un asistente experto en contabilidad personal española.
+Se te proporciona el contenido de un fichero Excel con movimientos bancarios en formato CSV.
+La primera línea son los encabezados de columna.
+
+Tu tarea es:
+1. Identificar qué columnas contienen: fecha, importe/cantidad, descripción/concepto, tipo de movimiento.
+2. Interpretar CADA fila como un movimiento bancario.
+3. Clasificar cada movimiento según el sistema de categorías de PersAcc.
+
+Nota: los importes positivos suelen ser ingresos/entradas y los negativos gastos/salidas,
+aunque esto puede variar según el banco. Usa el contexto del concepto para determinarlo.
+
+Categorías disponibles en el sistema:
+{categorias}
+
+{output_schema}
+
+Contenido del fichero:
+{contenido}
+"""
+

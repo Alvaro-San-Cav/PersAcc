@@ -8,3 +8,4 @@ streamlit-quill
 notion-client>=2.0.0
 statsmodels>=0.14.0
 joblib>=1.3.0
+openpyxl>=3.1.0
