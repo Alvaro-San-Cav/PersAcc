@@ -219,6 +219,19 @@ PersAcc supports multiple languages:
 
 Change language in **Utilities > Configuration**.
 
+## Installer Releases (No Binary In Git)
+
+Installer binaries are intentionally not stored in the repository.
+
+- Local build (Windows): run `installer\\build_installer.bat`
+- CI build artifact: run the `Build And Release Installer` workflow manually
+- Official release: create and push a tag like `v3.1.0`; the workflow builds and uploads:
+   - `PersAcc_Installer.exe`
+   - `PersAcc_Setup_<tag>.zip`
+   - release docs/warning files
+
+This keeps the git history clean while still distributing Windows installers through GitHub Releases.
+
 ## Contributing
 
 1. Fork the project

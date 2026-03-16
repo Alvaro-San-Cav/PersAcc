@@ -1,0 +1,70 @@
+name: Build And Release Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing tag to publish (optional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Build installer executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --onefile --noconsole --clean --name "PersAcc_Installer" --icon="${{ github.workspace }}\assets\logo.ico" --add-data "${{ github.workspace }}\assets;assets" --add-data "${{ github.workspace }}\src;src" --add-data "${{ github.workspace }}\scripts;scripts" --add-data "${{ github.workspace }}\locales;locales" --add-data "${{ github.workspace }}\app.py;." --add-data "${{ github.workspace }}\requirements.txt;." --add-data "${{ github.workspace }}\.streamlit;.streamlit" --hidden-import "tkinter" --collect-all "tkinter" --distpath "${{ github.workspace }}\installer\dist" --workpath "${{ github.workspace }}\installer\build" --specpath "${{ github.workspace }}\installer" "${{ github.workspace }}\installer\install_wizard.py"
+
+      - name: Package release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path installer\dist\release | Out-Null
+          Copy-Item installer\dist\PersAcc_Installer.exe installer\dist\release\PersAcc_Installer.exe -Force
+          Copy-Item installer\README_INSTALLER.md installer\dist\release\README.md -Force
+          Copy-Item installer\TRUSTED_SOFTWARE_WARNING.txt installer\dist\release\TRUSTED_SOFTWARE_WARNING.txt -Force
+          Compress-Archive -Path installer\dist\release\* -DestinationPath installer\dist\PersAcc_Setup_${{ github.ref_name }}.zip -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: persacc-installer-${{ github.ref_name || 'manual' }}
+          path: |
+            installer/dist/release/PersAcc_Installer.exe
+            installer/dist/release/README.md
+            installer/dist/release/TRUSTED_SOFTWARE_WARNING.txt
+            installer/dist/PersAcc_Setup_${{ github.ref_name }}.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/dist/release/PersAcc_Installer.exe
+            installer/dist/release/README.md
+            installer/dist/release/TRUSTED_SOFTWARE_WARNING.txt
+            installer/dist/PersAcc_Setup_${{ github.ref_name }}.zip
+          generate_release_notes: true
