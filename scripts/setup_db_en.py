@@ -8,8 +8,8 @@ Usage:
 import sqlite3
 from pathlib import Path
 
-# Database path (same consistent path)
-DB_PATH = Path(__file__).parent / "data" / "finanzas.db"
+# Database path (same as setup_db.py)
+DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
 
 # Add src to path to import config
 import sys
@@ -29,7 +29,8 @@ def create_tables(conn: sqlite3.Connection):
             tipo_movimiento TEXT NOT NULL CHECK(
                 tipo_movimiento IN ('GASTO', 'INGRESO', 'TRASPASO_ENTRADA', 'TRASPASO_SALIDA', 'INVERSION_AHORRO')
             ),
-            es_activo BOOLEAN DEFAULT 1
+            es_activo BOOLEAN DEFAULT 1,
+            descripcion_ia TEXT
         )
     """)
     
@@ -99,6 +100,17 @@ def create_tables(conn: sqlite3.Connection):
             created_at DATETIME NOT NULL,
             model_used TEXT,
             lang TEXT,
+            PRIMARY KEY (period_type, period_identifier)
+        )
+    """)
+
+    # Table for persistent user notes
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS PERIOD_NOTES (
+            period_type TEXT NOT NULL,
+            period_identifier TEXT NOT NULL,
+            note_text TEXT,
+            updated_at TIMESTAMP,
             PRIMARY KEY (period_type, period_identifier)
         )
     """)
