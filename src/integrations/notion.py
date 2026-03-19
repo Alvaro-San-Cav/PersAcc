@@ -69,6 +69,19 @@ class NotionClient:
             return ""
         return re.sub(r'[^\w\s]', '', value).strip().lower()
 
+    @staticmethod
+    def _parse_notion_date(value: str) -> Optional[date]:
+        """Parsea fecha ISO de Notion, incluyendo timestamps con sufijo Z."""
+        if not value:
+            return None
+        try:
+            if len(value) == 10:
+                return date.fromisoformat(value)
+            normalized = value.replace("Z", "+00:00")
+            return datetime.fromisoformat(normalized).date()
+        except (TypeError, ValueError):
+            return None
+
     def _get_field_map(self) -> Dict[str, List[str]]:
         """
         Resuelve mapeo de propiedades Notion usando config existente.
@@ -354,10 +367,9 @@ class NotionClient:
             if date_prop.get('type') == 'date':
                 date_value = date_prop.get('date')
                 if date_value and date_value.get('start'):
-                    try:
-                        fecha = datetime.fromisoformat(date_value['start']).date()
-                    except ValueError:
-                        pass  # mantener fecha = hoy
+                    parsed = self._parse_notion_date(date_value['start'])
+                    if parsed:
+                        fecha = parsed
             
             return {
                 'id': page.get('id'),

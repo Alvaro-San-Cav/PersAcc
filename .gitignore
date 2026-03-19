@@ -39,6 +39,7 @@ data/*.db
 data/*.db-journal
 data/*.db-shm
 data/*.db-wal
+data/.chart_cache/
 
 # Temporary Files
 temp_import.csv

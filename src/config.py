@@ -3,6 +3,7 @@ Módulo de configuración persistente.
 Lee y escribe configuraciones desde/hacia data/config.json.
 """
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ CONFIG_PATH = Path(__file__).parent.parent / "data" / "config.json"
 DEFAULT_CONFIG = {
     "language": "es",  # "es" o "en"
     "currency": "EUR",  # "EUR", "USD", "GBP", etc.
+    "dark_mode": False,  # Activar/desactivar tema oscuro (override CSS)
     "enable_relevance": True,  # Activar/desactivar análisis de relevancia
     "enable_retentions": True, # Activar/desactivar retenciones de inversión automáticas
     "enable_consequences": False, # Activar/desactivar cuenta de consecuencias
@@ -62,14 +64,15 @@ def load_config() -> dict:
     Si el archivo no existe, crea uno con valores por defecto.
     """
     if not CONFIG_PATH.exists():
-        save_config(DEFAULT_CONFIG)
-        return DEFAULT_CONFIG.copy()
+        default_config = deepcopy(DEFAULT_CONFIG)
+        save_config(default_config)
+        return default_config
     
     try:
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config = json.load(f)
         # Merge con defaults para asegurar que existen todas las claves
-        merged = DEFAULT_CONFIG.copy()
+        merged = deepcopy(DEFAULT_CONFIG)
         for key, value in config.items():
             if isinstance(value, dict) and key in merged:
                 merged[key].update(value)
@@ -79,7 +82,7 @@ def load_config() -> dict:
     except (json.JSONDecodeError, IOError) as e:
         import logging
         logging.warning(f"Config file corrupted or unreadable, using defaults: {e}")
-        return DEFAULT_CONFIG.copy()
+        return deepcopy(DEFAULT_CONFIG)
 
 
 def save_config(config: dict) -> None:

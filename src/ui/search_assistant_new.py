@@ -88,7 +88,6 @@ def _extract_params(query, model_name=None):
     """Extrae parámetros usando LLM con prompt específico (sin librería ollama)."""
     try:
         import requests
-        import json
         from src.ai.llm_service import is_llm_enabled, get_llm_config, check_ollama_running, _validate_and_normalize_params, get_current_season
         
         # 1. Verificaciones previas
@@ -193,13 +192,33 @@ FORMATO RESPUESTA:
             tool_name = data.get('tool')
             params = data.get('params', {})
             
-            # Normalizar mes si viene como string
-            if isinstance(params.get('month'), str):
-                meses_dict = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, 
-                              "julio": 7, "agosto": 8, "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12}
-                mes_lower = params['month'].lower()
-                if mes_lower in meses_dict:
-                    params['month'] = meses_dict[mes_lower]
+            # Normalizar mes robustamente para evitar filtros vacíos por tipo/string.
+            month_raw = params.get('month')
+            if isinstance(month_raw, str):
+                month_raw = month_raw.strip().lower()
+                month_map = {
+                    # ES
+                    "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+                    "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10,
+                    "noviembre": 11, "diciembre": 12,
+                    # EN
+                    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+                    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+                    # abreviaturas
+                    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8,
+                    "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+                }
+                if month_raw.isdigit():
+                    params['month'] = int(month_raw)
+                elif month_raw in month_map:
+                    params['month'] = month_map[month_raw]
+                else:
+                    params.pop('month', None)
+            elif isinstance(month_raw, (int, float)):
+                params['month'] = int(month_raw)
+
+            if 'month' in params and not (1 <= int(params['month']) <= 12):
+                params.pop('month', None)
             
         except requests.exceptions.Timeout:
             st.error("⏱️ Timeout: El modelo tardó demasiado. Intenta con una consulta más simple.")
@@ -301,27 +320,16 @@ def _execute(tool, params):
         funcs = {"search_expenses_by_concept": search_expenses_by_concept, "search_expenses_by_category": search_expenses_by_category,
                  "get_top_expenses": get_top_expenses, "get_category_breakdown": get_category_breakdown, "get_savings_rate": get_savings_rate}
         try:
-            result = funcs[tool](**params)
+            tool_fn = funcs.get(tool)
+            if tool_fn is None:
+                st.error(f"Herramienta no soportada: {tool}")
+                return
+
+            result = tool_fn(**params)
             st.session_state.search_results = {'tool': tool, 'params': params, 'result': result, 'ts': datetime.now()}
             st.rerun()
         except Exception as e:
             st.error(f"Error: {e}")
-
-
-def _get_available_tools():
-    """Define herramientas para el LLM."""
-    return [
-        {"name": "search_expenses_by_concept", "description": "Busca gastos por concepto", 
-         "parameters": {"type": "object", "properties": {"concept": {"type": "string"}, "year": {"type": "integer"}, "month": {"type": "integer"}}}},
-        {"name": "search_expenses_by_category", "description": "Busca gastos por categoría",
-         "parameters": {"type": "object", "properties": {"category_name": {"type": "string"}, "year": {"type": "integer"}, "month": {"type": "integer"}}}},
-        {"name": "get_top_expenses", "description": "Top N gastos",
-         "parameters": {"type": "object", "properties": {"limit": {"type": "integer"}, "year": {"type": "integer"}, "month": {"type": "integer"}}}},
-        {"name": "get_category_breakdown", "description": "Desglose por categoría",
-         "parameters": {"type": "object", "properties": {"year": {"type": "integer"}, "month": {"type": "integer"}}}},
-        {"name": "get_savings_rate", "description": "Calcula tasa de ahorro",
-         "parameters": {"type": "object", "properties": {"year": {"type": "integer"}, "month": {"type": "integer"}}}}
-    ]
 
 
 # ================== TOOL FUNCTIONS ==================

@@ -5,7 +5,6 @@ Análisis predictivo de finanzas personales con ML.
 import streamlit as st
 from datetime import date
 import plotly.graph_objects as go
-import plotly.express as px
 
 from src.ai.ml_engine import (
     project_salaries, 
@@ -131,7 +130,7 @@ def render_proyecciones():
                 st.info(f"📊 {t('proyecciones.interannual_growth')}: {t('proyecciones.no_growth_detected')}")
         
         # Gráfico de proyección de salarios
-        fig_salary = _create_salary_chart(salary_data, current_year, end_year)
+        fig_salary = _create_salary_chart(salary_data, current_year)
         st.plotly_chart(fig_salary, use_container_width=True)
         
         # Tabla resumen por año (sin columna delta)
@@ -189,7 +188,7 @@ def render_proyecciones():
             st.info(f"ℹ️ {t('proyecciones.investment_calc_explanation', rate=f'{savings_rate:.1f}')}")
         
         # Gráfico de proyección de inversiones
-        fig_inv = _create_investment_chart(inv_data, current_year, end_year)
+        fig_inv = _create_investment_chart(inv_data, current_year)
         st.plotly_chart(fig_inv, use_container_width=True)
         
         # Tabla resumen por año (sin columna delta)
@@ -240,7 +239,7 @@ def render_proyecciones():
         
         # Gráfico de proyección de gastos
         if exp_data.get('projected'):
-            fig_exp = _create_expense_chart(exp_data, current_year, end_year)
+            fig_exp = _create_expense_chart(exp_data, current_year)
             st.plotly_chart(fig_exp, use_container_width=True)
         
         # Tabla resumen por año (sin columna delta)
@@ -261,7 +260,7 @@ def render_proyecciones():
             _render_insight(insight)
 
 
-def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Figure:
+def _create_salary_chart(data: dict, current_year: int) -> go.Figure:
     """Crea gráfico de proyección de salarios con fechas en eje X."""
     fig = go.Figure()
     
@@ -343,7 +342,7 @@ def _create_salary_chart(data: dict, current_year: int, end_year: int) -> go.Fig
     return fig
 
 
-def _create_investment_chart(data: dict, current_year: int, end_year: int) -> go.Figure:
+def _create_investment_chart(data: dict, current_year: int) -> go.Figure:
     """Crea gráfico de proyección de inversiones."""
     fig = go.Figure()
     
@@ -394,7 +393,7 @@ def _create_investment_chart(data: dict, current_year: int, end_year: int) -> go
     return fig
 
 
-def _create_expense_chart(data: dict, current_year: int, end_year: int) -> go.Figure:
+def _create_expense_chart(data: dict, current_year: int) -> go.Figure:
     """Crea gráfico de proyección de gastos con fechas en eje X."""
     fig = go.Figure()
     

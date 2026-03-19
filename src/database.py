@@ -8,10 +8,9 @@ from pathlib import Path
 from contextlib import contextmanager
 from datetime import date, datetime
 from typing import Optional, List, Callable
-from functools import wraps
 
 from src.models import (
-    TipoMovimiento, RelevanciaCode, RELEVANCIA_DESCRIPTIONS,
+    TipoMovimiento, RelevanciaCode,
     Categoria, LedgerEntry, SnapshotMensual, CierreMensual, EstadoCierre
 )
 
@@ -27,6 +26,8 @@ DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
 # Intentar usar el cache de Streamlit si está disponible, sino usar functools.lru_cache
 _streamlit_available = False
 _st_cache_data = None
+_migrated_db_paths: set[str] = set()
+_fallback_cached_functions: list[Callable] = []
 
 try:
     import streamlit as st
@@ -47,7 +48,9 @@ def cache_data(show_spinner: bool = False) -> Callable:
             return _st_cache_data(show_spinner=show_spinner)(func)
         else:
             from functools import lru_cache
-            return lru_cache(maxsize=128)(func)
+            cached_func = lru_cache(maxsize=128)(func)
+            _fallback_cached_functions.append(cached_func)
+            return cached_func
     return decorator
 
 
@@ -56,22 +59,30 @@ def _clear_cache():
     if _streamlit_available:
         import streamlit as st
         st.cache_data.clear()
-    # Para lru_cache se necesitaría mantener referencias a las funciones cacheadas
-    # pero en contexto de Streamlit esto es suficiente
+    else:
+        # En ejecuciones sin Streamlit (tests/scripts), limpiar también lru_cache.
+        for func in _fallback_cached_functions:
+            cache_clear = getattr(func, "cache_clear", None)
+            if callable(cache_clear):
+                cache_clear()
 
 
 @contextmanager
 def get_connection(db_path: Path = DEFAULT_DB_PATH):
     """Context manager para conexión SQLite con foreign keys habilitadas."""
-    conn = sqlite3.connect(db_path)
+    resolved_db_path = str(Path(db_path).resolve())
+    conn = sqlite3.connect(resolved_db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     try:
-        # MIGRATION CHECK: Asegurar que existe la columna descripcion_ia en CAT_MAESTROS
-        try:
-            conn.execute("ALTER TABLE CAT_MAESTROS ADD COLUMN descripcion_ia TEXT")
-        except sqlite3.OperationalError:
-            pass  # La columna ya existe
+        # MIGRATION CHECK (una vez por DB en el proceso):
+        # asegurar que existe la columna descripcion_ia en CAT_MAESTROS.
+        if resolved_db_path not in _migrated_db_paths:
+            try:
+                conn.execute("ALTER TABLE CAT_MAESTROS ADD COLUMN descripcion_ia TEXT")
+            except sqlite3.OperationalError:
+                pass  # La columna ya existe o la tabla no aplica en ese contexto
+            _migrated_db_paths.add(resolved_db_path)
             
         yield conn
         conn.commit()

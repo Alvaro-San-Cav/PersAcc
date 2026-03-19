@@ -4,6 +4,7 @@ Renderiza el formulario de entrada rápida de transacciones en el sidebar.
 """
 import streamlit as st
 from datetime import date
+from pathlib import Path
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
 from src.database import (
@@ -18,8 +19,7 @@ def render_sidebar():
     """Renderiza el formulario Quick Add en el sidebar."""
     with st.sidebar:
         # LOGO
-        import os
-        if os.path.exists("assets/logo.ico"):
+        if Path("assets/logo.ico").exists():
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
                 st.image("assets/logo.ico", width=250)
@@ -47,12 +47,17 @@ def render_sidebar():
             # Si es el mes actual o no hay mes seleccionado, usar la fecha actual
             fecha_default = date.today()
         
-        if "quick_date" not in st.session_state:
-            st.session_state["quick_date"] = fecha_default
+        # Si cambia el mes global, reajustar la fecha por defecto para ese contexto.
+        last_mes_key = "sidebar_last_mes_global"
+        if st.session_state.get(last_mes_key) != mes_global:
+            st.session_state["quick_date_widget"] = fecha_default
+            st.session_state[last_mes_key] = mes_global
+
+        if "quick_date_widget" not in st.session_state:
+            st.session_state["quick_date_widget"] = fecha_default
 
         fecha = st.date_input(
             f"📅 {t('sidebar.quick_add.date_label')}", 
-            value=st.session_state["quick_date"],
             key="quick_date_widget"
         )
         
@@ -64,54 +69,52 @@ def render_sidebar():
             st.warning(t('sidebar.quick_add.validation.no_categories_setup'))
             return
         
-        # PASO 1: Seleccionar TIPO DE MOVIMIENTO primero
-        tipo_opciones = {
-            t('sidebar.types.expense'): TipoMovimiento.GASTO,
-            t('sidebar.types.income'): TipoMovimiento.INGRESO,
-            t('sidebar.types.transfer_in'): TipoMovimiento.TRASPASO_ENTRADA,
-            t('sidebar.types.transfer_out'): TipoMovimiento.TRASPASO_SALIDA,
-            t('sidebar.types.investment'): TipoMovimiento.INVERSION
-        }
-        
-        tipo_seleccionado = st.radio(
-            f"**{t('sidebar.quick_add.type_label')}**",
-            options=list(tipo_opciones.keys()),
-            horizontal=True,
-            key="tipo_mov_sel"
-        )
-        tipo_mov = tipo_opciones[tipo_seleccionado]
-                
-        # PASO 2: Filtrar categorías por tipo seleccionado
-        categorias_filtradas = [c for c in categorias if c.tipo_movimiento == tipo_mov]
-        
-        # ORDENAR CATEGORIAS INTELIGENTEMENTE
-        # 1. Uso en mismo mes de años anteriores (history)
-        # 2. Uso en año actual (curr_year)
-        # 3. Alfabético
-        stats = get_category_usage_stats(tipo_mov, fecha.month, fecha.year)
-        
-        def sort_key(c):
-            s = stats.get(c.id, {'history': 0, 'curr_year': 0})
-            # Negativo para orden descendente
-            return (-s['history'], -s['curr_year'], c.nombre)
-            
-        categorias_filtradas.sort(key=sort_key)
-        
-        cat_dict = {c.nombre: c for c in categorias_filtradas}
-        cat_nombres = list(cat_dict.keys())
-        
-        if not cat_nombres:
-            st.warning(t('sidebar.quick_add.validation.no_categories_type', type=tipo_seleccionado))
-            return
-        
-        # Selector de categoría (ya filtrado)
-        selectbox_key = f"cat_{tipo_mov.value}"
-        categoria_nombre = st.selectbox(
-            f"📁 {t('sidebar.quick_add.category_label')}",
-            options=cat_nombres,
-            key=selectbox_key
-        )
-        
+        # ── Sección 1: Tipo de movimiento + Categoría ────────────────────
+        with st.container(border=True):
+            # PASO 1: Seleccionar TIPO DE MOVIMIENTO primero
+            tipo_opciones = {
+                t('sidebar.types.expense'): TipoMovimiento.GASTO,
+                t('sidebar.types.income'): TipoMovimiento.INGRESO,
+                t('sidebar.types.transfer_in'): TipoMovimiento.TRASPASO_ENTRADA,
+                t('sidebar.types.transfer_out'): TipoMovimiento.TRASPASO_SALIDA,
+                t('sidebar.types.investment'): TipoMovimiento.INVERSION
+            }
+
+            tipo_seleccionado = st.radio(
+                f"**{t('sidebar.quick_add.type_label')}**",
+                options=list(tipo_opciones.keys()),
+                horizontal=True,
+                key="tipo_mov_sel"
+            )
+            tipo_mov = tipo_opciones[tipo_seleccionado]
+
+            # PASO 2: Filtrar categorías por tipo seleccionado
+            categorias_filtradas = [c for c in categorias if c.tipo_movimiento == tipo_mov]
+
+            # ORDENAR CATEGORIAS INTELIGENTEMENTE
+            stats = get_category_usage_stats(tipo_mov, fecha.month, fecha.year)
+
+            def sort_key(c):
+                s = stats.get(c.id, {'history': 0, 'curr_year': 0})
+                return (-s['history'], -s['curr_year'], c.nombre)
+
+            categorias_filtradas.sort(key=sort_key)
+
+            cat_dict = {c.nombre: c for c in categorias_filtradas}
+            cat_nombres = list(cat_dict.keys())
+
+            if not cat_nombres:
+                st.warning(t('sidebar.quick_add.validation.no_categories_type', type=tipo_seleccionado))
+                return
+
+            # Selector de categoría (ya filtrado)
+            selectbox_key = f"cat_{tipo_mov.value}"
+            categoria_nombre = st.selectbox(
+                f"📁 {t('sidebar.quick_add.category_label')}",
+                options=cat_nombres,
+                key=selectbox_key
+            )
+
         categoria_sel = cat_dict.get(categoria_nombre)
         
         # Obtener configuración
@@ -183,71 +186,61 @@ def render_sidebar():
         def on_concepto_change():
             st.session_state[user_edited_concepto_key] = True
         
-        # Concepto 
-        concepto = st.text_input(
-            f"📝 {t('sidebar.quick_add.concept_label')}", 
-            placeholder=t('sidebar.quick_add.concept_placeholder'),
-            key="concepto_input_widget",
-            on_change=on_concepto_change
-        )
-        
-        # Selector de relevancia (solo para GASTO)
-        relevancia = None
-        flag_liquidez = False
-        
-        if tipo_mov == TipoMovimiento.GASTO:
-            if enable_relevance:
-                st.markdown(f"**{t('sidebar.quick_add.relevance_label')}**")
-                
-                # Aplicar default de relevancia directamente a session_state
-                relevancia_options = ["NE", "LI", "SUP", "TON"]
-                if should_reset_defaults and relevancia_default in relevancia_options:
-                    st.session_state["relevancia_sel"] = relevancia_default
-                
-                relevancia_code = st.radio(
-                    t('sidebar.quick_add.relevance_label'),
-                    options=relevancia_options,
-                    format_func=lambda x: f"{x} - {t(f'sidebar.quick_add.relevance_descriptions.{x}')}",
-                    horizontal=True,
-                    label_visibility="collapsed",
-                    key="relevancia_sel"
-                )
-                relevancia = RelevanciaCode(relevancia_code)
-            else:
-                # Si está desactivado, asignar valor neutro o None
-                relevancia = None
-            
-            
-        elif tipo_mov == TipoMovimiento.INGRESO:
-            flag_liquidez = st.checkbox(
-                f"⚡ {t('sidebar.quick_add.liquidity_flag')}",
-                help=t('sidebar.quick_add.liquidity_help'),
-                key="flag_liquidez_sel"
+        # ── Sección 2: Concepto, Relevancia e Importe ────────────────────
+        with st.container(border=True):
+            # Concepto
+            concepto = st.text_input(
+                f"📝 {t('sidebar.quick_add.concept_label')}",
+                placeholder=t('sidebar.quick_add.concept_placeholder'),
+                key="concepto_input_widget",
+                on_change=on_concepto_change
             )
-        
-        
-        # FORMULARIO para los datos de la transacción
-        # Se elimina st.form para quitar el texto "Press enter to submit"
-        
-        # Fecha movida al inicio
-        # Mantenemos la variable 'fecha' que ya fue asignada arriba
 
-        
-        # Aplicar resultado de calculadora ANTES de crear el widget (si hay flag pendiente)
-        if st.session_state.get("calc_apply_result_flag", False):
-            st.session_state["quick_amount_widget"] = st.session_state.get("calc_pending_value", 0.0)
-            st.session_state["calc_apply_result_flag"] = False
-            st.session_state["calc_result"] = None
-        
-        # Importe (el valor se actualiza en el bloque should_reset_defaults arriba)
-        # No usamos value= porque Streamlit lee directamente de st.session_state[key]
-        importe = st.number_input(
-            f"💵 {t('sidebar.quick_add.amount_label')}", 
-            min_value=0.00,
-            step=0.01, 
-            format="%.2f",
-            key="quick_amount_widget"
-        )
+            # Selector de relevancia (solo para GASTO)
+            relevancia = None
+            flag_liquidez = False
+
+            if tipo_mov == TipoMovimiento.GASTO:
+                if enable_relevance:
+                    st.markdown(f"**{t('sidebar.quick_add.relevance_label')}**")
+
+                    relevancia_options = ["NE", "LI", "SUP", "TON"]
+                    if should_reset_defaults and relevancia_default in relevancia_options:
+                        st.session_state["relevancia_sel"] = relevancia_default
+
+                    relevancia_code = st.radio(
+                        t('sidebar.quick_add.relevance_label'),
+                        options=relevancia_options,
+                        format_func=lambda x: f"{x} - {t(f'sidebar.quick_add.relevance_descriptions.{x}')}",
+                        horizontal=True,
+                        label_visibility="collapsed",
+                        key="relevancia_sel"
+                    )
+                    relevancia = RelevanciaCode(relevancia_code)
+                else:
+                    relevancia = None
+
+            elif tipo_mov == TipoMovimiento.INGRESO:
+                flag_liquidez = st.checkbox(
+                    f"⚡ {t('sidebar.quick_add.liquidity_flag')}",
+                    help=t('sidebar.quick_add.liquidity_help'),
+                    key="flag_liquidez_sel"
+                )
+
+            # Aplicar resultado de calculadora ANTES de crear el widget (si hay flag pendiente)
+            if st.session_state.get("calc_apply_result_flag", False):
+                st.session_state["quick_amount_widget"] = st.session_state.get("calc_pending_value", 0.0)
+                st.session_state["calc_apply_result_flag"] = False
+                st.session_state["calc_result"] = None
+
+            # Importe
+            importe = st.number_input(
+                f"💵 {t('sidebar.quick_add.amount_label')}",
+                min_value=0.00,
+                step=0.01,
+                format="%.2f",
+                key="quick_amount_widget"
+            )
         
         # ============================================================================
         # CALCULADORA RÁPIDA (Desplegable)
@@ -256,8 +249,8 @@ def render_sidebar():
             # CSS para estilo de calculadora profesional
             st.markdown("""
             <style>
-            /* Centrar texto en botones */
-            section[data-testid="stSidebar"] button {
+            /* Centrar texto en botones de la calculadora (excluye el header del expander) */
+            section[data-testid="stSidebar"] .streamlit-expanderContent button {
                 display: flex !important;
                 justify-content: center !important;
                 align-items: center !important;
@@ -266,7 +259,7 @@ def render_sidebar():
                 font-size: 16px !important;
                 font-weight: 600 !important;
             }
-            section[data-testid="stSidebar"] button p {
+            section[data-testid="stSidebar"] .streamlit-expanderContent button p {
                 margin: 0 !important;
                 font-size: 16px !important;
             }
@@ -532,8 +525,6 @@ def render_sidebar():
                         # Limpiar campos manualmente
                         # Usamos flag para resetear valores en el próximo rerun
                         st.session_state["reset_concepto_flag"] = True
-                        st.session_state["concepto_value"] = concepto_default
-                        st.session_state["importe_value"] = importe_default
                         
                         st.rerun()
 

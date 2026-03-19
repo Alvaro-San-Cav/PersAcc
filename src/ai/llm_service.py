@@ -27,8 +27,7 @@ from src.constants import (
     LLM_MAX_RESPONSE_LENGTH, LLM_MAX_MOVEMENTS_DISPLAY
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure module logger (avoid overriding app-wide logging configuration)
 logger = logging.getLogger(__name__)
 
 def get_ollama_urls():
@@ -134,21 +133,6 @@ def get_available_models() -> list:
     except Exception as e:
         logger.error(f"Error getting Ollama models: {e}")
         return []
-
-
-def check_model_available(model_name: str) -> bool:
-    """
-    Check if a specific model is available in Ollama.
-    
-    Args:
-        model_name: Name of the model to check
-        
-    Returns:
-        True if model is available, False otherwise
-    """
-    available = get_available_models()
-    # Check if model name matches (including version tags like :latest)
-    return any(model_name in model for model in available)
 
 
 def _generate_fallback_message(expenses: float, expense_items: list, lang: str = "es") -> str:
@@ -585,7 +569,7 @@ def _build_prompt(data: Dict[str, Any], period_type: str, lang: str = "es", move
                     template_vars['period_context'] = f" (MES EN CURSO - datos hasta el día {now.day})"
                 else:
                     template_vars['period_context'] = f" (CURRENT MONTH - data through day {now.day})"
-        except Exception:
+        except (TypeError, ValueError):
             pass
     
     # Select appropriate template based on language and period
@@ -731,10 +715,11 @@ def classify_bank_transactions(
     if is_qwen:
         payload["think"] = False
 
+    request_timeout = timeout if timeout and timeout > 0 else LLM_TIMEOUT_LONG
+
     try:
         urls = get_ollama_urls()
-        # Set timeout to None because parsing a full document can take many minutes
-        response = requests.post(urls["api"], json=payload, timeout=None)
+        response = requests.post(urls["api"], json=payload, timeout=request_timeout)
     except requests.exceptions.Timeout:
         raise Exception(
             f"Timeout esperando respuesta de Ollama. "
@@ -745,7 +730,10 @@ def classify_bank_transactions(
         raise ConnectionError("No se pudo conectar con Ollama.")
 
     if response.status_code != 200:
-        error_msg = response.json().get("error", "Unknown error")
+        try:
+            error_msg = response.json().get("error", "Unknown error")
+        except ValueError:
+            error_msg = response.text.strip() or "Unknown error"
         raise Exception(f"Ollama API error: {error_msg}")
 
     result = response.json()

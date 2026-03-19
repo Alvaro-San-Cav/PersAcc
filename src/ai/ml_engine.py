@@ -15,12 +15,9 @@ from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
 from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-from src.database import get_all_ledger_entries, get_available_years, get_snapshots_by_year
+from src.database import get_all_ledger_entries
 from src.models import TipoMovimiento, LedgerEntry
 
 # Importar módulo de redes neuronales

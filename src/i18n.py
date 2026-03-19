@@ -5,7 +5,7 @@ Soporta múltiples idiomas mediante archivos JSON de traducción.
 import json
 import streamlit as st
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 # Directorio de traducciones
 LOCALES_DIR = Path(__file__).parent.parent / "locales"
@@ -26,8 +26,12 @@ def load_translations(lang: str) -> dict:
     file_path = LOCALES_DIR / f"{lang}.json"
     if not file_path.exists():
         return {}
-    
-    return json.loads(file_path.read_text(encoding='utf-8-sig'))
+
+    try:
+        return json.loads(file_path.read_text(encoding='utf-8-sig'))
+    except (OSError, json.JSONDecodeError):
+        # Fallback seguro: no romper la UI por un archivo de idioma dañado.
+        return {}
 
 
 def get_language() -> str:
@@ -37,9 +41,14 @@ def get_language() -> str:
     Returns:
         Código del idioma actual
     """
-    if 'language' not in st.session_state:
-        st.session_state.language = DEFAULT_LANGUAGE
-    return st.session_state.language
+    lang = st.session_state.get('language', DEFAULT_LANGUAGE)
+    if not isinstance(lang, str):
+        lang = DEFAULT_LANGUAGE
+    lang = lang.lower().strip()
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = DEFAULT_LANGUAGE
+    st.session_state.language = lang
+    return lang
 
 
 def set_language(lang: str):
@@ -58,7 +67,7 @@ def set_language(lang: str):
                 del st.session_state[key]
 
 
-def t(key: str, **kwargs) -> str:
+def t(key: str, **kwargs) -> Any:
     """
     Traduce una clave al idioma actual.
     Soporta interpolación de variables via kwargs.

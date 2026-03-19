@@ -3,14 +3,16 @@ Página de Histórico Anual - PersAcc
 Renderiza la interfaz de historico.
 """
 import streamlit as st
+import time
 from datetime import date, datetime
 from collections import defaultdict
 import requests
 import plotly.graph_objects as go
+import pandas as pd
 
 from src.models import TipoMovimiento
 from src.database import (
-    get_all_categorias, get_ledger_by_month, is_mes_cerrado,
+    get_all_categorias, get_ledger_by_month,
     get_ledger_by_year, get_available_years,
     get_ai_analysis, save_ai_analysis,
     get_period_notes, save_period_notes
@@ -19,7 +21,7 @@ from src.business_logic import (
     calcular_kpis, calcular_kpis_anuales, get_word_counts, 
     get_top_entries, calculate_curious_metrics, es_entrada_salario
 )
-from src.config import format_currency, get_currency_symbol, load_config
+from src.config import format_currency, load_config
 from src.i18n import t
 from src.ai.llm_service import (
     is_llm_enabled, get_llm_config, analyze_financial_period
@@ -225,10 +227,6 @@ def _render_period_notes(period_type: str, period_identifier: str, readonly: boo
 
 def _render_retentions_breakdown(entries):
     """Renderiza el desglose de las inversiones (Automático vs Manual)"""
-    from src.models import TipoMovimiento
-    from src.i18n import t
-    from src.config import format_currency
-    
     inversiones = [e for e in entries if e.tipo_movimiento == TipoMovimiento.INVERSION]
     if not inversiones:
         return
@@ -296,11 +294,6 @@ def _render_retentions_breakdown(entries):
 
 def render_month_view(entries, mes_sel, anio_sel):
     """Renderiza la vista de un mes específico."""
-    from src.business_logic import calcular_kpis
-    import plotly.graph_objects as go
-    from collections import defaultdict
-    from src.config import load_config
-    
     config = load_config()
     enable_relevance = config.get('enable_relevance', True)
     cats_dict = {c.id: c.nombre for c in get_all_categorias()}
@@ -393,7 +386,6 @@ def render_month_view(entries, mes_sel, anio_sel):
                 gastos_cat[cat_name] += e.importe
         
         if gastos_cat:
-            import plotly.graph_objects as go
             sorted_cats = sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True)
             
             # Donut Chart igual al del Ledger
@@ -418,7 +410,6 @@ def render_month_view(entries, mes_sel, anio_sel):
             
             # Category Breakdown Table
             st.markdown("##### Desglose por Categoría")
-            import pandas as pd
             df_cats = pd.DataFrame(sorted_cats, columns=["Categoría", "Importe (€)"])
             
             st.dataframe(
@@ -468,13 +459,17 @@ def render_month_view(entries, mes_sel, anio_sel):
     with col_quality:
         if enable_relevance:
             st.markdown(f"#### {t('historico.overview.spending_quality')}")
+            
+            chart_q_ph = st.empty()
+            chart_q_ph.info("⏳ Renderizando gráfico...")
+            time.sleep(0.05)  # Fuerza flush al frontend
+            
             relevancia_data = defaultdict(float)
             for e in entries:
                 if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
                     relevancia_data[e.relevancia_code.value] += e.importe
             
             if relevancia_data:
-                import plotly.graph_objects as go
                 labels_map = {'NE': t('analisis.spending_quality.labels.necessary'), 'LI': t('analisis.spending_quality.labels.like'), 'SUP': t('analisis.spending_quality.labels.superfluous'), 'TON': t('analisis.spending_quality.labels.nonsense')}
                 colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
                 fig_pie = go.Figure(data=[go.Pie(
@@ -484,9 +479,9 @@ def render_month_view(entries, mes_sel, anio_sel):
                     marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
                 )])
                 fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=450)
-                st.plotly_chart(fig_pie, use_container_width=True)
+                chart_q_ph.plotly_chart(fig_pie, use_container_width=True)
             else:
-                st.warning(t('historico.overview.no_quality_data'))
+                chart_q_ph.warning(t('historico.overview.no_quality_data'))
     
     st.markdown("---")
     
@@ -694,7 +689,6 @@ def render_year_view(entries, anio_sel):
                 
                 # Category Breakdown Table
                 st.markdown("##### Desglose por Categoría")
-                import pandas as pd
                 df_cats = pd.DataFrame(sorted_cats, columns=["Categoría", "Importe (€)"])
                 
                 st.dataframe(
@@ -744,6 +738,11 @@ def render_year_view(entries, anio_sel):
         with col_quality:
             if enable_relevance:
                 st.markdown(f"#### {t('historico.overview.spending_quality')}")
+                
+                chart_y_ph = st.empty()
+                chart_y_ph.info("⏳ Renderizando gráfico...")
+                time.sleep(0.05)  # Fuerza flush al frontend
+                
                 relevancia_data = defaultdict(float)
                 for e in entries:
                     if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
@@ -759,15 +758,13 @@ def render_year_view(entries, anio_sel):
                         marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
                     )])
                     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=500)
-                    st.plotly_chart(fig_pie, use_container_width=True)
+                    chart_y_ph.plotly_chart(fig_pie, use_container_width=True)
                     
                     # Stats Mini
                     st.info(t('historico.overview.best_month', month=kpis.get('mejor_mes', 'N/A')))
                     st.error(t('historico.overview.worst_month', month=kpis.get('peor_mes', 'N/A')))
                 else:
-                    st.warning(t('historico.overview.no_quality_data'))
-            else:
-                 st.info(t('historico.overview.no_quality_data') + " (Relevance Disabled)")
+                    chart_y_ph.warning(t('historico.overview.no_quality_data'))
 
     # === TAB 2: ANÁLISIS PROFUNDO ===
     with tab_analysis:

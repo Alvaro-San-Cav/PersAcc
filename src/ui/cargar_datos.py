@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
-from datetime import date, datetime
+from datetime import date
 from difflib import SequenceMatcher
 from typing import Optional
 
@@ -313,12 +313,15 @@ def _render_entries_editor(
     """
     import pandas as pd
 
+    # Leer si el análisis de relevancia está habilitado
+    enable_relevance = load_config().get("enable_relevance", True)
+
     tipo_options = [t.value for t in TipoMovimiento]
     tipo_display_map = {t.value: _TIPOS_DISPLAY.get(t, t.value) for t in TipoMovimiento}
 
     rows = []
     for e in entries:
-        rows.append({
+        row = {
             t("cargar_datos.col_select"): True,
             t("cargar_datos.col_date"): e.get("fecha", ""),
             t("cargar_datos.col_type"): e.get("tipo_movimiento", "GASTO"),
@@ -326,9 +329,11 @@ def _render_entries_editor(
             t("cargar_datos.col_original_concept"): e.get("concepto_original", ""),
             t("cargar_datos.col_concept"): e.get("concepto", ""),
             t("cargar_datos.col_amount"): round(e.get("importe", 0.0), 2),
-            t("cargar_datos.col_relevance"): e.get("relevancia") or "",
             t("cargar_datos.col_confidence"): int(e.get("confianza", 0) * 100),
-        })
+        }
+        if enable_relevance:
+            row[t("cargar_datos.col_relevance")] = e.get("relevancia") or ""
+        rows.append(row)
 
     df = pd.DataFrame(rows)
     col_select = t("cargar_datos.col_select")
@@ -341,61 +346,66 @@ def _render_entries_editor(
     col_rel = t("cargar_datos.col_relevance")
     col_conf = t("cargar_datos.col_confidence")
 
+    column_config = {
+        col_select: st.column_config.CheckboxColumn(
+            col_select,
+            help="Seleccionar para grabar",
+            default=True,
+            width="small",
+        ),
+        col_date: st.column_config.TextColumn(col_date, width="small"),
+        col_type: st.column_config.SelectboxColumn(
+            col_type,
+            options=[tm.value for tm in TipoMovimiento],
+            width="medium",
+        ),
+        col_cat: st.column_config.SelectboxColumn(
+            col_cat,
+            options=cat_names,
+            width="medium",
+        ),
+        col_orig: st.column_config.TextColumn(col_orig, width="large"),
+        col_concept: st.column_config.TextColumn(col_concept, width="large"),
+        col_amount: st.column_config.NumberColumn(
+            col_amount,
+            step=0.01,
+            format="%.2f",
+            width="small",
+        ),
+        col_conf: st.column_config.ProgressColumn(
+            col_conf,
+            min_value=0,
+            max_value=100,
+            format="%d%%",
+            width="small",
+        ),
+    }
+    if enable_relevance:
+        column_config[col_rel] = st.column_config.SelectboxColumn(
+            col_rel,
+            options=_REL_OPTIONS,
+            width="small",
+        )
+
+    column_order = [
+        col_select,
+        col_date,
+        col_type,
+        col_cat,
+        col_concept,
+        col_amount,
+    ]
+    if enable_relevance:
+        column_order.append(col_rel)
+    column_order += [col_conf, col_orig]
+
     edited_df = st.data_editor(
         df,
         key=f"cd_editor_{suffix}",
         use_container_width=True,
         num_rows="fixed",
-        column_config={
-            col_select: st.column_config.CheckboxColumn(
-                col_select,
-                help="Seleccionar para grabar",
-                default=True,
-                width="small",
-            ),
-            col_date: st.column_config.TextColumn(col_date, width="small"),
-            col_type: st.column_config.SelectboxColumn(
-                col_type,
-                options=[tm.value for tm in TipoMovimiento],
-                width="medium",
-            ),
-            col_cat: st.column_config.SelectboxColumn(
-                col_cat,
-                options=cat_names,
-                width="medium",
-            ),
-            col_orig: st.column_config.TextColumn(col_orig, width="large"),
-            col_concept: st.column_config.TextColumn(col_concept, width="large"),
-            col_amount: st.column_config.NumberColumn(
-                col_amount,
-                step=0.01,
-                format="%.2f",
-                width="small",
-            ),
-            col_rel: st.column_config.SelectboxColumn(
-                col_rel,
-                options=_REL_OPTIONS,
-                width="small",
-            ),
-            col_conf: st.column_config.ProgressColumn(
-                col_conf,
-                min_value=0,
-                max_value=100,
-                format="%d%%",
-                width="small",
-            ),
-        },
-        column_order=[
-            col_select,
-            col_date,
-            col_type,
-            col_cat,
-            col_concept,
-            col_amount,
-            col_rel,
-            col_conf,
-            col_orig,
-        ],
+        column_config=column_config,
+        column_order=column_order,
         disabled=[col_conf, col_orig],
         hide_index=True,
         height=min(400, 40 + len(rows) * 36),
@@ -405,15 +415,16 @@ def _render_entries_editor(
     result = []
     for _, row in edited_df.iterrows():
         if row[col_select]:
-            result.append({
+            entry_out = {
                 "fecha": row[col_date],
                 "tipo_movimiento": row[col_type],
                 "categoria_sugerida": row[col_cat],
                 "concepto": row[col_concept],
                 "importe": float(row[col_amount]),
-                "relevancia": row[col_rel] if row[col_rel] else None,
+                "relevancia": row[col_rel] if (enable_relevance and row.get(col_rel)) else None,
                 "confianza": row[col_conf] / 100.0,
-            })
+            }
+            result.append(entry_out)
     return result
 
 

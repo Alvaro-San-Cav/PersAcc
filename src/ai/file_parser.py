@@ -163,6 +163,7 @@ def parse_aeb43(content_bytes: bytes) -> str:
         # --- Movimiento ---
         elif tipo == "22" and len(line) >= 42:
             flush_movement()
+            fecha_real = "?"
             try:
                 fecha_real  = _parse_date_aeb(line[10:16])
                 fecha_valor = _parse_date_aeb(line[16:22])
@@ -177,7 +178,7 @@ def parse_aeb43(content_bytes: bytes) -> str:
                 signo = "?"
                 importe = 0.0
             pending_movement = {
-                "fecha_real": fecha_real if 'fecha_real' in dir() else "?",
+                "fecha_real": fecha_real,
                 "fecha_valor": fecha_valor,
                 "signo": signo,
                 "importe": importe,

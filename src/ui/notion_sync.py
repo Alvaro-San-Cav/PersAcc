@@ -3,11 +3,12 @@ Componente UI para sincronización con Notion.
 Muestra un popup al inicio para revisar e importar entradas pendientes.
 """
 import streamlit as st
+import logging
 from typing import List, Dict, Any, Optional
 from datetime import date
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
-from src.database import get_all_categorias, get_categorias_by_tipo, insert_ledger_entry, is_mes_cerrado
+from src.database import get_categorias_by_tipo, insert_ledger_entry, is_mes_cerrado
 from src.business_logic import calcular_fecha_contable, calcular_mes_fiscal
 
 
@@ -43,8 +44,10 @@ def _get_next_open_month_date(fecha: date) -> date:
     
     # Si todos los meses están cerrados (caso improbable), retornar fecha original
     return fecha
-from src.config import load_config, get_config_value
+from src.config import load_config
 from src.i18n import t
+
+logger = logging.getLogger(__name__)
 
 
 def check_notion_enabled() -> bool:
@@ -201,9 +204,7 @@ def _import_entries_to_db(entries: List[Dict[str, Any]]) -> tuple[int, List[str]
             fecha_ajustada = _get_next_open_month_date(fecha_original)
             
             # Si la fecha cambió, significa que el mes original estaba cerrado
-            if fecha_ajustada != fecha_original:
-                # Log del ajuste (opcional: podría agregarse a warnings/info)
-                pass
+            # (No mostramos aviso aquí para mantener UX limpia y no repetir mensajes por entrada.)
             
             # Crear LedgerEntry con la fecha ajustada
             fecha_contable = calcular_fecha_contable(
@@ -512,5 +513,5 @@ def check_and_show_notion_sync() -> None:
                 # Así cuando se cierre (con X o botón), no se vuelve a abrir
                 st.session_state.notion_dialog_was_shown = True
                 show_notion_sync_dialog()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Error verificando entradas de Notion al inicio: %s", e)

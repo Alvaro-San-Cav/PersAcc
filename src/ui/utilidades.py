@@ -147,10 +147,16 @@ def _render_import_tab():
                             text=True,
                             cwd=str(DEFAULT_DB_PATH.parent.parent)
                         )
-                    st.success(t('utilidades.import.success'))
-                    st.code(result.stdout)
-                    if result.stderr:
-                        st.warning(result.stderr)
+                    if result.returncode == 0:
+                        st.success(t('utilidades.import.success'))
+                        if result.stdout:
+                            st.code(result.stdout)
+                        if result.stderr:
+                            st.warning(result.stderr)
+                    else:
+                        st.error(t('utilidades.import.error', error=result.stderr.strip() or f"Exit code {result.returncode}"))
+                        if result.stdout:
+                            st.code(result.stdout)
                 finally:
                     if temp_path.exists():
                         temp_path.unlink()
@@ -469,14 +475,15 @@ def _render_config_tab():
         enable_relevance = st.session_state.get('config_enable_relevance', True)
         enable_retentions = st.session_state.get('config_enable_retentions', True)
         enable_consequences = st.session_state.get('config_enable_consequences', False)
+        dark_mode_enabled = st.session_state.get('config_dark_mode', False)
         enable_llm = st.session_state.get('config_enable_llm', False)
         bank_url = st.session_state.get('config_bank_url', '')
         auto_dedup_enabled = st.session_state.get('config_auto_dedup_enabled', True)
         auto_same_type_only = st.session_state.get('config_auto_same_type_only', True)
         auto_amount_tol = float(st.session_state.get('config_auto_amount_tol', 0.01))
         auto_date_window = int(st.session_state.get('config_auto_date_window', 3))
-        auto_text_thr = float(st.session_state.get('config_auto_text_thr', 0.55))
-        auto_min_score = float(st.session_state.get('config_auto_min_score', 0.75))
+        auto_text_thr = float(st.session_state.get('config_auto_text_thr', 0.20))
+        auto_min_score = float(st.session_state.get('config_auto_min_score', 0.40))
         auto_min_hits = int(st.session_state.get('config_auto_min_hits', 2))
         auto_ignore_old = st.session_state.get('config_auto_ignore_old', True)
         
@@ -485,6 +492,7 @@ def _render_config_tab():
         divisa_seleccionada = st.session_state.get('config_currency', 'EUR')
         config['language'] = idioma_seleccionado
         config['currency'] = divisa_seleccionada
+        config['dark_mode'] = dark_mode_enabled
         config['enable_relevance'] = enable_relevance
         config['enable_retentions'] = enable_retentions
         config['enable_consequences'] = enable_consequences
@@ -568,6 +576,8 @@ def _render_config_tab():
 
     # Features
     st.markdown(t('utilidades.config.section_features_title'))
+    st.toggle("🌙 Modo oscuro", value=config.get('dark_mode', False),
+              help="Activa el tema oscuro en toda la aplicación", key="config_dark_mode")
     st.toggle(t('utilidades.config.enable_relevance_label'), value=config.get('enable_relevance', True), 
               help=t('utilidades.config.enable_relevance_help'), key="config_enable_relevance")
     st.toggle(t('utilidades.config.enable_retentions_label'), value=config.get('enable_retentions', True),

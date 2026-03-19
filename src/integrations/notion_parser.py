@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from datetime import date
 import re
 
-from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry, Categoria
+from src.models import TipoMovimiento, RelevanciaCode, Categoria
 from src.database import get_categorias_by_tipo
 from src.config import load_config
 
@@ -287,9 +287,11 @@ def _suggest_category_with_ai(
             for cat in categorias:
                 if cat.nombre.lower() == response_text.lower():
                     return cat.id
-                    
-    except Exception as e:
-        logger.debug(f"Error usando IA para sugerir categoría: {e}")
+        else:
+            logger.debug("Respuesta no OK de Ollama sugiriendo categoría: %s", response.status_code)
+
+    except (requests.RequestException, ValueError) as e:
+        logger.debug("Error usando IA para sugerir categoría: %s", e)
     
     return None
 
@@ -411,9 +413,11 @@ def _suggest_relevancia_with_ai(
                 return RelevanciaCode(code)
             except ValueError:
                 pass
-                
-    except Exception as e:
-        logger.debug(f"Error usando IA para sugerir relevancia: {e}")
+        else:
+            logger.debug("Respuesta no OK de Ollama sugiriendo relevancia: %s", response.status_code)
+
+    except (requests.RequestException, ValueError) as e:
+        logger.debug("Error usando IA para sugerir relevancia: %s", e)
     
     return None
 

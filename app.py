@@ -39,8 +39,8 @@ if "first_run" not in st.session_state:
     st.cache_data.clear()
     st.cache_resource.clear()
 
-# Aplicar CSS personalizado
-apply_custom_css(st)
+# Aplicar CSS personalizado (con soporte de dark mode por override)
+apply_custom_css(st, dark_mode=config.get("dark_mode", False))
 
 # Hack para deshabilitar traducción de Google
 st.markdown(
@@ -92,6 +92,13 @@ def main():
     if is_first_load:
         import time
         import base64
+
+        is_dark_mode = bool(config.get("dark_mode", False))
+        splash_bg = "#0f0f1a" if is_dark_mode else "white"
+        splash_title = "#e0e0e0" if is_dark_mode else "#333"
+        splash_text = "#b5b5c8" if is_dark_mode else "#666"
+        splash_track = "#22243a" if is_dark_mode else "#f0f0f0"
+        splash_bar = "#448aff" if is_dark_mode else "#4CAF50"
         
         loading_ph = st.empty()
         
@@ -110,15 +117,15 @@ def main():
             <div style="
                 position: fixed;
                 top: 0; left: 0; width: 100%; height: 100%;
-                background: white; z-index: 999999;
+                background: {splash_bg}; z-index: 999999;
                 display: flex; flex-direction: column;
                 align-items: center; justify-content: center;
             ">
-                <h1 style="color: #333; font-family: sans-serif; margin-bottom: 0;">PersAcc</h1>
+                <h1 style="color: {splash_title}; font-family: sans-serif; margin-bottom: 0;">PersAcc</h1>
                 {logo_html}
-                <p style="color: #666; font-size: 1.2em; font-weight: 500;">{loading_slogan}</p>
-                <div style="width: 300px; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden; margin-top: 20px;">
-                    <div style="width: 100%; height: 100%; background: #4CAF50; animation: progress 2s linear forwards;"></div>
+                <p style="color: {splash_text}; font-size: 1.2em; font-weight: 500;">{loading_slogan}</p>
+                <div style="width: 300px; height: 4px; background: {splash_track}; border-radius: 2px; overflow: hidden; margin-top: 20px;">
+                    <div style="width: 100%; height: 100%; background: {splash_bar}; animation: progress 2s linear forwards;"></div>
                 </div>
                 <style>@keyframes progress {{ from {{ width: 0%; }} to {{ width: 100%; }} }}</style>
             </div>
