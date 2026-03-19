@@ -272,6 +272,11 @@ Data persists in the `./data` volume. See [SETUP.md](SETUP.md) for more details.
 ## Internationalization
 
 PersAcc supports multiple languages:
+- Spanish (default)
+- English
+
+Change language in **Utilities > Configuration**.
+
 ## Contributing
 
 1. Fork the project
