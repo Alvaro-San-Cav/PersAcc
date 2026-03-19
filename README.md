@@ -116,18 +116,6 @@ The system creates immutable snapshots of closed months, preventing accidental m
 
 ---
 
-### Annual Summary
-
-The annual summary dashboard provides a bird's-eye view of your yearly financial performance:
-- **Yearly KPIs** including total income, expenses, savings, and investments/savings rates
-- **Monthly evolution chart** showing income vs expenses trends throughout the year
-- **Category breakdown** displaying where your money went by expense category
-- **Comparative analysis** with previous years to track long-term financial progress
-
-![Annual Summary](assets/analysis.png)
-
----
-
 ### Data Import (Cargar Datos)
 
 Upload bank files and let AI automatically classify and categorize your transactions. Features include:
@@ -284,24 +272,6 @@ Data persists in the `./data` volume. See [SETUP.md](SETUP.md) for more details.
 ## Internationalization
 
 PersAcc supports multiple languages:
-- Spanish (default)
-- English
-
-Change language in **Utilities > Configuration**.
-
-## Installer Releases (No Binary In Git)
-
-Installer binaries are intentionally not stored in the repository.
-
-- Local build (Windows): run `installer\\build_installer.bat`
-- CI build artifact: run the `Build And Release Installer` workflow manually
-- Official release: create and push a tag like `v3.1.0`; the workflow builds and uploads:
-   - `PersAcc_Installer.exe`
-   - `PersAcc_Setup_<tag>.zip`
-   - release docs/warning files
-
-This keeps the git history clean while still distributing Windows installers through GitHub Releases.
-
 ## Contributing
 
 1. Fork the project
