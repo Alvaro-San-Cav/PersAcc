@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from src.ai.ml_engine import (
     project_salaries, 
     project_investments, 
+    project_expenses,
     generate_insights,
     get_projection_summary
 )
@@ -43,21 +44,24 @@ def render_proyecciones():
         end_year = st.selectbox(
             t("proyecciones.to_year"),
             options=list(range(current_year, current_year + 6)),
-            index=5,  # Default: +5 años
+            index=2,  # Default: +2 años
             key="proj_end_year"
         )
     
     years_ahead = end_year - current_year
     
-    # Botón para refrescar proyecciones (limpia caché)
+    # Botón para recalcular proyecciones (limpia todas las cachés de proyección).
     col_refresh, _ = st.columns([1, 4])
     with col_refresh:
-        if st.button("🔄 Recalcular", help="Fuerza el recálculo de proyecciones con los últimos datos"):
+        if st.button("🔄 Recalcular", help="Recalcula todas las proyecciones con los datos actuales (sin reentrenar modelos guardados)"):
             # Limpiar caché de session_state
             keys_to_delete = [k for k in st.session_state.keys() if k.startswith('projections_')]
             for k in keys_to_delete:
                 del st.session_state[k]
             # Limpiar caché de funciones
+            project_salaries.clear()
+            project_investments.clear()
+            project_expenses.clear()
             get_projection_summary.clear()
             generate_insights.clear()
             st.rerun()

@@ -223,12 +223,13 @@ def render_manual_en():
     | Setting | Options |
     |---------|---------|
     | **Language** | Español, English |
-    | **Currency** | EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL |
+    | **Currency** | EUR, USD, GBP, CHF, JPY, MXN |
     
     #### 🎛️ Features (Toggles)
     
     | Toggle | Description |
     |--------|-------------|
+    | **🌙 Dark Mode** | Dark theme applied to the entire interface |
     | **Relevance Analysis** | NE/LI/SUP/TON system |
     | **Automatic Retentions** | Automatic investments/savings at closing |
     | **Consequences Account** | Advanced rule system |
@@ -238,10 +239,16 @@ def render_manual_en():
     
     > Requires [Ollama](https://ollama.com/download) installed and running.
     
-    | Setting | Description |
-    |---------|-------------|
-    | **Model** | Select from available models (tinyllama, phi3, mistral, llama3, qwen, etc.) |
-    | **Status** | Green/red indicator of Ollama server status |
+    You can assign a **different model per task**:
+    
+    | Task | Recommendation |
+    |------|----------------|
+    | **Historical Analysis** | Heavy models (mistral, qwen3:8b) |
+    | **Chat Assistant** | Medium/heavy models |
+    | **Dashboard Summaries** | Light/fast models (tinyllama, phi3) |
+    | **File Import** | Medium/heavy models |
+    
+    > 💡 **Tip**: Use light models for summaries and heavy models for deep analysis.
     
     #### 💰 Retentions
     
@@ -250,12 +257,41 @@ def render_manual_en():
     | **% Surplus Retention** | Default value for wizard (0-100%) |
     | **% Salary Retention** | Default value for wizard (0-100%) |
     
+    #### 🏦 Bank Link
+    
+    Configure your online banking URL. A quick access button will appear in the sidebar.
+    
     #### 📊 Closing Method
     
     | Method | Description |
     |--------|-------------|
     | **Before salary** | Enter balance BEFORE receiving salary (recommended) |
     | **After salary** | Enter balance AFTER receiving |
+    
+    #### 📲 Notion Integration
+    
+    Connect PersAcc with a Notion database to import transactions:
+    
+    | Setting | Description |
+    |---------|-------------|
+    | **Enable Notion** | Toggle to enable the integration |
+    | **API Token** | Your Notion integration token (notion.so/my-integrations) |
+    | **Database ID** | UUID from your Notion database URL |
+    | **Check on startup** | Automatically check for pending entries when opening the app |
+    
+    #### 📂 Automatic Load (Deduplication)
+    
+    Control how duplicates are detected when loading bank files:
+    
+    | Setting | Description |
+    |---------|-------------|
+    | **Deduplication active** | Automatically filter already existing entries |
+    | **Same type only** | Compare only transactions of the same type |
+    | **Amount tolerance** | Maximum accepted difference (€) |
+    | **Date window** | Days of margin to consider a duplicate |
+    | **Text threshold** | Minimum concept text similarity |
+    | **Minimum score** | Minimum total score to mark as duplicate |
+    | **Ignore outside period** | Discard transactions from previous months |
     
     #### 📝 Default Values
     
@@ -301,6 +337,7 @@ def render_manual_en():
     - Add, edit, or delete categories
     - Categories with history are archived instead of deleted
     - You can change the transaction type (EXPENSE→INVESTMENTS/SAVINGS, etc.)
+    - **AI Description** (optional): Add a description to each category so the AI classifies bank file transactions more accurately
     
     ### Consequences
     > Requires activation in Configuration
@@ -403,6 +440,10 @@ def render_manual_en():
     
     Access from the **Projections** tab to see predictions based on your history.
     
+    ### SARIMAX Model
+    
+    Projections use **SARIMAX** (Seasonal ARIMA with eXogenous factors), a robust statistical model for time series with seasonality. The model trains automatically with your data and is cached in `data/models/` for faster performance.
+    
     ### Projection Types
     
     #### 💰 Income Projection
@@ -423,8 +464,95 @@ def render_manual_en():
     - Savings trends
     - Highest expense months
     - Wealth evolution
+    - 80% confidence intervals for each prediction
     
-    > ⚠️ **Note**: Projections improve with more historical data. At least 6 months of history recommended.
+    > ⚠️ **Note**: Projections improve with more historical data. At least 6 months of history recommended (minimum 4 months for the model to train).
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # NOTION INTEGRATION
+    # ============================================================================
+    st.markdown("""
+    ## 📲 Notion Integration
+    
+    PersAcc can sync transactions from a Notion database.
+    
+    ### Configuration
+    
+    1. **Create an integration** at [notion.so/my-integrations](https://www.notion.so/my-integrations)
+    2. **Share the database** with your integration (Share button → invite)
+    3. **Configure in PersAcc**: **Utilities → Configuration → Notion**
+       - Enter the **API Token** and **Database ID** (UUID from the URL)
+       - Enable the integration
+    
+    ### Expected Notion Properties
+    
+    | Property | Type | Description |
+    |----------|------|-------------|
+    | **Concept** | title | Transaction description (required) |
+    | **Amount** | number | Quantity (required) |
+    | **Type** | select | Expense, Income, Investment, etc. |
+    | **Category** | select/text | Transaction category |
+    | **Relevance** | select | NE, LI, SUP, TON |
+    | **Date** | date | Transaction date |
+    
+    > 💡 Property names automatically adapt based on the configured language.
+    
+    ### Sync Flow
+    
+    1. **When opening the app** (if "Check on startup" is active), pending entries are searched
+    2. A dialog is shown with the found entries
+    3. For each entry you can:
+       - **✅ Import**: Saves to LEDGER and deletes from Notion
+       - **🗑️ Delete**: Only deletes from Notion
+       - **⏭️ Skip**: Leaves in Notion (if you edit fields, they are updated in Notion)
+    4. You can also launch a **manual sync** from Configuration
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # BANK FILE IMPORT
+    # ============================================================================
+    st.markdown("""
+    ## 📂 Bank File Import
+    
+    > 🌟 Requires **AI enabled** (Ollama running).
+    
+    Import transactions directly from your bank's files.
+    
+    ### Supported Formats
+    
+    | Format | Extensions | Notes |
+    |--------|------------|-------|
+    | **AEB Norma 43** | `.csb`, `.aeb`, `.txt`, `.n43` | Spanish banking standard |
+    | **AEB SEPA** | Same extensions | Auto-detected by currency field |
+    | **Excel** | `.xlsx`, `.xls` | First sheet of the file |
+    
+    ### How it Works
+    
+    1. **Upload the file** from the "Load Data" tab
+    2. **Preview**: Verify the content was parsed correctly
+    3. **AI Analysis**: The model classifies each transaction (type, category, clean concept, relevance)
+       - Processed in batches of 5 transactions for better accuracy
+       - A progress bar shows the current status
+    4. **Review**: Results are split into:
+       - ✅ **Well classified**: Confidence ≥ 75%
+       - ⚠️ **To review**: Confidence < 75% (edit before saving)
+       - 🚫 **Ignored**: Detected duplicates or outside current period
+    5. **Save**: Select entries and save them to the LEDGER
+    
+    ### Deduplication Engine
+    
+    The system automatically detects possible duplicates by comparing with the existing LEDGER:
+    - **Amount**: Exact match or within tolerance
+    - **Date**: Within a configurable day window
+    - **Concept**: Normalized text similarity
+    - **Combined score**: Weighted formula (75% amount + 20% date + 5% text)
+    
+    > 💡 **Tip**: Adjust deduplication parameters in **Configuration → Automatic Load** to adapt them to your bank.
     """)
     
     st.markdown("---")
@@ -439,6 +567,7 @@ def render_manual_en():
     1. **Record expenses daily** - 2 minutes in the morning with coffee
     2. **Use specific concepts** - "Target - Groceries" better than "Shopping"
     3. **Leverage auto-complete** - Configure default concepts to save time
+    4. **Use Notion** - If you prefer logging from your phone, record in Notion and sync later
     
     ### 📅 Weekly Use
     1. **Review dashboard** - Verify everything is properly categorized
@@ -448,11 +577,13 @@ def render_manual_en():
     1. **Close when receiving salary** - Don't wait for the 1st of next month
     2. **Export backup** - Download CSV before closing
     3. **Review relevance analysis** - Adjust habits if necessary
+    4. **Load bank statement** - Use "Load Data" to import the bank file and verify nothing is missing
     
     ### 🎯 Optimization
     1. **Adjust retentions** - According to your savings goals
     2. **Experiment with consequences** - Create rules that motivate you to improve
     3. **Disable what you don't use** - Simplify by disabling unnecessary features
+    4. **AI descriptions for categories** - Add descriptions so the AI classifies bank file transactions more accurately
     
     ### 🔒 Security
     1. **Regular backup** - Database is in `data/finanzas.db`
@@ -461,7 +592,7 @@ def render_manual_en():
     
     ---
     
-    **Version**: 3.0 | **Stack**: Streamlit + SQLite + Python + Ollama
+    **Version**: 3.1 | **Stack**: Streamlit + SQLite + Python + Ollama
     
     *Questions or suggestions? Open an issue in the repository.*
     """)

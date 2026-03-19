@@ -223,12 +223,13 @@ def render_manual():
     | Ajuste | Opciones |
     |--------|----------|
     | **Idioma** | Español, English |
-    | **Divisa** | EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL |
+    | **Divisa** | EUR, USD, GBP, CHF, JPY, MXN |
     
     #### 🎛️ Funcionalidades (Toggles)
     
     | Toggle | Descripción |
     |--------|-------------|
+    | **🌙 Modo Oscuro** | Tema oscuro aplicado a toda la interfaz |
     | **Análisis de Relevancia** | Sistema NE/LI/SUP/TON |
     | **Retenciones Automáticas** | Inversiones/Ahorros automáticos en cierre |
     | **Cuenta de Consecuencias** | Sistema de reglas avanzado |
@@ -238,10 +239,16 @@ def render_manual():
     
     > Requiere [Ollama](https://ollama.com/download) instalado y ejecutándose.
     
-    | Ajuste | Descripción |
-    |--------|-------------|
-    | **Modelo** | Selecciona entre modelos disponibles (tinyllama, phi3, mistral, llama3, qwen, etc.) |
-    | **Estado** | Indicador verde/rojo del estado del servidor Ollama |
+    Puedes asignar un **modelo diferente por tarea**:
+    
+    | Tarea | Recomendación |
+    |-------|---------------|
+    | **Análisis Histórico** | Modelos pesados (mistral, qwen3:8b) |
+    | **Asistente Chat** | Modelos medios/pesados |
+    | **Resúmenes Dashboard** | Modelos ligeros/rápidos (tinyllama, phi3) |
+    | **Carga de Ficheros** | Modelos medios/pesados |
+    
+    > 💡 **Tip**: Usa modelos ligeros para resúmenes y modelos pesados para análisis profundo.
     
     #### 💰 Retenciones
     
@@ -250,12 +257,41 @@ def render_manual():
     | **% Retención Remanente** | Valor por defecto para el wizard (0-100%) |
     | **% Retención Salario** | Valor por defecto para el wizard (0-100%) |
     
+    #### 🏦 Enlace al Banco
+    
+    Configura la URL de tu banca online. Aparecerá un botón de acceso rápido en la barra lateral.
+    
     #### 📊 Método de Cierre
     
     | Método | Descripción |
     |--------|-------------|
     | **Antes de salario** | Introduces el saldo ANTES de cobrar la nómina (recomendado) |
     | **Después de salario** | Introduces el saldo DESPUÉS de cobrar |
+    
+    #### 📲 Integración con Notion
+    
+    Conecta PersAcc con una base de datos de Notion para importar movimientos:
+    
+    | Ajuste | Descripción |
+    |--------|-------------|
+    | **Activar Notion** | Toggle para habilitar la integración |
+    | **API Token** | Token de tu integración Notion (notion.so/my-integrations) |
+    | **Database ID** | UUID de tu base de datos Notion |
+    | **Comprobar al inicio** | Verificar automáticamente si hay entradas pendientes al abrir la app |
+    
+    #### 📂 Carga Automática (Deduplicación)
+    
+    Controla cómo se detectan duplicados al cargar ficheros bancarios:
+    
+    | Ajuste | Descripción |
+    |--------|-------------|
+    | **Deduplicación activa** | Filtrar automáticamente entradas ya existentes |
+    | **Solo mismo tipo** | Comparar solo movimientos del mismo tipo |
+    | **Tolerancia importe** | Diferencia máxima aceptada (€) |
+    | **Ventana de fechas** | Días de margen para considerar duplicado |
+    | **Umbral texto** | Similitud mínima en concepto |
+    | **Puntuación mínima** | Score total mínimo para marcar como duplicado |
+    | **Ignorar fuera del período** | Descartar movimientos de meses anteriores |
     
     #### 📝 Valores por Defecto
     
@@ -301,6 +337,7 @@ def render_manual():
     - Añade, edita o elimina categorías
     - Las categorías con historial se archivan en lugar de borrarse
     - Puedes cambiar el tipo de movimiento (GASTO→INVERSIÓN/AHORRO, etc.)
+    - **Descripción IA** (opcional): Añade una descripción a cada categoría para que la IA clasifique mejor los movimientos al importar ficheros bancarios
     
     ### Consecuencias
     > Requiere activar en Configuración
@@ -403,6 +440,10 @@ def render_manual():
     
     Accede desde la pestaña **Proyecciones** para ver predicciones basadas en tu historial.
     
+    ### Modelo SARIMAX
+    
+    Las proyecciones usan **SARIMAX** (Seasonal ARIMA with eXogenous factors), un modelo estadístico robusto para series temporales con estacionalidad. El modelo se entrena automáticamente con tus datos y se guarda en caché (`data/models/`) para mayor velocidad.
+    
     ### Tipos de Proyección
     
     #### 💰 Proyección de Ingresos
@@ -423,8 +464,95 @@ def render_manual():
     - Tendencias de ahorro
     - Meses de mayor gasto
     - Evolución del patrimonio
+    - Intervalos de confianza (80%) para cada predicción
     
-    > ⚠️ **Nota**: Las proyecciones mejoran con más datos históricos. Se recomienda tener al menos 6 meses de historial.
+    > ⚠️ **Nota**: Las proyecciones mejoran con más datos históricos. Se recomienda tener al menos 6 meses de historial (mínimo 4 meses para que el modelo entrene).
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # INTEGRACIÓN NOTION
+    # ============================================================================
+    st.markdown("""
+    ## 📲 Integración con Notion
+    
+    PersAcc puede sincronizar movimientos desde una base de datos de Notion.
+    
+    ### Configuración
+    
+    1. **Crea una integración** en [notion.so/my-integrations](https://www.notion.so/my-integrations)
+    2. **Comparte la base de datos** con tu integración (botón Compartir → invitar)
+    3. **Configura en PersAcc**: **Utilidades → Configuración → Notion**
+       - Introduce el **API Token** y el **Database ID** (UUID de la URL)
+       - Activa la integración
+    
+    ### Propiedades esperadas en Notion
+    
+    | Propiedad | Tipo | Descripción |
+    |-----------|------|-------------|
+    | **Concepto** | title | Descripción del movimiento (requerido) |
+    | **Importe** | number | Cantidad (requerido) |
+    | **Tipo** | select | Gasto, Ingreso, Inversión, etc. |
+    | **Categoría** | select/text | Categoría del movimiento |
+    | **Relevancia** | select | NE, LI, SUP, TON |
+    | **Fecha** | date | Fecha del movimiento |
+    
+    > 💡 Los nombres de las propiedades se adaptan automáticamente según el idioma configurado.
+    
+    ### Flujo de sincronización
+    
+    1. **Al abrir la app** (si "Comprobar al inicio" está activo), se buscan entradas pendientes
+    2. Se muestra un diálogo con las entradas encontradas
+    3. Para cada entrada puedes:
+       - **✅ Importar**: La graba en el LEDGER y la elimina de Notion
+       - **🗑️ Eliminar**: Solo la elimina de Notion
+       - **⏭️ Omitir**: La deja en Notion (si editas campos, se actualizan en Notion)
+    4. También puedes lanzar una **sincronización manual** desde Configuración
+    """)
+    
+    st.markdown("---")
+    
+    # ============================================================================
+    # CARGA DE DATOS BANCARIOS
+    # ============================================================================
+    st.markdown("""
+    ## 📂 Carga de Datos Bancarios
+    
+    > 🌟 Requiere **IA activada** (Ollama funcionando).
+    
+    Importa movimientos directamente desde ficheros de tu banco.
+    
+    ### Formatos soportados
+    
+    | Formato | Extensiones | Notas |
+    |---------|-------------|-------|
+    | **AEB Norma 43** | `.csb`, `.aeb`, `.txt`, `.n43` | Estándar bancario español |
+    | **AEB SEPA** | Mismas extensiones | Detección automática por divisa |
+    | **Excel** | `.xlsx`, `.xls` | Primera hoja del archivo |
+    
+    ### Cómo funciona
+    
+    1. **Sube el fichero** desde la pestaña "Cargar Datos"
+    2. **Previsualización**: Revisa que el contenido se ha parseado correctamente
+    3. **Análisis con IA**: El modelo clasifica cada movimiento (tipo, categoría, concepto limpio, relevancia)
+       - Se procesan en lotes de 5 movimientos para mayor precisión
+       - Se muestra una barra de progreso con el estado
+    4. **Revisión**: Los resultados se separan en:
+       - ✅ **Bien clasificadas**: Confianza ≥ 75%
+       - ⚠️ **A revisar**: Confianza < 75% (edita antes de grabar)
+       - 🚫 **Ignoradas**: Duplicados detectados o fuera del período
+    5. **Grabación**: Selecciona las entradas y grábalas en el LEDGER
+    
+    ### Motor de deduplicación
+    
+    El sistema detecta automáticamente posibles duplicados comparando con el LEDGER existente:
+    - **Importe**: Coincidencia exacta o dentro de tolerancia
+    - **Fecha**: Dentro de una ventana de días configurable
+    - **Concepto**: Similitud de texto normalizado
+    - **Score combinado**: Fórmula ponderada (75% importe + 20% fecha + 5% texto)
+    
+    > 💡 **Tip**: Ajusta los parámetros de deduplicación en **Configuración → Carga Automática** para adaptarlos a tu banco.
     """)
     
     st.markdown("---")
@@ -439,6 +567,7 @@ def render_manual():
     1. **Registra gastos diariamente** - 2 minutos por la mañana con el café
     2. **Usa conceptos específicos** - "Mercadona - Frutas" mejor que "Compra"
     3. **Aprovecha el auto-completado** - Configura conceptos default para ahorrar tiempo
+    4. **Usa Notion** - Si prefieres apuntar desde el móvil, registra en Notion y sincroniza después
     
     ### 📅 Uso Semanal
     1. **Revisa el dashboard** - Verifica que todo esté bien categorizado
@@ -448,11 +577,13 @@ def render_manual():
     1. **Cierra al recibir nómina** - No esperes al día 1 del mes siguiente
     2. **Exporta backup** - Descarga CSV antes de cerrar
     3. **Revisa análisis de relevancia** - Ajusta hábitos si es necesario
+    4. **Carga el extracto del banco** - Usa "Cargar Datos" para importar el fichero bancario y verificar que no falta nada
     
     ### 🎯 Optimización
     1. **Ajusta las retenciones** - Según tus objetivos de ahorro
     2. **Experimenta con consecuencias** - Crea reglas que te motiven a mejorar
     3. **Desactiva lo que no uses** - Simplifica desactivando funciones innecesarias
+    4. **Descripciones IA en categorías** - Añade descripciones para que la IA clasifique mejor los ficheros bancarios
     
     ### 🔒 Seguridad
     1. **Backup regular** - La base de datos está en `data/finanzas.db`
@@ -461,7 +592,7 @@ def render_manual():
     
     ---
     
-    **Versión**: 3.0 | **Stack**: Streamlit + SQLite + Python + Ollama
+    **Versión**: 3.1 | **Stack**: Streamlit + SQLite + Python + Ollama
     
     *¿Dudas o sugerencias? Abre un issue en el repositorio.*
     """)

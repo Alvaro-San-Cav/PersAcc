@@ -11,7 +11,7 @@ import numpy as np
 import warnings
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import logging
 
 import joblib
@@ -62,10 +62,40 @@ class SARIMAXProjector:
         self.train_date: Optional[datetime] = None
         self.metrics: Dict = {}
         self.monthly_data: Dict[str, float] = {}
+        self.data_signature: Optional[Tuple[Tuple[str, float], ...]] = None
         
         # Paths de archivos
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         self.model_path = MODELS_DIR / f"{tipo}_sarimax_model.joblib"
+
+    @staticmethod
+    def _to_month_sort_key(month_key: str) -> Tuple[int, int]:
+        """Convierte claves tipo YYYY-MM a una tupla ordenable (year, month)."""
+        try:
+            year_str, month_str = month_key.split("-", 1)
+            return int(year_str), int(month_str)
+        except Exception:
+            # Fallback seguro si el formato no es estricto.
+            return (9999, 12)
+
+    @staticmethod
+    def _next_month(month_key: str) -> str:
+        """Devuelve el siguiente mes en formato YYYY-MM."""
+        year, month = SARIMAXProjector._to_month_sort_key(month_key)
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+        return f"{year:04d}-{month:02d}"
+
+    @staticmethod
+    def _build_data_signature(monthly_data: Dict[str, float]) -> Tuple[Tuple[str, float], ...]:
+        """Genera una firma estable para detectar cambios en los datos de entrenamiento."""
+        sorted_items = sorted(
+            monthly_data.items(),
+            key=lambda item: SARIMAXProjector._to_month_sort_key(item[0])
+        )
+        return tuple((k, float(v)) for k, v in sorted_items)
     
     def _get_monthly_data(self) -> Dict[str, float]:
         """Obtiene datos agregados por mes."""
@@ -99,6 +129,15 @@ class SARIMAXProjector:
                 }
             
             self.monthly_data = self._get_monthly_data()
+            current_signature = self._build_data_signature(self.monthly_data)
+
+            if not force and self.load() and self.data_signature == current_signature:
+                return {
+                    'success': True,
+                    'metrics': self.metrics,
+                    'train_date': self.train_date.isoformat() if self.train_date else None,
+                    'cached': True
+                }
             
             if len(self.monthly_data) < 4:
                 return {
@@ -107,54 +146,72 @@ class SARIMAXProjector:
                 }
             
             # Ordenar y preparar serie temporal
-            sorted_months = sorted(self.monthly_data.keys())
+            sorted_months = sorted(
+                self.monthly_data.keys(),
+                key=self._to_month_sort_key
+            )
             y = np.array([self.monthly_data[m] for m in sorted_months])
             
             # Determinar orden del modelo según cantidad de datos
             n_obs = len(y)
             
             if n_obs < 6:
-                # Muy pocos datos: modelo simple sin estacionalidad
-                order = (1, 0, 0)
-                seasonal_order = (0, 0, 0, 0)
+                # Muy pocos datos: priorizar estabilidad sobre complejidad.
+                candidate_orders = [((1, 0, 0), (0, 0, 0, 0)), ((0, 1, 1), (0, 0, 0, 0))]
             elif n_obs < 12:
-                # Pocos datos: ARIMA simple
-                order = (1, 1, 1)
-                seasonal_order = (0, 0, 0, 0)
+                candidate_orders = [((1, 1, 1), (0, 0, 0, 0)), ((1, 0, 1), (0, 0, 0, 0))]
             elif n_obs < 24:
-                # Datos moderados: SARIMA con estacionalidad básica
-                order = (1, 1, 1)
-                seasonal_order = (1, 0, 0, 12)
+                candidate_orders = [((1, 1, 1), (1, 0, 0, 12)), ((1, 1, 0), (1, 0, 0, 12))]
             else:
-                # Suficientes datos: SARIMA completo
-                order = (1, 1, 1)
-                seasonal_order = (1, 1, 1, 12)
-            
-            # Entrenar modelo
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                self.model = SARIMAX(
-                    y,
-                    order=order,
-                    seasonal_order=seasonal_order,
-                    enforce_stationarity=False,
-                    enforce_invertibility=False
-                )
-                self.model_fit = self.model.fit(disp=False, maxiter=200)
+                candidate_orders = [((1, 1, 1), (1, 1, 1, 12)), ((1, 1, 0), (1, 1, 0, 12))]
+
+            last_error: Optional[Exception] = None
+            chosen = None
+            for order, seasonal_order in candidate_orders:
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        self.model = SARIMAX(
+                            y,
+                            order=order,
+                            seasonal_order=seasonal_order,
+                            enforce_stationarity=False,
+                            enforce_invertibility=False
+                        )
+                        self.model_fit = self.model.fit(disp=False, maxiter=300)
+                    chosen = (order, seasonal_order)
+                    break
+                except Exception as ex:
+                    last_error = ex
+
+            if chosen is None or self.model_fit is None:
+                raise RuntimeError(f"No se pudo entrenar SARIMAX: {last_error}")
+
+            order, seasonal_order = chosen
             
             # Calcular métricas
             fitted_values = self.model_fit.fittedvalues
             residuals = y - fitted_values
             
-            # MAPE (Mean Absolute Percentage Error)
-            mape = np.mean(np.abs(residuals / (y + 1e-10))) * 100
+            # MAPE robusto: ignora meses con denominador casi cero.
+            abs_y = np.abs(y)
+            valid_mask = abs_y > 1e-8
+            if np.any(valid_mask):
+                mape = np.mean(np.abs(residuals[valid_mask] / y[valid_mask])) * 100
+            else:
+                mape = 0.0
+
+            # sMAPE más estable cerca de cero.
+            smape = np.mean((2.0 * np.abs(residuals)) / (np.abs(y) + np.abs(fitted_values) + 1e-8)) * 100
             
             # MAE
             mae = np.mean(np.abs(residuals))
             
             self.metrics = {
                 'mape': min(mape, 100),  # Cap at 100%
+                'smape': min(smape, 100),
                 'mae': mae,
+                'rmse': float(np.sqrt(np.mean(np.square(residuals)))),
                 'n_samples': n_obs,
                 'order': order,
                 'seasonal_order': seasonal_order
@@ -162,6 +219,7 @@ class SARIMAXProjector:
             
             self.is_trained = True
             self.train_date = datetime.now()
+            self.data_signature = current_signature
             
             # Guardar modelo
             self.save()
@@ -197,20 +255,38 @@ class SARIMAXProjector:
                     'error': 'Modelo no entrenado'
                 }
         
+        if months_ahead <= 0:
+            return {
+                'success': False,
+                'error': 'months_ahead debe ser mayor que 0'
+            }
+
         try:
             # Generar predicciones
-            forecast = self.model_fit.forecast(steps=months_ahead)
+            forecast_result = self.model_fit.get_forecast(steps=months_ahead)
+            forecast = forecast_result.predicted_mean
+            conf_int = forecast_result.conf_int(alpha=0.20)  # Intervalo del 80%
+            conf_int_values = np.asarray(conf_int)
             
             # Asegurar valores no negativos
             forecast = np.maximum(forecast, 0)
             
-            # Organizar por año
-            current_date = date.today()
+            # Organizar por año desde el mes siguiente al último dato histórico.
+            if self.monthly_data:
+                last_month = max(self.monthly_data.keys(), key=self._to_month_sort_key)
+                start_month = self._next_month(last_month)
+                start_year, start_month_num = self._to_month_sort_key(start_month)
+            else:
+                current_date = date.today()
+                start_year, start_month_num = current_date.year, current_date.month
+
             projections_by_year: Dict[int, List[float]] = {}
+            lower_by_year: Dict[int, List[float]] = {}
+            upper_by_year: Dict[int, List[float]] = {}
             
             for i, value in enumerate(forecast):
-                future_month = current_date.month + i
-                future_year = current_date.year
+                future_month = start_month_num + i
+                future_year = start_year
                 
                 while future_month > 12:
                     future_month -= 12
@@ -218,15 +294,24 @@ class SARIMAXProjector:
                 
                 if future_year not in projections_by_year:
                     projections_by_year[future_year] = []
+                    lower_by_year[future_year] = []
+                    upper_by_year[future_year] = []
                 projections_by_year[future_year].append(float(value))
+                lower_by_year[future_year].append(float(max(conf_int_values[i, 0], 0)))
+                upper_by_year[future_year].append(float(max(conf_int_values[i, 1], 0)))
             
             # Calcular totales anuales
             annual_projections = {}
             for year, values in projections_by_year.items():
                 annual_projections[year] = {
                     'monthly_values': values,
-                    'monthly_avg': np.mean(values),
-                    'annual_total': np.sum(values) if len(values) == 12 else np.mean(values) * 12
+                    'monthly_avg': float(np.mean(values)),
+                    'annual_total': float(np.sum(values)),
+                    'annualized_total': float(np.mean(values) * 12),
+                    'interval_80': {
+                        'lower': lower_by_year[year],
+                        'upper': upper_by_year[year]
+                    }
                 }
             
             return {
@@ -257,6 +342,7 @@ class SARIMAXProjector:
             'train_date': self.train_date,
             'metrics': self.metrics,
             'monthly_data': self.monthly_data,
+            'data_signature': self.data_signature,
             'tipo': self.tipo
         }, self.model_path)
     
@@ -272,6 +358,7 @@ class SARIMAXProjector:
             self.train_date = data['train_date']
             self.metrics = data['metrics']
             self.monthly_data = data.get('monthly_data', {})
+            self.data_signature = data.get('data_signature')
             return True
         except Exception as e:
             logger.error(f"Error cargando modelo SARIMAX {self.tipo}: {e}")

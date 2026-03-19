@@ -64,7 +64,7 @@ def _prepare_time_series(monthly_data: Dict[str, float]) -> Tuple[np.ndarray, np
 
 
 @st.cache_data(show_spinner=False)
-def project_salaries(years_ahead: int = 5) -> Dict:
+def project_salaries(years_ahead: int = 2) -> Dict:
     """
     Proyecta salarios futuros usando SARIMAX para capturar estacionalidad.
     
@@ -237,7 +237,7 @@ def project_salaries(years_ahead: int = 5) -> Dict:
 
 
 @st.cache_data(show_spinner=False)
-def project_investments(years_ahead: int = 5) -> Dict:
+def project_investments(years_ahead: int = 2) -> Dict:
     """
     Proyecta inversiones futuras basándose en proyecciones de ingresos y savings rate.
     
@@ -665,7 +665,7 @@ def generate_insights() -> List[Dict]:
 
 
 @st.cache_data(show_spinner=False)
-def project_expenses(years_ahead: int = 5) -> Dict:
+def project_expenses(years_ahead: int = 2) -> Dict:
     """
     Proyecta gastos totales futuros usando SARIMAX.
     
@@ -712,10 +712,41 @@ def project_expenses(years_ahead: int = 5) -> Dict:
     
     confidence = max(0, min(100, int(r2_score * 100)))
     
-    # Proyectar con SARIMAX
+    # Info del año actual para combinar histórico + proyección
     current_year = date.today().year
-    current_month = date.today().month
-    months_to_project = years_ahead * 12 + (12 - current_month + 1)
+    current_year_months = [m for m in monthly_exp.keys() if m.startswith(str(current_year))]
+    current_year_historical_total = 0.0
+    num_current_year_months = len(current_year_months)
+
+    if current_year_months:
+        current_year_values = [monthly_exp[m] for m in sorted(current_year_months)]
+        current_year_historical_total = float(np.sum(current_year_values))
+
+    # Proyectamos solo los meses que faltan del año actual + años futuros completos.
+    months_remaining_current_year = max(12 - num_current_year_months, 0)
+    months_to_project = years_ahead * 12 + months_remaining_current_year
+
+    # Si ya está cubierto todo el horizonte con histórico, devolver sin forecast.
+    if months_to_project <= 0:
+        projected = {
+            current_year: {
+                'monthly_avg': current_year_historical_total / 12,
+                'annual_total': current_year_historical_total,
+                'monthly_values': [],
+                'historical_months': num_current_year_months,
+                'projected_months': 0
+            }
+        }
+        return {
+            'historical': monthly_exp,
+            'projected': projected,
+            'trend': trend,
+            'confidence': confidence,
+            'slope_monthly': slope,
+            'model_type': 'historical_only'
+        }
+
+    # Proyectar con SARIMAX
     projected_values = []
     use_sarimax = False
     
@@ -757,21 +788,37 @@ def project_expenses(years_ahead: int = 5) -> Dict:
             pred = model_lr.predict([[future_idx]])[0]
             projected_values.append(max(0, pred))
     
-    # Organizar por año
+    # Organizar por año, combinando año actual parcial con histórico real.
     projected = {}
     proj_idx = 0
     
     for year_offset in range(years_ahead + 1):
         year = current_year + year_offset
-        year_predictions = projected_values[proj_idx:proj_idx + 12]
-        proj_idx += 12
-        
-        if len(year_predictions) == 12:
+
+        if year == current_year and num_current_year_months > 0:
+            year_predictions = projected_values[proj_idx:proj_idx + months_remaining_current_year]
+            proj_idx += months_remaining_current_year
+
+            projected_future_total = float(np.sum(year_predictions)) if year_predictions else 0.0
+            annual_total = current_year_historical_total + projected_future_total
+
             projected[year] = {
-                'monthly_avg': np.mean(year_predictions),
-                'annual_total': np.sum(year_predictions),
-                'monthly_values': year_predictions
+                'monthly_avg': annual_total / 12,
+                'annual_total': annual_total,
+                'monthly_values': year_predictions,
+                'historical_months': num_current_year_months,
+                'projected_months': months_remaining_current_year
             }
+        else:
+            year_predictions = projected_values[proj_idx:proj_idx + 12]
+            proj_idx += 12
+
+            if len(year_predictions) == 12:
+                projected[year] = {
+                    'monthly_avg': float(np.mean(year_predictions)),
+                    'annual_total': float(np.sum(year_predictions)),
+                    'monthly_values': year_predictions
+                }
     
     return {
         'historical': monthly_exp,
@@ -784,7 +831,7 @@ def project_expenses(years_ahead: int = 5) -> Dict:
 
 
 @st.cache_data(show_spinner=False)
-def get_projection_summary(years_ahead: int = 5) -> Dict:
+def get_projection_summary(years_ahead: int = 2) -> Dict:
     """
     Obtiene un resumen completo de todas las proyecciones.
     
@@ -838,7 +885,7 @@ def get_nn_models_status() -> Dict[str, Dict]:
     return _nn_get_status()
 
 
-def project_with_nn(tipo: str, years_ahead: int = 5) -> Optional[Dict]:
+def project_with_nn(tipo: str, years_ahead: int = 2) -> Optional[Dict]:
     """
     Intenta proyectar usando red neuronal.
     

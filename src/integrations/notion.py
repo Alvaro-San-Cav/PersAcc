@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 import requests
 import re
+import unicodedata
 
 try:
     from notion_client import Client
@@ -21,6 +22,70 @@ from src.config import load_config
 
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Utility functions (module-level for reuse by notion_parser.py)
+# ---------------------------------------------------------------------------
+
+def normalize_text(value: str) -> str:
+    """Normaliza texto para comparaciones robustas (sin emojis/símbolos, minúsculas, NFKD)."""
+    if not value:
+        return ""
+    # NFKD para unificar acentos y ligaduras, luego eliminar marcas diacríticas
+    nfkd = unicodedata.normalize('NFKD', value)
+    ascii_ish = ''.join(c for c in nfkd if not unicodedata.combining(c))
+    return re.sub(r'[^\w\s]', '', ascii_ish).strip().lower()
+
+
+# Relevancia regex: acepta "NE", "NE - Necesario", "💰 NE", "Necesario", etc.
+_RELEVANCIA_ALIASES: Dict[str, str] = {
+    'ne': 'NE', 'necesario': 'NE', 'inevitable': 'NE', 'necessary': 'NE',
+    'li': 'LI', 'me gusta': 'LI', 'disfrute': 'LI', 'like': 'LI',
+    'sup': 'SUP', 'superfluo': 'SUP', 'optimizable': 'SUP', 'superfluous': 'SUP',
+    'ton': 'TON', 'tonteria': 'TON', 'error': 'TON', 'nonsense': 'TON',
+}
+
+
+def normalize_relevancia(raw: str) -> str:
+    """
+    Extrae el código de relevancia (NE/LI/SUP/TON) de cualquier formato:
+    "NE", "NE - Necesario", "💰 NE", "Necesario/Inevitable", etc.
+
+    Returns:
+        Código limpio ('NE', 'LI', 'SUP', 'TON') o cadena vacía si no reconocido.
+    """
+    if not raw:
+        return ''
+    cleaned = normalize_text(raw)
+    # Intento 1: buscar código explícito al principio ("ne", "li", "sup", "ton")
+    for code in ('ton', 'sup', 'ne', 'li'):  # ton/sup before ne/li to avoid partial match
+        if cleaned.startswith(code):
+            return code.upper()
+    # Intento 2: buscar alias en el texto completo
+    for alias, code in _RELEVANCIA_ALIASES.items():
+        if alias in cleaned:
+            return code
+    return ''
+
+
+def _parse_number_from_text(text: str) -> Optional[float]:
+    """Parse a number from text like '12,50', '€12.50', '1.234,56'."""
+    if not text:
+        return None
+    # Remove currency symbols, spaces, and non-numeric chars except . , -
+    cleaned = re.sub(r'[^\d.,\-]', '', text.strip())
+    if not cleaned:
+        return None
+    # Detect European format: 1.234,56 or 12,50
+    if ',' in cleaned and ('.' not in cleaned or cleaned.rindex(',') > cleaned.rindex('.')):
+        cleaned = cleaned.replace('.', '').replace(',', '.')
+    else:
+        cleaned = cleaned.replace(',', '')
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
 
 
 class NotionIntegrationError(Exception):
@@ -64,10 +129,8 @@ class NotionClient:
 
     @staticmethod
     def _normalize_text(value: str) -> str:
-        """Normaliza texto para comparaciones robustas."""
-        if not value:
-            return ""
-        return re.sub(r'[^\w\s]', '', value).strip().lower()
+        """Normaliza texto para comparaciones robustas (delegated to module function)."""
+        return normalize_text(value)
 
     @staticmethod
     def _parse_notion_date(value: str) -> Optional[date]:
@@ -298,70 +361,123 @@ class NotionClient:
             properties = page.get('properties', {})
             field_map = self._get_field_map()
             
-            # Concepto (título - requerido)
+            # --- Concepto (título - requerido) ---
             concepto = ""
             title_prop = self._pick_property(properties, field_map['concepto'])
             if title_prop.get('type') == 'title':
                 title_items = title_prop.get('title', [])
                 if title_items:
-                    concepto = title_items[0].get('plain_text', '')
+                    # Concatenar TODOS los fragmentos (soporta formato parcial)
+                    concepto = "".join(
+                        item.get('plain_text', '') for item in title_items
+                    ).strip()
             
             if not concepto:
                 logger.warning(f"Entrada sin concepto, ignorando: {page.get('id')}")
                 return None
             
-            # Importe (número - requerido)
+            # --- Importe (número - requerido) ---
             importe = 0.0
             number_prop = self._pick_property(properties, field_map['importe'])
-            if number_prop.get('type') == 'number':
+            importe_type = number_prop.get('type', '')
+            
+            if importe_type == 'number':
                 importe = number_prop.get('number') or 0.0
+            elif importe_type == 'formula':
+                formula_val = number_prop.get('formula', {})
+                if formula_val.get('type') == 'number':
+                    importe = formula_val.get('number') or 0.0
+            elif importe_type == 'rollup':
+                rollup_val = number_prop.get('rollup', {})
+                if rollup_val.get('type') == 'number':
+                    importe = rollup_val.get('number') or 0.0
+            elif importe_type == 'rich_text':
+                text_items = number_prop.get('rich_text', [])
+                if text_items:
+                    raw_text = "".join(i.get('plain_text', '') for i in text_items)
+                    parsed_num = _parse_number_from_text(raw_text)
+                    if parsed_num is not None:
+                        importe = parsed_num
             
             if importe <= 0:
                 logger.warning(f"Entrada sin importe válido, ignorando: {concepto}")
                 return None
             
-            # Tipo (select - requerido)
+            # --- Tipo (select, multi_select, status) ---
             tipo = "Gasto"  # default
             select_prop = self._pick_property(properties, field_map['tipo'])
-            if select_prop.get('type') == 'select':
+            tipo_prop_type = select_prop.get('type', '')
+            
+            if tipo_prop_type == 'select':
                 select_value = select_prop.get('select')
                 if select_value:
                     tipo = select_value.get('name', 'Gasto')
+            elif tipo_prop_type == 'multi_select':
+                values = select_prop.get('multi_select', [])
+                if values:
+                    tipo = values[0].get('name', 'Gasto')
+            elif tipo_prop_type == 'status':
+                status_value = select_prop.get('status')
+                if status_value:
+                    tipo = status_value.get('name', 'Gasto')
+            elif tipo_prop_type == 'rich_text':
+                text_items = select_prop.get('rich_text', [])
+                if text_items:
+                    tipo = "".join(i.get('plain_text', '') for i in text_items).strip() or 'Gasto'
             
-            # Categoría (puede ser select o rich_text)
+            # --- Categoría (select, multi_select, status, rich_text) ---
             categoria = ""
             cat_prop = self._pick_property(properties, field_map['categoria'])
-            prop_type = cat_prop.get('type', '')
+            cat_type = cat_prop.get('type', '')
             
-            if prop_type == 'select':
+            if cat_type == 'select':
                 select_value = cat_prop.get('select')
                 if select_value:
                     categoria = select_value.get('name', '')
-            elif prop_type == 'rich_text':
+            elif cat_type == 'multi_select':
+                values = cat_prop.get('multi_select', [])
+                if values:
+                    categoria = values[0].get('name', '')
+            elif cat_type == 'status':
+                status_value = cat_prop.get('status')
+                if status_value:
+                    categoria = status_value.get('name', '')
+            elif cat_type == 'rich_text':
                 text_items = cat_prop.get('rich_text', [])
                 if text_items:
-                    categoria = text_items[0].get('plain_text', '')
+                    categoria = "".join(
+                        i.get('plain_text', '') for i in text_items
+                    ).strip()
             
-            # Relevancia (select - opcional, solo para gastos)
+            # --- Relevancia (select, rich_text — flexible parsing) ---
             relevancia = ""
             rel_prop = self._pick_property(properties, field_map['relevancia'])
-            if rel_prop.get('type') == 'select':
+            rel_type = rel_prop.get('type', '')
+            relevancia_raw = ""
+            
+            if rel_type == 'select':
                 rel_value = rel_prop.get('select')
                 if rel_value:
                     relevancia_raw = rel_value.get('name', '')
-                    # Extraer el código (NE, LI, SUP, TON) del texto
-                    if relevancia_raw.startswith('NE'):
-                        relevancia = 'NE'
-                    elif relevancia_raw.startswith('LI'):
-                        relevancia = 'LI'
-                    elif relevancia_raw.startswith('SUP'):
-                        relevancia = 'SUP'
-                    elif relevancia_raw.startswith('TON'):
-                        relevancia = 'TON'
-                    else:
-                        relevancia = relevancia_raw
+            elif rel_type == 'rich_text':
+                text_items = rel_prop.get('rich_text', [])
+                if text_items:
+                    relevancia_raw = "".join(
+                        i.get('plain_text', '') for i in text_items
+                    ).strip()
+            elif rel_type == 'multi_select':
+                values = rel_prop.get('multi_select', [])
+                if values:
+                    relevancia_raw = values[0].get('name', '')
+            elif rel_type == 'status':
+                status_value = rel_prop.get('status')
+                if status_value:
+                    relevancia_raw = status_value.get('name', '')
             
-            # Fecha (date - opcional, default = hoy)
+            if relevancia_raw:
+                relevancia = normalize_relevancia(relevancia_raw)
+            
+            # --- Fecha (date — opcional, default = hoy) ---
             fecha = date.today()
             date_prop = self._pick_property(properties, field_map['fecha'])
             if date_prop.get('type') == 'date':

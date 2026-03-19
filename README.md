@@ -36,7 +36,14 @@
 
 #### User Experience
 - **Multi-language** - Spanish and English
+- **Dark Mode** - Toggle dark theme from configuration
 - **Built-in Manual** - Complete user guide in both languages
+- **Bank URL Quick Link** - One-click access to your online banking from the sidebar
+
+#### Integrations
+- **Notion Sync** - Import transactions from a Notion database with auto-sync on startup
+- **Bank File Import** - AI-powered import of AEB Norma 43, SEPA, and Excel bank files
+- **Smart Deduplication** - Automatic duplicate detection when importing bank files
 
 ## Quick Start
 
@@ -91,7 +98,7 @@ The main dashboard provides a comprehensive view of your monthly finances. Featu
 - **Spending quality chart** showing the distribution of NE/LI/SUP/TON expenses
 - **Quick entry form** in the sidebar for adding new transactions rapidly
 
-![Main Dashboard](assets/mainmenu_jan2026.png)
+![Main Dashboard](assets/mainpage.png)
 
 ---
 
@@ -105,7 +112,7 @@ The guided month closing process ensures accurate financial tracking with a 4-st
 
 The system creates immutable snapshots of closed months, preventing accidental modifications while keeping a complete financial history.
 
-![Month Closing Wizard](assets/monthclose_jan2026.png)
+![Month Closing Wizard](assets/monthclose.png)
 
 ---
 
@@ -118,6 +125,63 @@ The annual summary dashboard provides a bird's-eye view of your yearly financial
 - **Comparative analysis** with previous years to track long-term financial progress
 
 ![Annual Summary](assets/yearsum_jan2026.png)
+
+---
+
+### Data Import (Cargar Datos)
+
+Upload bank files and let AI automatically classify and categorize your transactions. Features include:
+- **Multiple formats supported** including AEB Norma 43, SEPA, and Excel
+- **Smart deduplication** to prevent importing the same transaction twice
+- **AI-powered classification** for missing categories and concepts
+- **Manual review process** before saving to your ledger
+
+![Data Import](assets/automatic%20load.png)
+
+---
+
+### Historical Analysis
+
+Deep dive into your past financial data with interactive charts and insights. Features include:
+- **Comparative analysis** across different years and months
+- **Category breakdown** to understand spending habits over time
+- **AI Period Analysis** for personalized insights on your behavior
+
+![Historical Analysis](assets/analysis.png)
+
+---
+
+### ML Projections
+
+Forecast your financial future using machine learning models trained on your data. Features include:
+- **SARIMAX modeling** for accurate trend and seasonality predictions
+- **Income, expense, and savings forecasts** for the upcoming months
+- **80% confidence intervals** to understand prediction certainty
+
+![ML Projections](assets/projections.png)
+
+---
+
+### AI Chat Assistant
+
+Interact with your finances using natural language for instant answers. Features include:
+- **Natural language queries** in both English and Spanish
+- **Smart parameter extraction** to find exactly what you're looking for
+- **Direct ledger access** for accurate and up-to-date responses
+
+![AI Chat Assistant](assets/chat%20search.png)
+
+---
+
+### Utilities & Configuration
+
+Manage your application settings and database easily. Features include:
+- **Comprehensive configuration** for UI, language, AI models, and retentions
+- **Category management** to add, edit, or archive categories
+- **Data export/import** for backups or migrations
+- **Notion integration settings** for seamless synchronization
+
+![Utilities & Configuration](assets/utilities_placeholder.png)
 
 ## Key Concepts
 
@@ -144,7 +208,9 @@ The **Projections** feature tries to forecast your financial future:
 - **Investments/Savings Forecasts** - Based on savings rate and automatic retentions
 - **Expense Predictions** - Trend analysis with seasonality detection
 
-Each projection includes confidence levels, trend indicators, and interactive charts.
+Each projection includes confidence levels (80% intervals), trend indicators, and interactive charts.
+
+The projection engine uses **SARIMAX** (Seasonal ARIMA with eXogenous factors), a statistical model that captures both trends and seasonality. Models are trained automatically and cached for fast predictions.
 
 ### Month Closing
 
@@ -192,12 +258,16 @@ All settings in **Utilities > Configuration**:
 | Category | Options |
 |----------|---------|
 | **Language** | Spanish, English |
-| **Currency** | EUR, USD, GBP, CHF, JPY, CNY, MXN, ARS, COP, BRL |
+| **Currency** | EUR, USD, GBP, CHF, JPY, MXN |
+| **Dark Mode** | Toggle dark theme |
 | **Toggles** | Relevance Analysis, Automatic Retentions, Consequences, AI Analysis |
 | **Retentions** | Default % for surplus and salary |
 | **Defaults** | Concepts, amounts, and relevance per category |
 | **Closing Method** | Before salary / After salary |
-| **AI Model** | Any Ollama model (phi3, tinyllama, mistral, llama3, qwen, etc.) |
+| **AI Models** | Separate model per task: analysis, chat, summary, import |
+| **Notion** | Enable/disable, API token, database ID, auto-check on startup |
+| **Bank URL** | Quick link to your online banking |
+| **Deduplication** | Amount tolerance, date window, text threshold, min score |
 
 ## Docker Deployment
 
@@ -256,5 +326,5 @@ This project is licensed under the **Creative Commons Attribution-NonCommercial-
 
 If PersAcc is useful to you, give the repo a star!
 
-**Version**: 3.0  
-**Last updated**: January 2026
+**Version**: 3.1  
+**Last updated**: March 2026
