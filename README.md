@@ -124,7 +124,7 @@ The annual summary dashboard provides a bird's-eye view of your yearly financial
 - **Category breakdown** displaying where your money went by expense category
 - **Comparative analysis** with previous years to track long-term financial progress
 
-![Annual Summary](assets/yearsum_jan2026.png)
+![Annual Summary](assets/analysis.png)
 
 ---
 
