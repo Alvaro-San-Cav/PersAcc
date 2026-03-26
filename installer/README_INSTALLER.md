@@ -1,6 +1,6 @@
 # 💰 PersAcc - Windows Installer
 
-**Version 3.0** | Personal Accounting System  
+**Version 3.2.0** | Personal Accounting System  
 © 2026 Alvaro Sanchez Cava
 
 ---

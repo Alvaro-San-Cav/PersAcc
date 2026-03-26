@@ -592,7 +592,7 @@ def render_manual_en():
     
     ---
     
-    **Version**: 3.1 | **Stack**: Streamlit + SQLite + Python + Ollama
+   **Version**: 3.2.0 | **Stack**: Streamlit + SQLite + Python + Ollama
     
     *Questions or suggestions? Open an issue in the repository.*
     """)

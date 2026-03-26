@@ -90,7 +90,7 @@ copy /Y "installer\dist\PersAcc_Installer.exe" "installer\dist\release\"
 copy /Y "installer\README_INSTALLER.md" "installer\dist\release\README.md"
 copy /Y "installer\TRUSTED_SOFTWARE_WARNING.txt" "installer\dist\release\"
 
-powershell Compress-Archive -Path "installer\dist\release\*" -DestinationPath "installer\dist\PersAcc_Setup_v3.0.zip" -Force
+powershell Compress-Archive -Path "installer\dist\release\*" -DestinationPath "installer\dist\PersAcc_Setup_v3.2.0.zip" -Force
 
 echo.
 echo ===================================================

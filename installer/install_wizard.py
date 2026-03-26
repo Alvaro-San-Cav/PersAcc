@@ -20,7 +20,7 @@ CREATE_NO_WINDOW = 0x08000000
 
 # Constants
 APP_NAME = "PersAcc"
-APP_VERSION = "3.0"
+APP_VERSION = "3.2.0"
 DEFAULT_INSTALL_PATH = os.path.join(os.environ.get('LOCALAPPDATA', 'C:\\Users\\Public'), APP_NAME)
 OLLAMA_URL = "http://localhost:11434"
 

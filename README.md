@@ -301,5 +301,5 @@ This project is licensed under the **Creative Commons Attribution-NonCommercial-
 
 If PersAcc is useful to you, give the repo a star!
 
-**Version**: 3.1  
+**Version**: 3.2.0  
 **Last updated**: March 2026
