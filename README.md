@@ -7,6 +7,16 @@
 [![SQLite](https://img.shields.io/badge/SQLite-3-green.svg)](https://www.sqlite.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-purple.svg)](https://ollama.com/)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
+[![Download Latest Release](https://img.shields.io/badge/Download-Latest%20Release-2ea44f?style=for-the-badge)](https://github.com/Alvaro-San-Cav/PersAcc/releases/latest)
+
+## Download (Windows)
+
+- Latest release page: https://github.com/Alvaro-San-Cav/PersAcc/releases/latest
+- Download one of these assets:
+   - `PersAcc_Installer.exe` (direct installer)
+   - `PersAcc_Setup_<version>.zip` (installer + docs bundle)
+
+If your goal is to install the app quickly on Windows, use the latest release above.
 
 ## What is PersAcc?
 
@@ -46,6 +56,16 @@
 - **Smart Deduplication** - Automatic duplicate detection when importing bank files
 
 ## Quick Start
+
+### Option A: Windows Installer (recommended)
+
+1. Open: https://github.com/Alvaro-San-Cav/PersAcc/releases/latest
+2. Download `PersAcc_Installer.exe` (or `PersAcc_Setup_<version>.zip`)
+3. Run the installer and follow the wizard
+
+See [installer/README_INSTALLER.md](installer/README_INSTALLER.md) for installation details.
+
+### Option B: Run from source
 
 See [**SETUP.md**](SETUP.md) for detailed installation instructions including:
 - Local installation (Python)

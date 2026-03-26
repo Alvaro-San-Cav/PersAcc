@@ -3,6 +3,12 @@
 **Version 3.2.0** | Personal Accounting System  
 © 2026 Alvaro Sanchez Cava
 
+Latest release download: https://github.com/Alvaro-San-Cav/PersAcc/releases/latest
+
+If you opened this file from the repository, go to the Releases page and download:
+- `PersAcc_Installer.exe` (recommended)
+- or `PersAcc_Setup_<version>.zip`
+
 ---
 
 ## 📦 What You've Downloaded
