@@ -900,12 +900,28 @@ exit
 '''
         (target / 'run_persacc.bat').write_text(bat_content, encoding='utf-8')
         
-        # VBS file (silent launcher)
+        # VBS launchers (silent). Keep legacy naming variants for compatibility.
         vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
 WshShell.Run Chr(34) & "{target_str}\\run_persacc.bat" & Chr(34), 0
 Set WshShell = Nothing
 '''
-        (target / 'Run_PersAcc.vbs').write_text(vbs_content, encoding='utf-8')
+        launcher_names = ('Run_PersAcc.vbs', 'Run_Persacc.vbs', 'PersAcc.vbs')
+        for launcher_name in launcher_names:
+            (target / launcher_name).write_text(vbs_content, encoding='utf-8')
+
+        # Compatibility stub for older hardcoded shortcuts pointing to LOCALAPPDATA\PersAcc.
+        default_target = Path(DEFAULT_INSTALL_PATH)
+        try:
+            if default_target.resolve() != target.resolve():
+                default_target.mkdir(parents=True, exist_ok=True)
+                redirect_content = f'''Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run Chr(34) & "{target_str}\\run_persacc.bat" & Chr(34), 0
+Set WshShell = Nothing
+'''
+                (default_target / 'Run_PersAcc.vbs').write_text(redirect_content, encoding='utf-8')
+                (default_target / 'Run_Persacc.vbs').write_text(redirect_content, encoding='utf-8')
+        except Exception as e:
+            self._log(f"[WARN] Could not create compatibility launcher in default path: {e}")
         
         # Uninstaller
         uninstall_content = f'''@echo off
@@ -962,7 +978,21 @@ $Shortcut.Save()
                    command=self._launch_app).pack(side='left', padx=10)
     
     def _launch_app(self):
-        vbs_path = Path(self.install_path.get()) / 'Run_PersAcc.vbs'
+        install_target = Path(self.install_path.get())
+        candidate_paths = [
+            install_target / 'Run_PersAcc.vbs',
+            install_target / 'Run_Persacc.vbs',
+            install_target / 'PersAcc.vbs',
+            Path(DEFAULT_INSTALL_PATH) / 'Run_PersAcc.vbs',
+            Path(DEFAULT_INSTALL_PATH) / 'Run_Persacc.vbs',
+        ]
+
+        vbs_path = next((p for p in candidate_paths if p.exists()), None)
+        if vbs_path is None:
+            messagebox.showerror(self._t('err_title'),
+                                 f"Launcher not found. Expected one of: {', '.join(str(p) for p in candidate_paths)}")
+            return
+
         subprocess.Popen(['wscript.exe', str(vbs_path)])
         self.root.destroy()
 

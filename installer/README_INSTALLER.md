@@ -106,6 +106,14 @@ PersAcc includes AI-powered features for smart search and financial analysis.
 - Right-click the desktop shortcut → **Run as Administrator**
 - Check that Python is installed: Open PowerShell and run `py --version`
 
+### Windows Script Host error (80070002 / Run_PersAcc.vbs not found)
+- This means the shortcut points to a launcher file that does not exist anymore.
+- Re-run `PersAcc_Installer.exe` and install/update PersAcc again (recommended).
+- If needed, delete old shortcut(s) named `PersAcc` from Desktop/Start Menu and create a new one after reinstall.
+- Verify these files exist in your install folder (default `C:\Users\<YourUser>\AppData\Local\PersAcc`):
+   - `run_persacc.bat`
+   - `Run_PersAcc.vbs` (or `Run_Persacc.vbs`)
+
 ### "Port already in use" error
 - Close any other instances of PersAcc
 - Open PowerShell and run:
