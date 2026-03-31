@@ -16,7 +16,7 @@ import streamlit as st
 
 from src.config import load_config
 from src.i18n import t
-from src.database import get_all_categorias, get_all_ledger_entries, insert_ledger_entry
+from src.database import get_all_categorias, get_all_ledger_entries, batch_insert_ledger_entries
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
 from src.business_logic import calcular_mes_fiscal
 from src.ai.file_parser import parse_file, FileType
@@ -125,7 +125,7 @@ def _render_upload_phase():
             value="\n".join(preview_lines),
             height=320,
             disabled=True,
-            key="cd_preview_area",
+            key=f"cd_preview_area_{uploaded.name}",
             label_visibility="collapsed",
         )
         if len(file_text.splitlines()) > 60:
@@ -450,9 +450,9 @@ def _render_save_button(
 
 
 def _save_entries(entries: list[dict], cat_by_name: dict):
-    """Itera las entradas seleccionadas y las graba en el LEDGER."""
-    ok = 0
+    """Convierte las entradas seleccionadas y las graba en el LEDGER en una sola transacción."""
     errors = []
+    ledger_entries = []
 
     progress = st.progress(0, text=t("cargar_datos.saving"))
 
@@ -461,17 +461,24 @@ def _save_entries(entries: list[dict], cat_by_name: dict):
         try:
             ledger_entry = _dict_to_ledger_entry(entry, cat_by_name)
             if ledger_entry:
-                insert_ledger_entry(ledger_entry)
-                ok += 1
+                ledger_entries.append(ledger_entry)
         except Exception as e:
             errors.append(
                 t("cargar_datos.save_error",
                   concepto=entry.get("concepto", "?"),
                   error=str(e))
             )
-            logger.error(f"Error saving entry: {e} — {entry}")
+            logger.error(f"Error converting entry: {e} — {entry}")
 
     progress.empty()
+
+    ok = 0
+    if ledger_entries:
+        try:
+            ok = batch_insert_ledger_entries(ledger_entries)
+        except Exception as e:
+            errors.append(t("cargar_datos.save_error", concepto="batch", error=str(e)))
+            logger.error(f"Batch insert failed: {e}")
 
     if errors:
         for err in errors:
@@ -635,7 +642,7 @@ def _find_best_duplicate(entry: dict, ledger_index: list[dict], cfg: dict) -> Op
 
     amount_tol = max(float(cfg.get("amount_abs_tolerance", 0.01)), 0.0)
     date_window = max(int(cfg.get("date_window_days", 3)), 0)
-    text_thr = float(cfg.get("text_similarity_threshold", 0.86))
+    text_thr = float(cfg.get("text_similarity_threshold", 0.20))
     min_score = float(cfg.get("min_score", 0.82))
     min_rule_hits = int(cfg.get("min_rule_hits", 2))
     same_type_only = bool(cfg.get("same_type_only", True))

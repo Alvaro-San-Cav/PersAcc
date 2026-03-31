@@ -40,6 +40,7 @@ data/*.db-journal
 data/*.db-shm
 data/*.db-wal
 data/.chart_cache/
+data/.disk_cache/
 
 # Temporary Files
 temp_import.csv
@@ -49,6 +50,7 @@ temp_import.csv
 
 # Artifacts (brain directory from AI coding assistant)
 .gemini/
+.claude/
 
 # Legacy Tools
 tools/

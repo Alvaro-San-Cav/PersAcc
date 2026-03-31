@@ -67,6 +67,8 @@
         "retraining": "Entrenando modelos de red neuronal...",
         "retrain_success": "✅ Modelos de red neuronal actualizados correctamente",
         "retrain_info": "Reentrena los modelos cuando tengas nuevos datos. Las redes neuronales capturan patrones más complejos que la regresión lineal.",
+        "btn_recalculate": "🔄 Recalcular",
+        "btn_recalculate_help": "Recalcula todas las proyecciones con los datos actuales (sin reentrenar modelos guardados)",
         "insights": {
             "income_trend_positive": {
                 "title": "Ingresos en crecimiento",
@@ -102,7 +104,9 @@
             },
             "expense_spike": {
                 "title": "Pico en {category}",
-                "message": "{current_amount}€ este mes vs {avg}€ de media ({diff_pct}% más). {context}"
+                "message": "{current_amount}€ este mes vs {avg}€ de media ({diff_pct}% más). {context}",
+                "context_seasonal": "Similar al año pasado (estacional).",
+                "context_yoy": "Un {pct}% más que el año pasado."
             },
             "expense_yoy_increase": {
                 "title": "Subida interanual: {category}",
@@ -182,11 +186,24 @@
         "llm_disabled": "❌ El LLM no está habilitado",
         "ollama_not_running": "❌ Ollama no está corriendo",
         "ollama_hint": "🚀 Inicia Ollama desde: https://ollama.com/download",
-        "analyzing": "✅ Analizando con IA ({model})..."
+        "analyzing": "✅ Analizando con IA ({model})...",
+        "autodetected": "autodetectado",
+        "form_title": "📝 Parámetros",
+        "form_caption": "Revisa y modifica",
+        "form_type_label": "Tipo:",
+        "form_concept_label": "Concepto:",
+        "form_limit_label": "Top:",
+        "tool_by_concept": "Por concepto",
+        "tool_by_category": "Por categoría",
+        "tool_top_expenses": "Mayores gastos",
+        "tool_breakdown": "Desglose",
+        "tool_savings_rate": "Tasa ahorro"
     },
     "consequences": {
         "title": "⚖️ Reglas Consecuencias",
         "info": "Define reglas para aplicar retenciones 'castigo' basadas en tus gastos. Estas retenciones se invertirán automáticamente el mes siguiente.",
+        "not_enabled_hint": "Ve a Configuración para activar esta funcionalidad.",
+        "error_saving": "Error guardando reglas: {error}",
         "table_columns": {
             "name": "Nombre Regla",
             "active": "Activa",
@@ -194,7 +211,8 @@
             "filter_cat": "Filtro Categoría",
             "filter_concept": "Filtro Concepto (contiene)",
             "action_type": "Tipo Acción",
-            "action_value": "Valor"
+            "action_value": "Valor",
+            "action_value_raw": "Valor (número)"
         },
         "action_types": {
             "percent": "% del Gasto",
@@ -640,7 +658,8 @@
                 "type": "Tipo Movimiento",
                 "active": "Activo",
                 "name": "Nombre Categoría",
-                "count": "# Entradas"
+                "count": "# Entradas",
+                "ai_description": "Descripción IA (Opcional)"
             },
             "button": "💾 Guardar Cambios Categorías",
             "processing": "Procesando cambios...",
@@ -654,6 +673,8 @@
         "config": {
             "title": "⚙️ Configuración del Sistema",
             "currency_label": "Seleccionar Divisa",
+            "dark_mode_label": "🌙 Modo oscuro",
+            "dark_mode_help": "Activa el tema oscuro en toda la aplicación",
             "section_features_title": "#### 🛠️ Características / Features",
             "enable_relevance_label": "Habilitar Análisis de Relevancia (NE/LI/SUP/TON)",
             "enable_relevance_help": "Si se desactiva, se ocultarán los campos y gráficos relacionados con la clasificación de gastos por relevancia.",
@@ -671,6 +692,14 @@
             "ollama_detected": "✅ Ollama detectado con {count} modelo(s) disponible(s)",
             "ollama_no_models_warn": "⚠️ Ollama está corriendo pero no hay modelos instalados.",
             "ollama_not_running_err": "❌ Ollama no está corriendo o no está instalado",
+            "llm_model_analysis_title": "**Modelo para Análisis Histórico (Recomendado: Modelos Pesados)**",
+            "llm_model_analysis_label": "Modelo Análisis",
+            "llm_model_chat_title": "**Modelo para Asistente Chat (Recomendado: Modelos Medios/Pesados)**",
+            "llm_model_chat_label": "Modelo Chat",
+            "llm_model_summary_title": "**Modelo para Resúmenes de Dashboard (Recomendado: Modelos Ligeros/Rápidos)**",
+            "llm_model_summary_label": "Modelo Resumen",
+            "llm_model_import_title": "**Modelo para Carga Automática de Ficheros (Recomendado: Modelos Medios/Pesados)**",
+            "llm_model_import_label": "Modelo Importación",
             "section1_title": "#### 📊 Valores por defecto - Cierre de Mes",
             "section1_info": "Estos valores se usarán como predeterminados en el wizard de cierre de mes.",
             "section_bank_title": "#### 🏦 Acceso a Banco",

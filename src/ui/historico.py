@@ -2,8 +2,8 @@
 Página de Histórico Anual - PersAcc
 Renderiza la interfaz de historico.
 """
+import os
 import streamlit as st
-import time
 from datetime import date, datetime
 from collections import defaultdict
 import requests
@@ -15,10 +15,11 @@ from src.database import (
     get_all_categorias, get_ledger_by_month,
     get_ledger_by_year, get_available_years,
     get_ai_analysis, save_ai_analysis,
-    get_period_notes, save_period_notes
+    get_period_notes, save_period_notes,
+    DEFAULT_DB_PATH,
 )
 from src.business_logic import (
-    calcular_kpis, calcular_kpis_anuales, get_word_counts, 
+    calcular_kpis, calcular_kpis_anuales, get_word_counts,
     get_top_entries, calculate_curious_metrics, es_entrada_salario
 )
 from src.config import format_currency, load_config
@@ -26,6 +27,98 @@ from src.i18n import t
 from src.ai.llm_service import (
     is_llm_enabled, get_llm_config, analyze_financial_period
 )
+from src.disk_cache import disk_cache
+
+
+# ---------------------------------------------------------------------------
+# Funciones de construcción de gráficos — cacheadas en memoria y en disco.
+# Reciben datos pre-agregados (tuplas hashables) + db_mtime como cache-buster.
+# ---------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_gastos_cat_donut(sorted_cats: tuple, height: int, db_mtime: float) -> go.Figure:
+    """Donut de gastos por categoría. sorted_cats: ((label, value), ...)."""
+    fig = go.Figure(data=[go.Pie(
+        labels=[x[0] for x in sorted_cats],
+        values=[x[1] for x in sorted_cats],
+        hole=0.4,
+        textinfo='label+percent',
+        textposition='inside',
+        insidetextorientation='radial',
+    )])
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        margin=dict(t=20, b=20, l=20, r=20),
+        height=height,
+        showlegend=False,
+    )
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_quality_donut(items: tuple, height: int, db_mtime: float) -> go.Figure:
+    """Donut de calidad del gasto. items: ((code, value), ...) con códigos NE/LI/SUP/TON."""
+    labels_map = {
+        'NE': t('analisis.spending_quality.labels.necessary'),
+        'LI': t('analisis.spending_quality.labels.like'),
+        'SUP': t('analisis.spending_quality.labels.superfluous'),
+        'TON': t('analisis.spending_quality.labels.nonsense'),
+    }
+    colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
+    fig = go.Figure(data=[go.Pie(
+        labels=[labels_map.get(k, k) for k, _ in items],
+        values=[v for _, v in items],
+        hole=0.5,
+        marker_colors=[colors.get(k, '#888') for k, _ in items],
+    )])
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        height=height,
+    )
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_year_evolution(mes_data_items: tuple, db_mtime: float) -> go.Figure:
+    """Barras agrupadas de evolución mensual. mes_data_items: ((mes, ing, gas, inv), ...)."""
+    meses = [x[0] for x in mes_data_items]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name='Ingresos',  x=meses, y=[x[1] for x in mes_data_items], marker_color='#00c853'))
+    fig.add_trace(go.Bar(name='Gastos',    x=meses, y=[x[2] for x in mes_data_items], marker_color='#ff6b6b'))
+    fig.add_trace(go.Bar(name='Inversión', x=meses, y=[x[3] for x in mes_data_items], marker_color='#448aff'))
+    fig.update_layout(
+        barmode='group',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        height=350,
+    )
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_word_freq(sorted_words: tuple, color_bar: str, db_mtime: float) -> go.Figure:
+    """Barras de frecuencia de palabras. sorted_words: ((word, count), ...)."""
+    fig = go.Figure(data=[go.Bar(
+        x=[w for w, _ in sorted_words],
+        y=[c for _, c in sorted_words],
+        marker_color=color_bar,
+    )])
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        height=350,
+        margin=dict(l=20, r=20, t=20, b=20),
+    )
+    return fig
 
 
 def _get_formatted_month_label(mes_str):
@@ -384,29 +477,11 @@ def render_month_view(entries, mes_sel, anio_sel):
             if e.tipo_movimiento == TipoMovimiento.GASTO:
                 cat_name = cats_dict.get(e.categoria_id, f"Cat {e.categoria_id}")
                 gastos_cat[cat_name] += e.importe
-        
+
         if gastos_cat:
-            sorted_cats = sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True)
-            
-            # Donut Chart igual al del Ledger
-            fig_cat = go.Figure(data=[go.Pie(
-                labels=[x[0] for x in sorted_cats],
-                values=[x[1] for x in sorted_cats],
-                hole=0.4,
-                textinfo='label+percent',
-                textposition='inside',
-                insidetextorientation='radial'
-            )])
-            
-            fig_cat.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font_color='white',
-                margin=dict(t=20, b=20, l=20, r=20),
-                height=350,
-                showlegend=False
-            )
-            st.plotly_chart(fig_cat, use_container_width=True)
+            sorted_cats = tuple(sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True))
+            db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+            st.plotly_chart(_fig_gastos_cat_donut(sorted_cats, 350, db_mtime), use_container_width=True)
             
             # Category Breakdown Table
             st.markdown("##### Desglose por Categoría")
@@ -459,30 +534,21 @@ def render_month_view(entries, mes_sel, anio_sel):
     with col_quality:
         if enable_relevance:
             st.markdown(f"#### {t('historico.overview.spending_quality')}")
-            
-            chart_q_ph = st.empty()
-            chart_q_ph.info("⏳ Renderizando gráfico...")
-            time.sleep(0.05)  # Fuerza flush al frontend
-            
+
             relevancia_data = defaultdict(float)
             for e in entries:
                 if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
                     relevancia_data[e.relevancia_code.value] += e.importe
-            
+
             if relevancia_data:
-                labels_map = {'NE': t('analisis.spending_quality.labels.necessary'), 'LI': t('analisis.spending_quality.labels.like'), 'SUP': t('analisis.spending_quality.labels.superfluous'), 'TON': t('analisis.spending_quality.labels.nonsense')}
-                colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
-                fig_pie = go.Figure(data=[go.Pie(
-                    labels=[labels_map.get(k, k) for k in relevancia_data.keys()],
-                    values=list(relevancia_data.values()),
-                    hole=0.5,
-                    marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
-                )])
-                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=450)
-                chart_q_ph.plotly_chart(fig_pie, use_container_width=True)
+                db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+                st.plotly_chart(
+                    _fig_quality_donut(tuple(relevancia_data.items()), 450, db_mtime),
+                    use_container_width=True,
+                )
             else:
-                chart_q_ph.warning(t('historico.overview.no_quality_data'))
-    
+                st.warning(t('historico.overview.no_quality_data'))
+
     st.markdown("---")
     
     # Tabla de entradas del mes
@@ -637,17 +703,20 @@ def render_year_view(entries, anio_sel):
                 mes_data[mes]["gastos"] += e.importe
             elif e.tipo_movimiento == TipoMovimiento.INVERSION:
                 mes_data[mes]["inversion"] += e.importe
-        
+
         if mes_data:
             meses_ordenados = sorted(mes_data.keys())
-            fig_evo = go.Figure()
-            fig_evo.add_trace(go.Bar(name='Ingresos', x=meses_ordenados, y=[mes_data[m]["ingresos"] for m in meses_ordenados], marker_color='#00c853'))
-            fig_evo.add_trace(go.Bar(name='Gastos', x=meses_ordenados, y=[mes_data[m]["gastos"] for m in meses_ordenados], marker_color='#ff6b6b'))
-            fig_evo.add_trace(go.Bar(name='Inversión', x=meses_ordenados, y=[mes_data[m]["inversion"] for m in meses_ordenados], marker_color='#448aff'))
-            fig_evo.update_layout(barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', height=350)
-            
-            # Mostrar gráfico con event handler para clicks
-            st.plotly_chart(fig_evo, use_container_width=True, key="year_evolution_chart", on_select="rerun")
+            mes_data_items = tuple(
+                (m, mes_data[m]["ingresos"], mes_data[m]["gastos"], mes_data[m]["inversion"])
+                for m in meses_ordenados
+            )
+            db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+            st.plotly_chart(
+                _fig_year_evolution(mes_data_items, db_mtime),
+                use_container_width=True,
+                key="year_evolution_chart",
+                on_select="rerun",
+            )
         else:
             st.info(t('historico.overview.no_monthly_data'))
 
@@ -663,29 +732,11 @@ def render_year_view(entries, anio_sel):
                 if e.tipo_movimiento == TipoMovimiento.GASTO:
                     cat_name = cats_dict.get(e.categoria_id, f"Cat {e.categoria_id}")
                     gastos_cat[cat_name] += e.importe
-            
+
             if gastos_cat:
-                sorted_cats = sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True)
-                
-                # Donut Chart igual al del Ledger
-                fig_cat = go.Figure(data=[go.Pie(
-                    labels=[x[0] for x in sorted_cats],
-                    values=[x[1] for x in sorted_cats],
-                    hole=0.4,
-                    textinfo='label+percent',
-                    textposition='inside',
-                    insidetextorientation='radial'
-                )])
-                
-                fig_cat.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    margin=dict(t=20, b=20, l=20, r=20),
-                    height=400,
-                    showlegend=False
-                )
-                st.plotly_chart(fig_cat, use_container_width=True)
+                sorted_cats = tuple(sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True))
+                db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+                st.plotly_chart(_fig_gastos_cat_donut(sorted_cats, 400, db_mtime), use_container_width=True)
                 
                 # Category Breakdown Table
                 st.markdown("##### Desglose por Categoría")
@@ -738,27 +789,18 @@ def render_year_view(entries, anio_sel):
         with col_quality:
             if enable_relevance:
                 st.markdown(f"#### {t('historico.overview.spending_quality')}")
-                
-                chart_y_ph = st.empty()
-                chart_y_ph.info("⏳ Renderizando gráfico...")
-                time.sleep(0.05)  # Fuerza flush al frontend
-                
+
                 relevancia_data = defaultdict(float)
                 for e in entries:
                     if e.tipo_movimiento == TipoMovimiento.GASTO and e.relevancia_code:
                         relevancia_data[e.relevancia_code.value] += e.importe
-                
+
                 if relevancia_data:
-                    labels_map = {'NE': t('analisis.spending_quality.labels.necessary'), 'LI': t('analisis.spending_quality.labels.like'), 'SUP': t('analisis.spending_quality.labels.superfluous'), 'TON': t('analisis.spending_quality.labels.nonsense')}
-                    colors = {'NE': '#00c853', 'LI': '#448aff', 'SUP': '#ffab00', 'TON': '#ff5252'}
-                    fig_pie = go.Figure(data=[go.Pie(
-                        labels=[labels_map.get(k, k) for k in relevancia_data.keys()],
-                        values=list(relevancia_data.values()),
-                        hole=0.5,
-                        marker_colors=[colors.get(k, '#888') for k in relevancia_data.keys()]
-                    )])
-                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=500)
-                    chart_y_ph.plotly_chart(fig_pie, use_container_width=True)
+                    db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+                    st.plotly_chart(
+                        _fig_quality_donut(tuple(relevancia_data.items()), 500, db_mtime),
+                        use_container_width=True,
+                    )
                     
                     # Stats Mini
                     st.info(t('historico.overview.best_month', month=kpis.get('mejor_mes', 'N/A')))
@@ -800,21 +842,12 @@ def render_year_view(entries, anio_sel):
             
             word_counts = get_word_counts(entries, filter_type=tipo_sel)
             if word_counts:
-                sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:15]
-                words = [w[0] for w in sorted_words]
-                counts = [w[1] for w in sorted_words]
-                
-                fig_words = go.Figure(data=[go.Bar(
-                    x=words, y=counts, marker_color=color_bar
-                )])
-                fig_words.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    height=350,
-                    margin=dict(l=20, r=20, t=20, b=20)
+                sorted_words = tuple(sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:15])
+                db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+                st.plotly_chart(
+                    _fig_word_freq(sorted_words, color_bar, db_mtime),
+                    use_container_width=True,
                 )
-                st.plotly_chart(fig_words, use_container_width=True)
             else:
                 st.info(t('historico.analysis.no_text_data'))
 

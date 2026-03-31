@@ -13,6 +13,7 @@ from src.models import (
     TipoMovimiento, RelevanciaCode,
     Categoria, LedgerEntry, SnapshotMensual, CierreMensual, EstadoCierre
 )
+from src.disk_cache import disk_cache
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,32 @@ def _clear_cache():
                 cache_clear()
 
 
+def _clear_ledger_cache():
+    """Invalida solo las cachés de consultas del LEDGER (más eficiente que _clear_cache)."""
+    for func in (get_ledger_by_month, get_ledger_by_year, get_all_ledger_entries, get_available_years):
+        clear = getattr(func, "clear", None)
+        if callable(clear):
+            clear()
+    if not _streamlit_available:
+        for func in _fallback_cached_functions:
+            cache_clear = getattr(func, "cache_clear", None)
+            if callable(cache_clear):
+                cache_clear()
+
+
+def _clear_category_cache():
+    """Invalida solo las cachés de categorías (más eficiente que _clear_cache)."""
+    for func in (get_all_categorias, get_categorias_by_tipo):
+        clear = getattr(func, "clear", None)
+        if callable(clear):
+            clear()
+    if not _streamlit_available:
+        for func in _fallback_cached_functions:
+            cache_clear = getattr(func, "cache_clear", None)
+            if callable(cache_clear):
+                cache_clear()
+
+
 @contextmanager
 def get_connection(db_path: Path = DEFAULT_DB_PATH):
     """Context manager para conexión SQLite con foreign keys habilitadas."""
@@ -105,11 +132,12 @@ def insert_categoria(categoria: Categoria, db_path: Path = DEFAULT_DB_PATH) -> i
                VALUES (?, ?, ?, ?)""",
             (categoria.nombre, categoria.tipo_movimiento.value, categoria.es_activo, categoria.descripcion_ia)
         )
-        _clear_cache()
+        _clear_category_cache()
         return cursor.lastrowid
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_all_categorias(db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
     """Obtiene todas las categorías activas."""
     with get_connection(db_path) as conn:
@@ -129,6 +157,7 @@ def get_all_categorias(db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_categorias_by_tipo(tipo: TipoMovimiento, db_path: Path = DEFAULT_DB_PATH) -> List[Categoria]:
     """Obtiene categorías filtradas por tipo de movimiento."""
     with get_connection(db_path) as conn:
@@ -173,7 +202,9 @@ def update_categoria(id: int, nuevo_nombre: str, nuevo_tipo: Optional[TipoMovimi
                 "UPDATE LEDGER SET tipo_movimiento = ? WHERE categoria_id = ?",
                 (nuevo_tipo.value, id)
             )
-        _clear_cache()
+        if nuevo_tipo:
+            _clear_ledger_cache()
+        _clear_category_cache()
 
 
 def get_category_counts(db_path: Path = DEFAULT_DB_PATH) -> dict[int, int]:
@@ -192,7 +223,7 @@ def delete_categoria(id: int, db_path: Path = DEFAULT_DB_PATH):
     """
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM CAT_MAESTROS WHERE id = ?", (id,))
-        _clear_cache()
+        _clear_category_cache()
 
 
 def deactivate_categoria(id: int, db_path: Path = DEFAULT_DB_PATH):
@@ -202,7 +233,7 @@ def deactivate_categoria(id: int, db_path: Path = DEFAULT_DB_PATH):
     """
     with get_connection(db_path) as conn:
         conn.execute("UPDATE CAT_MAESTROS SET es_activo = 0 WHERE id = ?", (id,))
-        _clear_cache()
+        _clear_category_cache()
 
 
 def get_category_usage_stats(tipo_movimiento: TipoMovimiento, target_month: int, current_year: int, db_path: Path = DEFAULT_DB_PATH) -> dict:
@@ -275,15 +306,46 @@ def insert_ledger_entry(entry: LedgerEntry, db_path: Path = DEFAULT_DB_PATH) -> 
                 entry.flag_liquidez
             )
         )
-        _clear_cache()
+        _clear_ledger_cache()
         return cursor.lastrowid
+
+
+def batch_insert_ledger_entries(entries: List[LedgerEntry], db_path: Path = DEFAULT_DB_PATH) -> int:
+    """
+    Inserta múltiples entradas en el ledger en una sola transacción.
+    Limpia la caché una única vez al finalizar.
+    Retorna el número de entradas insertadas correctamente.
+    """
+    inserted = 0
+    with get_connection(db_path) as conn:
+        for entry in entries:
+            conn.execute(
+                """INSERT INTO LEDGER
+                   (fecha_real, fecha_contable, mes_fiscal, tipo_movimiento,
+                    categoria_id, relevancia_code, concepto, importe, flag_liquidez)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entry.fecha_real.isoformat(),
+                    entry.fecha_contable.isoformat(),
+                    entry.mes_fiscal,
+                    entry.tipo_movimiento.value,
+                    entry.categoria_id,
+                    entry.relevancia_code.value if entry.relevancia_code else None,
+                    entry.concepto,
+                    entry.importe,
+                    entry.flag_liquidez
+                )
+            )
+            inserted += 1
+    _clear_ledger_cache()
+    return inserted
 
 
 def delete_ledger_entry(entry_id: int, db_path: Path = DEFAULT_DB_PATH):
     """Elimina una entrada del libro diario por su ID."""
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM LEDGER WHERE id = ?", (entry_id,))
-        _clear_cache()
+        _clear_ledger_cache()
 
 
 def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe: float, relevancia_code: str = None, db_path: Path = DEFAULT_DB_PATH):
@@ -312,10 +374,11 @@ def update_ledger_entry(entry_id: int, categoria_id: int, concepto: str, importe
                WHERE id = ?""",
             (categoria_id, concepto, importe, relevancia_code, entry_id)
         )
-        _clear_cache()
+        _clear_ledger_cache()
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_ledger_by_month(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas de un mes fiscal específico."""
     with get_connection(db_path) as conn:
@@ -329,6 +392,7 @@ def get_ledger_by_month(mes_fiscal: str, db_path: Path = DEFAULT_DB_PATH) -> Lis
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_ledger_by_year(anio: int, db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas de un año específico."""
     with get_connection(db_path) as conn:
@@ -342,6 +406,7 @@ def get_ledger_by_year(anio: int, db_path: Path = DEFAULT_DB_PATH) -> List[Ledge
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_all_ledger_entries(db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:
     """Obtiene todas las entradas del libro diario."""
     with get_connection(db_path) as conn:
@@ -352,6 +417,7 @@ def get_all_ledger_entries(db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]
 
 
 @cache_data(show_spinner=False)
+@disk_cache()
 def get_available_years(db_path: Path = DEFAULT_DB_PATH) -> List[int]:
     """Obtiene lista de años con datos en el LEDGER."""
     with get_connection(db_path) as conn:

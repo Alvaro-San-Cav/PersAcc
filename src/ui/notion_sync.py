@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from datetime import date
 
 from src.models import TipoMovimiento, RelevanciaCode, LedgerEntry
-from src.database import get_categorias_by_tipo, insert_ledger_entry, is_mes_cerrado
+from src.database import get_categorias_by_tipo, batch_insert_ledger_entries, is_mes_cerrado
 from src.business_logic import calcular_fecha_contable, calcular_mes_fiscal
 
 
@@ -187,35 +187,26 @@ def _import_entries_to_db(entries: List[Dict[str, Any]]) -> tuple[int, List[str]
     Retorna (cantidad importada, lista de errores).
     """
     from src.integrations.notion import get_notion_client
-    
+
     client = get_notion_client()
-    imported = 0
     errors = []
-    
+    ledger_entries = []
+    notion_ids_to_delete = []
+
+    # Fase 1: convertir entradas (sin tocar DB ni Notion todavía)
     for entry in entries:
         try:
-            # Validar datos mínimos
             if not entry.get('categoria_id'):
                 errors.append(f"'{entry['concepto']}': {t('notion.error_no_category')}")
                 continue
-            
-            # Verificar si el mes está cerrado y ajustar fecha si es necesario
-            fecha_original = entry['fecha']
-            fecha_ajustada = _get_next_open_month_date(fecha_original)
-            
-            # Si la fecha cambió, significa que el mes original estaba cerrado
-            # (No mostramos aviso aquí para mantener UX limpia y no repetir mensajes por entrada.)
-            
-            # Crear LedgerEntry con la fecha ajustada
-            fecha_contable = calcular_fecha_contable(
-                fecha_ajustada,
-                entry['tipo_movimiento']
-            )
+
+            fecha_ajustada = _get_next_open_month_date(entry['fecha'])
+            fecha_contable = calcular_fecha_contable(fecha_ajustada, entry['tipo_movimiento'])
             mes_fiscal = calcular_mes_fiscal(fecha_contable)
-            
-            ledger_entry = LedgerEntry(
+
+            ledger_entries.append(LedgerEntry(
                 id=None,
-                fecha_real=fecha_ajustada,  # Usar fecha ajustada
+                fecha_real=fecha_ajustada,
                 fecha_contable=fecha_contable,
                 mes_fiscal=mes_fiscal,
                 tipo_movimiento=entry['tipo_movimiento'],
@@ -224,20 +215,29 @@ def _import_entries_to_db(entries: List[Dict[str, Any]]) -> tuple[int, List[str]
                 importe=entry['importe'],
                 relevancia_code=entry['relevancia_code'],
                 flag_liquidez=False
-            )
-            
-            # Insertar en DB
-            insert_ledger_entry(ledger_entry)
-            
-            # Eliminar de Notion
+            ))
             if entry.get('notion_id'):
-                client.delete_entry(entry['notion_id'])
-            
-            imported += 1
-            
+                notion_ids_to_delete.append(entry['notion_id'])
+
         except Exception as e:
             errors.append(f"'{entry['concepto']}': {str(e)}")
-    
+
+    # Fase 2: insertar todas en DB en una sola transacción (una sola invalidación de caché)
+    imported = 0
+    if ledger_entries:
+        try:
+            imported = batch_insert_ledger_entries(ledger_entries)
+        except Exception as e:
+            errors.append(str(e))
+            return imported, errors
+
+    # Fase 3: eliminar de Notion solo si la inserción en DB fue exitosa
+    for notion_id in notion_ids_to_delete:
+        try:
+            client.delete_entry(notion_id)
+        except Exception as e:
+            errors.append(f"Notion delete {notion_id}: {str(e)}")
+
     return imported, errors
 
 

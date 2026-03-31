@@ -7,56 +7,126 @@ import json
 import re
 import unicodedata
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from difflib import SequenceMatcher
 from collections import defaultdict
 
 from src.i18n import t
-from src.ai.llm_service import is_llm_enabled, get_llm_config
+from src.ai.llm_service import is_llm_enabled, get_llm_config, get_ollama_urls
 from src.database import get_all_ledger_entries, get_all_categorias
 from src.models import TipoMovimiento
 from src.config import format_currency
 from src.constants import STOPWORDS_ES
 
 
+def _validate_and_normalize_params(tool_name: str, params: dict, query: str) -> Tuple[dict, list]:
+    """
+    Valida y normaliza los parámetros extraídos por el LLM.
+
+    Returns:
+        (validated_params, error_list)
+    """
+    errors = []
+    validated = dict(params)
+    now = datetime.now()
+
+    # --- Validar año ---
+    year = validated.get('year')
+    if year is not None:
+        try:
+            year = int(year)
+            if year > now.year:
+                errors.append(t('llm.future_year_error', year=year, current_year=now.year))
+                validated.pop('year', None)
+            elif year < 2000:
+                errors.append(t('llm.past_year_error', year=year, current_year=now.year))
+                validated.pop('year', None)
+            else:
+                validated['year'] = year
+        except (ValueError, TypeError):
+            validated.pop('year', None)
+
+    # --- Validar mes ---
+    month = validated.get('month')
+    if month is not None:
+        try:
+            month = int(month)
+            if not (1 <= month <= 12):
+                errors.append(t('llm.invalid_month', month=month))
+                validated.pop('month', None)
+            else:
+                validated['month'] = month
+        except (ValueError, TypeError):
+            validated.pop('month', None)
+
+    # --- Validaciones específicas por herramienta ---
+    if tool_name == 'search_expenses_by_concept':
+        concept = validated.get('concept', '').strip()
+        if not concept:
+            errors.append(t('llm.rephrase'))
+        elif len(concept) < 2:
+            errors.append(t('llm.concept_short', concept=concept))
+        else:
+            validated['concept'] = concept
+
+    elif tool_name == 'search_expenses_by_category':
+        cat = validated.get('category_name', '').strip()
+        if not cat:
+            errors.append(t('llm.rephrase'))
+        else:
+            validated['category_name'] = cat
+
+    elif tool_name == 'get_top_expenses':
+        limit = validated.get('limit', 10)
+        try:
+            limit = int(limit)
+            if limit <= 0:
+                errors.append(t('llm.limit_invalid', limit=limit))
+                validated['limit'] = 10
+            elif limit > 100:
+                errors.append(t('llm.limit_adjusted', limit=limit))
+                validated['limit'] = 100
+            else:
+                validated['limit'] = limit
+        except (ValueError, TypeError):
+            validated['limit'] = 10
+
+    return validated, errors
+
+
 def render_chat_search():
     """Renderiza el Asistente de Búsqueda con formulario editable."""
     st.markdown(f'<div class="main-header"><h1>{t("chat_search.title")}</h1></div>', unsafe_allow_html=True)
     st.markdown(f"*{t('chat_search.subtitle')}*")
-    
+
     if not is_llm_enabled():
         st.warning(t("chat_search.llm_not_configured"))
         return
-    
+
     llm_config = get_llm_config()
-    # El modelo se guarda directamente como nombre en config.json
     target_model = llm_config.get('model_chat', llm_config.get('model_tier', 'phi3'))
-        
-    # 2. Verificar disponibilidad real usando helper centralizado
+
     from src.ai.llm_service import _resolve_model_name
-    
     final_model_name = _resolve_model_name(target_model)
     is_autodetected = final_model_name and final_model_name != target_model and (target_model not in final_model_name)
-    
+
     if not final_model_name:
         st.error(t('chat_search.ollama_not_running'))
         return
 
-    # Mostrar en UI
     display_text = final_model_name
     if is_autodetected:
         display_text += f" ({t('chat_search.autodetected')})"
-        
+
     st.caption(t("chat_search.active_model", model=display_text))
-    
+
     if 'search_params' not in st.session_state:
         st.session_state.search_params = None
     if 'search_results' not in st.session_state:
         st.session_state.search_results = None
-    
+
     st.markdown("---")
-    
-    # Input + Analizar
+
     col1, col2 = st.columns([5, 1])
     with col1:
         query = st.text_input("🔍", placeholder=t("chat_search.input_placeholder"), key="q_in", label_visibility="collapsed")
@@ -65,57 +135,55 @@ def render_chat_search():
         if st.button(t("chat_search.analyze_button"), use_container_width=True, type="primary") and query:
             with st.spinner(t("chat_search.thinking")):
                 _extract_params(query, final_model_name)
-    
+
     st.markdown("---")
-    
-    # Formulario
+
     if st.session_state.search_params:
         _render_form()
-    
-    # Resultados (con verificación de seguridad antes de renderizar)
+
     if st.session_state.search_results:
         st.markdown(f"### {t('chat_search.results_title')}")
         if st.button(t('chat_search.new_search')):
             st.session_state.search_params = None
             st.session_state.search_results = None
             st.rerun()
-        # Asegurar que 'result' existe antes de mostrar
         if isinstance(st.session_state.search_results, dict) and 'result' in st.session_state.search_results:
-             st.markdown(st.session_state.search_results['result'])
+            st.markdown(st.session_state.search_results['result'])
 
 
 def _extract_params(query, model_name=None):
-    """Extrae parámetros usando LLM con prompt específico (sin librería ollama)."""
+    """Extrae parámetros usando LLM con prompt específico."""
     try:
         import requests
-        from src.ai.llm_service import is_llm_enabled, get_llm_config, check_ollama_running, _validate_and_normalize_params, get_current_season
-        
-        # 1. Verificaciones previas
+        from src.ai.llm_service import (
+            is_llm_enabled, get_llm_config, check_ollama_running,
+            get_current_season, get_ollama_urls,
+        )
+
         if not is_llm_enabled():
             st.error(t('chat_search.llm_disabled'))
             return
-        
+
         if not check_ollama_running():
             st.error(t('chat_search.ollama_not_running'))
             st.info(t('chat_search.ollama_hint'))
             return
-            
+
         if not model_name:
             llm_config = get_llm_config()
             model_name = llm_config.get('model_chat', llm_config.get('model_tier', 'phi3'))
-        
+
         st.success(t('chat_search.analyzing', model=model_name))
-        
-        # 2. Construir Prompt Robusto
+
         tools_spec = [
-            {"name": "search_expenses_by_concept", "desc": "Buscar gastos por texto/concepto (ej: 'gastos en mery', 'compras en zara'). Params: concept (string), year (int), month (int/string)"},
-            {"name": "search_expenses_by_category", "desc": "Buscar por categoría (ej: 'transporte', 'restaurantes'). Params: category_name (string), year (int), month (int)"},
+            {"name": "search_expenses_by_concept", "desc": "Buscar gastos por texto/concepto. Params: concept (string), year (int), month (int)"},
+            {"name": "search_expenses_by_category", "desc": "Buscar por categoría. Params: category_name (string), year (int), month (int)"},
             {"name": "get_top_expenses", "desc": "Ver gastos más grandes. Params: limit (int), year (int), month (int)"},
         ]
-        
+
         now = datetime.now()
         season = get_current_season()
-        
+
         system_prompt = f"""Eres un experto en extracción de datos financieros. Tu trabajo es convertir la pregunta del usuario en un objeto JSON.
 
 FECHA ACTUAL: {now.strftime('%Y-%m-%d')} (Mes: {now.month}, Año: {now.year}, Estación: {season})
@@ -125,10 +193,9 @@ HERRAMIENTAS DISPONIBLES:
 
 REGLAS CRÍTICAS:
 1. Retorna SOLO un JSON válido. Nada más.
-2. Para 'search_expenses_by_concept': en el campo 'concept', extrae SOLO el nombre clave. Elimina preposiciones como "en", "de", "para", "el". 
-   Ejemplo: "gasto en mery" -> concept: "mery" (NO "mery en").
-   Ejemplo: "comida en burger king" -> concept: "burger king".
-   Ejemplo: "cuanto me deje en mery en febrero" -> concept: "mery".
+2. Para 'search_expenses_by_concept': en el campo 'concept', extrae SOLO el nombre clave. Elimina preposiciones como "en", "de", "para", "el".
+   Ejemplo: "gasto en mery" -> concept: "mery"
+   Ejemplo: "comida en burger king" -> concept: "burger king"
 3. Fechas:
    - "año pasado" -> year: {now.year - 1}
    - "mes pasado" -> month: {now.month - 1 if now.month > 1 else 12}, year: {now.year if now.month > 1 else now.year - 1}
@@ -145,66 +212,59 @@ FORMATO RESPUESTA:
   }}
 }}
 """
-        
-        # Para Qwen3: añadir /no_think para desactivar modo pensamiento
-        user_content = query
-        if 'qwen3' in model_name.lower() or 'qwen' in model_name.lower():
-            user_content = query + " /no_think"
-        
-        # 3. Llamada directa a API Ollama (sin librería externa)
+
+        is_qwen = 'qwen' in model_name.lower()
+
         payload = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
+                {"role": "user", "content": query}
             ],
             "stream": False,
             "format": "json",
             "options": {"temperature": 0.1}
         }
-        
+
+        # Desactivar modo pensamiento para modelos Qwen usando el parámetro estándar
+        if is_qwen:
+            payload["think"] = False
+
         try:
-            response = requests.post("http://localhost:11434/api/chat", json=payload, timeout=120)
+            urls = get_ollama_urls()
+            response = requests.post(urls["chat"], json=payload, timeout=120)
             response.raise_for_status()
             result = response.json()
             content = result.get('message', {}).get('content', '{}')
-            
-            # Limpiar tags de think (para modelos como qwen3 / deepseek-r1)
+
+            # Limpiar tags de think si el modelo los emite igualmente
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
-            
-            # Limpiar respuesta (algunos modelos añaden texto antes/después del JSON)
-            content = content.strip()
-            
-            # Intentar encontrar JSON si hay texto envolvente
+
             if not content.startswith('{'):
                 json_match = re.search(r'\{[^{}]*"tool"[^{}]*\}', content, re.DOTALL)
                 if json_match:
                     content = json_match.group(0)
-            
-            # Debug: mostrar respuesta raw si falla
+
             try:
                 data = json.loads(content)
             except json.JSONDecodeError as je:
                 st.warning(f"Respuesta del modelo (no es JSON válido): {content[:200]}...")
                 st.error(f"Error parseando JSON: {je}")
                 return
-            
+
             tool_name = data.get('tool')
             params = data.get('params', {})
-            
-            # Normalizar mes robustamente para evitar filtros vacíos por tipo/string.
+
+            # Normalizar mes: acepta entero, float o nombre en ES/EN
             month_raw = params.get('month')
             if isinstance(month_raw, str):
                 month_raw = month_raw.strip().lower()
                 month_map = {
-                    # ES
                     "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
                     "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10,
                     "noviembre": 11, "diciembre": 12,
-                    # EN
                     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
                     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
-                    # abreviaturas
                     "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8,
                     "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
                 }
@@ -219,7 +279,7 @@ FORMATO RESPUESTA:
 
             if 'month' in params and not (1 <= int(params['month']) <= 12):
                 params.pop('month', None)
-            
+
         except requests.exceptions.Timeout:
             st.error("⏱️ Timeout: El modelo tardó demasiado. Intenta con una consulta más simple.")
             return
@@ -230,22 +290,21 @@ FORMATO RESPUESTA:
         if not tool_name:
             st.error("❌ El modelo no identificó la herramienta")
             return
-            
-        # 4. Validar y Guardar
+
         validated, errors = _validate_and_normalize_params(tool_name, params, query)
-        
+
         st.session_state.search_params = {
-            'tool': tool_name, 
-            'params': validated, 
-            'query': query, 
+            'tool': tool_name,
+            'params': validated,
+            'query': query,
             'errors': errors
         }
-        
+
         if errors:
             st.warning(" | ".join(errors))
         else:
             st.success(f"✅ Interpretación: {tool_name}")
-        
+
         st.rerun()
 
     except Exception as e:
@@ -256,23 +315,28 @@ FORMATO RESPUESTA:
 
 def _render_form():
     """Renderiza formulario editable."""
-    st.markdown("### 📝 Parámetros")
-    st.caption("Revisa y modifica")
+    st.markdown(f"### {t('chat_search.form_title')}")
+    st.caption(t('chat_search.form_caption'))
     p = st.session_state.search_params
-    tool_map = {"search_expenses_by_concept": "Por concepto", "search_expenses_by_category": "Por categoría",
-                "get_top_expenses": "Mayores gastos", "get_category_breakdown": "Desglose", "get_savings_rate": "Tasa ahorro"}
+
+    tool_map = {
+        "search_expenses_by_concept": t('chat_search.tool_by_concept'),
+        "search_expenses_by_category": t('chat_search.tool_by_category'),
+        "get_top_expenses": t('chat_search.tool_top_expenses'),
+        "get_category_breakdown": t('chat_search.tool_breakdown'),
+        "get_savings_rate": t('chat_search.tool_savings_rate'),
+    }
     idx = list(tool_map.keys()).index(p['tool']) if p['tool'] in tool_map else 0
-    
+
     with st.form("form"):
-        tipo = st.selectbox("Tipo:", list(tool_map.values()), index=idx)
+        tipo = st.selectbox(t('chat_search.form_type_label'), list(tool_map.values()), index=idx)
         col1, col2 = st.columns(2)
         val, lim = None, 10
         with col1:
-            if tipo == "Por concepto":
-                val = st.text_input("Concepto:", p['params'].get('concept', ''))
-            elif tipo == "Por categoría":
+            if tipo == t('chat_search.tool_by_concept'):
+                val = st.text_input(t('chat_search.form_concept_label'), p['params'].get('concept', ''))
+            elif tipo == t('chat_search.tool_by_category'):
                 cats = [c.nombre for c in get_all_categorias() if c.tipo_movimiento == TipoMovimiento.GASTO]
-                # Buscar índice por nombre (case insensitive)
                 cat_idx = 0
                 extracted_cat = p['params'].get('category_name', '').lower()
                 if extracted_cat:
@@ -281,35 +345,33 @@ def _render_form():
                             cat_idx = i
                             break
                 val = st.selectbox(t('chat_search.category_label'), cats, index=cat_idx)
-            elif tipo == "Mayores gastos":
-                lim = st.number_input("Top:", value=p['params'].get('limit', 10), min_value=1)
+            elif tipo == t('chat_search.tool_top_expenses'):
+                lim = st.number_input(t('chat_search.form_limit_label'), value=p['params'].get('limit', 10), min_value=1)
         with col2:
             yr = st.number_input(t('chat_search.year_label'), value=p['params'].get('year', 0), min_value=0, max_value=datetime.now().year)
-            # Lista de meses con fallback
             meses = t('chat_search.months')
             if not meses or not isinstance(meses, list) or len(meses) == 0:
-                meses = ["Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                meses = ["Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                          "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-            # Asegurar que el índice sea un entero válido dentro del rango
             try:
                 mes_idx = int(p['params'].get('month', 0) or 0)
             except (ValueError, TypeError):
                 mes_idx = 0
             mes_idx = max(0, min(mes_idx, len(meses) - 1))
             mes = st.selectbox(t('chat_search.month_label'), meses, index=mes_idx)
-        
+
         if st.form_submit_button(t('chat_search.execute_button'), use_container_width=True, type="primary"):
             tool = {v: k for k, v in tool_map.items()}[tipo]
             params = {}
-            if tipo == "Por concepto" and val:
+            if tipo == t('chat_search.tool_by_concept') and val:
                 params['concept'] = val
-            elif tipo == "Por categoría" and val:
+            elif tipo == t('chat_search.tool_by_category') and val:
                 params['category_name'] = val
-            elif tipo == "Mayores gastos":
+            elif tipo == t('chat_search.tool_top_expenses'):
                 params['limit'] = lim
             if yr > 0:
                 params['year'] = yr
-            if mes != meses[0]:  # Check against "All"/"Todos" dynamically
+            if mes != meses[0]:
                 params['month'] = meses.index(mes)
             _execute(tool, params)
 
@@ -317,14 +379,18 @@ def _render_form():
 def _execute(tool, params):
     """Ejecuta búsqueda."""
     with st.spinner("🔍 Buscando..."):
-        funcs = {"search_expenses_by_concept": search_expenses_by_concept, "search_expenses_by_category": search_expenses_by_category,
-                 "get_top_expenses": get_top_expenses, "get_category_breakdown": get_category_breakdown, "get_savings_rate": get_savings_rate}
+        funcs = {
+            "search_expenses_by_concept": search_expenses_by_concept,
+            "search_expenses_by_category": search_expenses_by_category,
+            "get_top_expenses": get_top_expenses,
+            "get_category_breakdown": get_category_breakdown,
+            "get_savings_rate": get_savings_rate,
+        }
         try:
             tool_fn = funcs.get(tool)
             if tool_fn is None:
                 st.error(f"Herramienta no soportada: {tool}")
                 return
-
             result = tool_fn(**params)
             st.session_state.search_results = {'tool': tool, 'params': params, 'result': result, 'ts': datetime.now()}
             st.rerun()
@@ -338,7 +404,7 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
     """Busca gastos por concepto con fuzzy matching."""
     entries = get_all_ledger_entries()
     cats_dict = {c.id: c.nombre for c in get_all_categorias()}
-    
+
     def normalize_text(text: str) -> str:
         if not text:
             return ""
@@ -356,34 +422,33 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
                         break
             stemmed.append(word)
         return ' '.join(stemmed)
-    
+
     def tokenize(text: str) -> list:
         normalized_stop_words = {normalize_text(w) for w in STOPWORDS_ES if w}
         words = normalize_text(text).split()
         return [w for w in words if w not in normalized_stop_words and len(w) > 1]
-    
+
     def fuzzy_match(word1: str, word2: str, threshold: float = 0.75) -> bool:
         if word1 == word2:
             return True
         if word1 in word2 or word2 in word1:
             return True
-        similarity = SequenceMatcher(None, word1, word2).ratio()
-        return similarity >= threshold
-    
+        return SequenceMatcher(None, word1, word2).ratio() >= threshold
+
     keywords = tokenize(concept)
     if year:
         keywords = [w for w in keywords if w != str(year)]
     if not keywords:
         keywords = [normalize_text(concept)]
-    
+
     st.toast(f"🔎 Búsqueda: {', '.join(keywords)}")
-    
+
     expenses = [e for e in entries if e.tipo_movimiento == TipoMovimiento.GASTO]
     if year:
         expenses = [e for e in expenses if e.fecha_real.year == year]
     if month:
         expenses = [e for e in expenses if e.fecha_real.month == month]
-    
+
     matching = []
     for e in expenses:
         if not e.concepto:
@@ -391,21 +456,17 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
         entry_normalized = normalize_text(e.concepto)
         if all(kw in entry_normalized for kw in keywords):
             matching.append((e, 1.0))
-    
+
     if not matching:
         for e in expenses:
             if not e.concepto:
                 continue
             entry_words = tokenize(e.concepto)
-            fuzzy_matches = 0
-            for kw in keywords:
-                if any(fuzzy_match(kw, entry_word) for entry_word in entry_words):
-                    fuzzy_matches += 1
+            fuzzy_matches = sum(1 for kw in keywords if any(fuzzy_match(kw, ew) for ew in entry_words))
             if fuzzy_matches > 0:
-                score = fuzzy_matches / len(keywords)
-                matching.append((e, score))
+                matching.append((e, fuzzy_matches / len(keywords)))
         matching = sorted(matching, key=lambda x: x[1], reverse=True)
-    
+
     if not matching:
         for e in expenses:
             if not e.concepto:
@@ -415,28 +476,25 @@ def search_expenses_by_concept(concept: str, year: int = None, month: int = None
             if match_count > 0:
                 matching.append((e, match_count / len(keywords)))
         matching = sorted(matching, key=lambda x: x[1], reverse=True)
-    
+
     if not matching:
         sample_concepts = list(set([e.concepto[:30] for e in expenses if e.concepto]))[:5]
-        hint = ""
-        if sample_concepts:
-            hint = f"\n\nAlgunos conceptos disponibles: {', '.join(sample_concepts)}"
+        hint = f"\n\nAlgunos conceptos disponibles: {', '.join(sample_concepts)}" if sample_concepts else ""
         return f"No se encontraron gastos similares a '{concept}'{hint}"
-    
+
     matched_entries = [entry for entry, score in matching]
     total = sum(e.importe for e in matched_entries)
-    
-    # Construir tabla markdown
+
     result = f"### Encontrados {len(matched_entries)} gastos con '{concept}'\n\n"
     result += f"**💰 Total: {format_currency(total)}**\n\n"
     result += "| Fecha | Concepto | Importe | Categoría |\n"
     result += "|-------|----------|---------|----------|\n"
-    
+
     for e in sorted(matched_entries, key=lambda x: x.importe, reverse=True):
         cat_name = cats_dict.get(e.categoria_id, "Sin categoría")
         concepto_truncado = e.concepto[:40] + "..." if len(e.concepto) > 40 else e.concepto
         result += f"| {e.fecha_real.strftime('%d/%m/%Y')} | {concepto_truncado} | {format_currency(e.importe)} | {cat_name} |\n"
-    
+
     return result
 
 
@@ -502,8 +560,7 @@ def get_category_breakdown(year: int = None, month: int = None) -> str:
         return "No se encontraron gastos"
     by_cat = defaultdict(float)
     for e in expenses:
-        cat_name = cats_dict.get(e.categoria_id, "Sin categoría")
-        by_cat[cat_name] += e.importe
+        by_cat[cats_dict.get(e.categoria_id, "Sin categoría")] += e.importe
     sorted_cats = sorted(by_cat.items(), key=lambda x: x[1], reverse=True)
     total = sum(by_cat.values())
     period = ""

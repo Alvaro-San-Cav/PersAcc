@@ -36,6 +36,7 @@ def get_ollama_urls():
     base_url = config.get("base_url", "http://localhost:11434").rstrip("/")
     return {
         "api": f"{base_url}/api/generate",
+        "chat": f"{base_url}/api/chat",
         "tags": f"{base_url}/api/tags"
     }
 
@@ -450,7 +451,10 @@ def analyze_financial_period(
             
             return text
         else:
-            error_msg = response.json().get("error", "Unknown error")
+            try:
+                error_msg = response.json().get("error", "Unknown error")
+            except ValueError:
+                error_msg = response.text.strip() or "Unknown error"
             logger.error(f"Ollama API error (status {response.status_code}): {error_msg}")
             raise Exception(f"Ollama API error: {error_msg}")
             
@@ -690,10 +694,16 @@ def classify_bank_transactions(
 
     categorias_text = "\n".join(f"- {c}" for c in categorias)
 
+    MAX_CONTENT_CHARS = 8000
+    if len(text_content) > MAX_CONTENT_CHARS:
+        logger.warning(
+            f"classify_bank_transactions: content truncated from {len(text_content)} to "
+            f"{MAX_CONTENT_CHARS} chars. Some transactions at the end of the file may be skipped."
+        )
     prompt = template.format(
         categorias=categorias_text,
         output_schema=llm_prompts.IMPORT_OUTPUT_SCHEMA,
-        contenido=text_content[:8000]  # Limit to avoid context overflow
+        contenido=text_content[:MAX_CONTENT_CHARS]
     )
 
     logger.info(f"classify_bank_transactions: model={model_name}, file_type={file_type}, prompt_len={len(prompt)}")

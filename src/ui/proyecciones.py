@@ -53,7 +53,7 @@ def render_proyecciones():
     # Botón para recalcular proyecciones (limpia todas las cachés de proyección).
     col_refresh, _ = st.columns([1, 4])
     with col_refresh:
-        if st.button("🔄 Recalcular", help="Recalcula todas las proyecciones con los datos actuales (sin reentrenar modelos guardados)"):
+        if st.button(t("proyecciones.btn_recalculate"), help=t("proyecciones.btn_recalculate_help")):
             # Limpiar caché de session_state
             keys_to_delete = [k for k in st.session_state.keys() if k.startswith('projections_')]
             for k in keys_to_delete:
@@ -379,7 +379,7 @@ def _create_investment_chart(data: dict, current_year: int) -> go.Figure:
             x=years,
             y=trend_values,
             mode='lines',
-            name='Tendencia',
+            name=t('proyecciones.trend'),
             line=dict(color='#ff6b6b', width=2, dash='dot')
         ))
     

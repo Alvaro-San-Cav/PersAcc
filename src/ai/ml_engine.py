@@ -571,9 +571,9 @@ def generate_insights() -> List[Dict]:
                 if last_year_amount > 0:
                     yoy_diff = ((current_amount - last_year_amount) / last_year_amount) * 100
                     if abs(yoy_diff) < 20:
-                        context = "Similar al año pasado (estacional)."
+                        context = t('proyecciones.insights.expense_spike.context_seasonal')
                     elif yoy_diff > 20:
-                        context = f"Un {yoy_diff:.0f}% más que el año pasado."
+                        context = t('proyecciones.insights.expense_spike.context_yoy', pct=f"{yoy_diff:.0f}")
             
             spike_insights.append({
                 'type': 'info',

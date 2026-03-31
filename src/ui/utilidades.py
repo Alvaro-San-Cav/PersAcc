@@ -228,7 +228,9 @@ def _render_cleanup_tab():
             
             # Regenerar categorías por defecto
             setup_script = Path("scripts") / "setup_db.py"
-            subprocess.run([sys.executable, str(setup_script)], cwd=str(DEFAULT_DB_PATH.parent.parent), capture_output=True)
+            result = subprocess.run([sys.executable, str(setup_script)], cwd=str(DEFAULT_DB_PATH.parent.parent), capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error(f"setup_db.py failed: {result.stderr}")
             
             st.session_state['delete_success'] = t('utilidades.cleanup.option2_success')
             st.rerun()
@@ -359,7 +361,7 @@ def _render_consequences_tab():
     
     if not config_data.get('enable_consequences', False):
         st.warning(f"⚠️ {t('utilidades.config.enable_consequences_help')}")
-        st.info("Ve a Configuración para activar esta funcionalidad.")
+        st.info(t('consequences.not_enabled_hint'))
         return
     
     rules = config_data.get('consequences_rules', [])
@@ -406,7 +408,7 @@ def _render_consequences_tab():
             options=["percent", "fixed"], required=True, width="small", default="percent"
         ),
         "action_value": st.column_config.NumberColumn(
-            "Valor (número)", min_value=0.0, step=0.1, required=True, width="small"
+            t('consequences.table_columns.action_value_raw'), min_value=0.0, step=0.1, required=True, width="small"
         ),
         "value_display": st.column_config.TextColumn(
             t('consequences.table_columns.action_value'), disabled=True, width="small"
@@ -458,7 +460,7 @@ def _render_consequences_tab():
             st.success(t('consequences.success'))
             st.rerun()
         except Exception as e:
-            st.error(f"Error saving rules: {e}")
+            st.error(t('consequences.error_saving', error=str(e)))
 
 
 def _render_config_tab():
@@ -576,8 +578,8 @@ def _render_config_tab():
 
     # Features
     st.markdown(t('utilidades.config.section_features_title'))
-    st.toggle("🌙 Modo oscuro", value=config.get('dark_mode', False),
-              help="Activa el tema oscuro en toda la aplicación", key="config_dark_mode")
+    st.toggle(t('utilidades.config.dark_mode_label'), value=config.get('dark_mode', False),
+              help=t('utilidades.config.dark_mode_help'), key="config_dark_mode")
     st.toggle(t('utilidades.config.enable_relevance_label'), value=config.get('enable_relevance', True), 
               help=t('utilidades.config.enable_relevance_help'), key="config_enable_relevance")
     st.toggle(t('utilidades.config.enable_retentions_label'), value=config.get('enable_retentions', True),
@@ -812,17 +814,17 @@ def _render_config_tab():
                 idx_summary = available_models.index(current_summary) if current_summary in available_models else 0
                 idx_import = available_models.index(current_import) if current_import in available_models else 0
                 
-                st.markdown("**Modelo para Análisis Histórico (Recomendado: Modelos Pesados)**")
-                st.selectbox("Modelo Análisis", options=available_models, index=idx_analysis, key="config_llm_model_analysis", label_visibility="collapsed")
+                st.markdown(t('utilidades.config.llm_model_analysis_title'))
+                st.selectbox(t('utilidades.config.llm_model_analysis_label'), options=available_models, index=idx_analysis, key="config_llm_model_analysis", label_visibility="collapsed")
                 
-                st.markdown("**Modelo para Asistente Chat (Recomendado: Modelos Medios/Pesados)**")
-                st.selectbox("Modelo Chat", options=available_models, index=idx_chat, key="config_llm_model_chat", label_visibility="collapsed")
+                st.markdown(t('utilidades.config.llm_model_chat_title'))
+                st.selectbox(t('utilidades.config.llm_model_chat_label'), options=available_models, index=idx_chat, key="config_llm_model_chat", label_visibility="collapsed")
                 
-                st.markdown("**Modelo para Resúmenes de Dashboard (Recomendado: Modelos Ligeros/Rápidos)**")
-                st.selectbox("Modelo Resumen", options=available_models, index=idx_summary, key="config_llm_model_summary", label_visibility="collapsed")
+                st.markdown(t('utilidades.config.llm_model_summary_title'))
+                st.selectbox(t('utilidades.config.llm_model_summary_label'), options=available_models, index=idx_summary, key="config_llm_model_summary", label_visibility="collapsed")
 
-                st.markdown("**Modelo para Carga Automática de Ficheros (Recomendado: Modelos Medios/Pesados)**")
-                st.selectbox("Modelo Importación", options=available_models, index=idx_import, key="config_llm_model_import", label_visibility="collapsed")
+                st.markdown(t('utilidades.config.llm_model_import_title'))
+                st.selectbox(t('utilidades.config.llm_model_import_label'), options=available_models, index=idx_import, key="config_llm_model_import", label_visibility="collapsed")
                 
             else:
                 st.warning(t('utilidades.config.ollama_no_models_warn'))

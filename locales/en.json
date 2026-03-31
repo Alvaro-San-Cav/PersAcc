@@ -95,6 +95,16 @@
                 "title": "No Investments/Savings Detected",
                 "message": "No investments detected in your history. Consider allocating at least 10% of your income to savings/investment."
             },
+            "expense_spike": {
+                "title": "Spike in {category}",
+                "message": "{current_amount}€ this month vs {avg}€ average ({diff_pct}% more). {context}",
+                "context_seasonal": "Similar to last year (seasonal).",
+                "context_yoy": "{pct}% more than last year."
+            },
+            "expense_yoy_increase": {
+                "title": "Year-over-Year Increase: {category}",
+                "message": "{current_amount}€ vs {last_year_amount}€ same period last year ({yoy_pct}% more)."
+            },
             "expense_skyrocketing": {
                 "title": "Skyrocketing Expense: {category}"
             },
@@ -121,7 +131,9 @@
                 "message": "You have {entries} registered entries. With more historical data (3+ months), predictions will be more accurate."
             },
             "insufficient_data_error": "Insufficient data (minimum 3 months)"
-        }
+        },
+        "btn_recalculate": "🔄 Recalculate",
+        "btn_recalculate_help": "Recalculates all projections with current data (without retraining saved models)"
     },
     "chat_search": {
         "title": "💬 Chat Search - Financial Assistant",
@@ -171,11 +183,24 @@
         "llm_disabled": "❌ LLM is not enabled",
         "ollama_not_running": "❌ Ollama is not running",
         "ollama_hint": "🚀 Start Ollama from: https://ollama.com/download",
-        "analyzing": "✅ Analyzing with AI ({model})..."
+        "analyzing": "✅ Analyzing with AI ({model})...",
+        "autodetected": "autodetected",
+        "form_title": "📝 Parameters",
+        "form_caption": "Review and modify",
+        "form_type_label": "Type:",
+        "form_concept_label": "Concept:",
+        "form_limit_label": "Top:",
+        "tool_by_concept": "By concept",
+        "tool_by_category": "By category",
+        "tool_top_expenses": "Top expenses",
+        "tool_breakdown": "Breakdown",
+        "tool_savings_rate": "Savings rate"
     },
     "consequences": {
         "title": "⚖️ Consequences Rules",
         "info": "Define rules to apply 'punishment' retentions based on your expenses. These retentions will be automatically invested the following month.",
+        "not_enabled_hint": "Go to Configuration to enable this feature.",
+        "error_saving": "Error saving rules: {error}",
         "table_columns": {
             "name": "Rule Name",
             "active": "Active",
@@ -183,7 +208,8 @@
             "filter_cat": "Category Filter",
             "filter_concept": "Concept Filter (contains)",
             "action_type": "Action Type",
-            "action_value": "Value"
+            "action_value": "Value",
+            "action_value_raw": "Value (number)"
         },
         "action_types": {
             "percent": "% of Expense",
@@ -413,6 +439,14 @@
             "investment": "💎 Investments/Savings Executed",
             "savings_percent": "📈 % Savings"
         },
+        "retentions_breakdown": {
+            "title": "Investment Breakdown (Automatic vs Manual)",
+            "salary": "Salary Retention",
+            "surplus": "Surplus Retention",
+            "consequences": "⚖️ Consequences",
+            "manual": "Manual Contributions",
+            "total_auto": "Total Automated"
+        },
         "notes_title": "📝 Annotations ({period})",
         "notes_success": "✅ Annotations for {period} saved",
         "no_notes": "No annotations recorded for {period}",
@@ -622,7 +656,8 @@
                 "type": "Movement Type",
                 "active": "Active",
                 "name": "Category Name",
-                "count": "# Entries"
+                "count": "# Entries",
+                "ai_description": "AI Description (Optional)"
             },
             "button": "💾 Save Category Changes",
             "processing": "Processing changes...",
@@ -636,6 +671,8 @@
         "config": {
             "title": "⚙️ System Configuration",
             "currency_label": "Select Currency",
+            "dark_mode_label": "🌙 Dark mode",
+            "dark_mode_help": "Enable dark theme across the application",
             "section_features_title": "#### 🛠️ Features",
             "enable_relevance_label": "Enable Relevance Analysis (NE/LI/SUP/TON)",
             "enable_relevance_help": "If disabled, fields and charts related to expense relevance classification will be hidden.",
@@ -653,6 +690,14 @@
             "ollama_detected": "✅ Ollama detected with {count} model(s) available",
             "ollama_no_models_warn": "⚠️ Ollama is running but no models are installed.",
             "ollama_not_running_err": "❌ Ollama is not running or not installed",
+            "llm_model_analysis_title": "**Model for Historical Analysis (Recommended: Heavy Models)**",
+            "llm_model_analysis_label": "Analysis Model",
+            "llm_model_chat_title": "**Model for Chat Assistant (Recommended: Medium/Heavy Models)**",
+            "llm_model_chat_label": "Chat Model",
+            "llm_model_summary_title": "**Model for Dashboard Summaries (Recommended: Light/Fast Models)**",
+            "llm_model_summary_label": "Summary Model",
+            "llm_model_import_title": "**Model for Automatic File Load (Recommended: Medium/Heavy Models)**",
+            "llm_model_import_label": "Import Model",
             "section1_title": "#### 📊 Default Values - Month Closing",
             "section1_info": "These values will be used as defaults in the month closing wizard.",
             "section_bank_title": "#### 🏦 Bank Access",

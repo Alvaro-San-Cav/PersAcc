@@ -57,10 +57,6 @@ st.markdown(
 )
 
 
-
-
-
-
 # ============================================================================
 # NAVEGACIÓN PRINCIPAL
 # ============================================================================
@@ -92,6 +88,7 @@ def main():
     if is_first_load:
         import time
         import base64
+        from datetime import date as _date
 
         is_dark_mode = bool(config.get("dark_mode", False))
         splash_bg = "#0f0f1a" if is_dark_mode else "white"
@@ -99,9 +96,9 @@ def main():
         splash_text = "#b5b5c8" if is_dark_mode else "#666"
         splash_track = "#22243a" if is_dark_mode else "#f0f0f0"
         splash_bar = "#448aff" if is_dark_mode else "#4CAF50"
-        
+
         loading_ph = st.empty()
-        
+
         # Cargar logo
         try:
             with open("assets/logo.ico", "rb") as f:
@@ -109,9 +106,12 @@ def main():
             logo_html = f'<img src="data:image/x-icon;base64,{logo_b64}" width="100" style="display: block; margin: 20px auto;">'
         except Exception:
             logo_html = ""
-        
+
         loading_slogan = t('loading_slogan')
-        
+
+        # Duración de la animación CSS del progress bar
+        SPLASH_DURATION = 2.0
+
         with loading_ph.container():
             st.markdown(f"""
             <div style="
@@ -125,13 +125,38 @@ def main():
                 {logo_html}
                 <p style="color: {splash_text}; font-size: 1.2em; font-weight: 500;">{loading_slogan}</p>
                 <div style="width: 300px; height: 4px; background: {splash_track}; border-radius: 2px; overflow: hidden; margin-top: 20px;">
-                    <div style="width: 100%; height: 100%; background: {splash_bar}; animation: progress 2s linear forwards;"></div>
+                    <div style="width: 100%; height: 100%; background: {splash_bar}; animation: progress {SPLASH_DURATION}s linear forwards;"></div>
                 </div>
                 <style>@keyframes progress {{ from {{ width: 0%; }} to {{ width: 100%; }} }}</style>
             </div>
             """, unsafe_allow_html=True)
-        
-        time.sleep(3)
+
+        # Aprovechar el tiempo del splash para calentar el caché de datos,
+        # de modo que la primera navegación a cualquier sección sea instantánea.
+        _t0 = time.monotonic()
+        try:
+            from src.database import (
+                get_all_categorias, get_available_years,
+                get_ledger_by_month, get_ledger_by_year,
+            )
+            current_year = _date.today().year
+            mes_global = st.session_state.get('mes_global', '')
+
+            get_all_categorias()           # Sidebar + todas las secciones
+            get_available_years()          # Histórico, Proyecciones
+            if mes_global:
+                get_ledger_by_month(mes_global)   # Ledger principal
+            get_ledger_by_year(current_year)      # Histórico año actual
+            get_ledger_by_year(current_year - 1)  # Comparativas año anterior
+        except Exception:
+            pass  # El warming es best-effort; nunca debe bloquear la app
+
+        # Mantener el splash visible hasta que la animación termine
+        elapsed = time.monotonic() - _t0
+        remaining = SPLASH_DURATION - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+
         loading_ph.empty()
         st.session_state['first_load_done'] = True
     
@@ -149,37 +174,27 @@ def main():
             from src.ui.notion_sync import check_and_show_notion_sync
             check_and_show_notion_sync()
 
-    # ==========================================
-    # NAVEGACIÓN CON LAZY LOADING (PARTE SUPERIOR)
-    # ==========================================
-    
-    # Controlar si mostramos Cargar Datos (requiere LLM)
+    # --- Navegación ---
+
     from src.ai.llm_service import is_llm_enabled
     mostrar_carga = is_llm_enabled()
-    
-    # Definir opciones de navegación
+
     nav_options = [
-        t('navigation.ledger'),        # 0: Ledger (default)
-        t('navigation.cierre'),        # 1: Cierre de Mes
+        t('navigation.ledger'),
+        t('navigation.cierre'),
     ]
     if mostrar_carga:
         nav_options.append(t('navigation.cargar_datos'))
-        
     nav_options.extend([
         t('navigation.historico'),
         t('navigation.proyecciones'),
         t('navigation.chat_search'),
         t('navigation.utilidades')
     ])
-    
-    # Índices estáticos para el mapeo posterior
-    # Para mantener el código limpio de if/else anidados, comprobamos el contenido del array:
-    
-    # Inicializar sección activa
+
     if 'active_section' not in st.session_state:
-        st.session_state.active_section = nav_options[0]  # Ledger por defecto
-    
-    # Navegación horizontal en la parte superior del contenido principal
+        st.session_state.active_section = nav_options[0]
+
     selected_section = st.radio(
         label="🧭 Navegación",
         options=nav_options,
@@ -188,23 +203,13 @@ def main():
         horizontal=True,
         label_visibility="collapsed"
     )
-    
-    # Actualizar estado
     st.session_state.active_section = selected_section
-    
     st.markdown("---")
-    
-    # ==========================================
-    # RENDERIZADO DE LA APP
-    # ==========================================
-    
-    # Sidebar Quick Add (lazy import)
+
+    # --- Sidebar y sección activa ---
+
     from src.ui.sidebar import render_sidebar
     render_sidebar()
-    
-    # ==========================================
-    # LAZY LOADING: Solo importa y renderiza la sección activa
-    # ==========================================
     
     if selected_section == nav_options[0]:  # Ledger
         from src.ui.analisis import render_analisis

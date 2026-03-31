@@ -38,7 +38,12 @@ class FileType(Enum):
 def detect_file_type(filename: str, content_bytes: bytes) -> FileType:
     """Detecta el tipo de fichero bancario a partir del nombre y contenido."""
     fname = filename.lower()
-    if fname.endswith((".xlsx", ".xls")):
+    if fname.endswith((".xlsx", ".xlsm", ".xltx", ".xltm", ".xls")):
+        return FileType.EXCEL
+
+    # Detectar Excel por magic bytes aunque la extensión no sea reconocida:
+    # ZIP (xlsx/xlsm): PK\x03\x04  |  OLE2 (xls): \xD0\xCF\x11\xE0
+    if content_bytes[:4] in (b'PK\x03\x04', b'\xD0\xCF\x11\xE0'):
         return FileType.EXCEL
 
     # Intentar decodificar como texto
@@ -310,13 +315,38 @@ def parse_excel(content_bytes: bytes, filename: str = "") -> str:
         else:
             engine = None
 
-        df = pd.read_excel(io.BytesIO(content_bytes), sheet_name=0, engine=engine)
+        import math
+
+        def _cell(v) -> str:
+            """Convierte un valor de celda a string; None/NaN → cadena vacía."""
+            if v is None:
+                return ""
+            try:
+                if math.isnan(float(v)):
+                    return ""
+            except (TypeError, ValueError):
+                pass
+            return str(v)
+
+        df = pd.read_excel(io.BytesIO(content_bytes), sheet_name=0, engine=engine, dtype=str)
         # Limitar a 200 filas para no saturar el LLM
         if len(df) > 200:
             df = df.head(200)
-        lines = [",".join(str(c) for c in df.columns)]
+
+        # Cabecera: sustituir columnas sin nombre (Unnamed: N) por vacío
+        header_cells = [
+            "" if str(c).startswith("Unnamed:") else str(c)
+            for c in df.columns
+        ]
+        lines = [",".join(header_cells)]
+
         for _, row in df.iterrows():
-            lines.append(",".join(str(v) for v in row.values))
+            cells = [_cell(v) for v in row.values]
+            # Saltar filas completamente vacías (ahorran tokens)
+            if all(c == "" for c in cells):
+                continue
+            lines.append(",".join(cells))
+
         return "\n".join(lines)
     except ImportError as e:
         lower_name = filename.lower()

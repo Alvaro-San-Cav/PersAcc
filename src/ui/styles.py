@@ -163,6 +163,7 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     [data-testid="stAppViewContainer"],
     [data-testid="stMain"] {{
         background-color: {_DARK_BG} !important;
+        color: {_DARK_TEXT} !important;
     }}
 
     /* Header de Streamlit */
@@ -174,63 +175,213 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     section[data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div {{
         background-color: {_DARK_SECONDARY} !important;
-    }}
-
-    /* Fondo secundario (contenedores, expanders, tabs) */
-    [data-testid="stVerticalBlock"] > [data-testid="element-container"] > div[class*="stMetric"],
-    .stTabs [data-baseweb="tab-list"] {{
-        background-color: {_DARK_SECONDARY} !important;
-    }}
-
-    /* Texto general */
-    .stApp, .stApp p, .stApp span, .stApp label,
-    .stApp div, .stApp h1, .stApp h2, .stApp h3,
-    [data-testid="stText"] {{
         color: {_DARK_TEXT} !important;
     }}
 
-    /* Inputs */
+    /* Texto general — todos los nodos de texto */
+    .stApp p, .stApp span, .stApp label,
+    .stApp div, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp li, .stApp td, .stApp th,
+    [data-testid="stText"],
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── TEXT INPUTS ───────────────────────────────────── */
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input,
     [data-testid="stDateInput"] input,
-    [data-testid="stSelectbox"] div[data-baseweb="select"] {{
+    [data-testid="stTextAreaInput"] textarea,
+    textarea {{
         background-color: {_DARK_SECONDARY} !important;
         color: {_DARK_TEXT} !important;
         border-color: {_DARK_BORDER} !important;
     }}
 
-    /* Selectbox dropdown */
-    [data-baseweb="popover"] ul,
-    [data-baseweb="menu"] {{
+    /* ── SELECTBOX ─────────────────────────────────────── */
+    /* Contenedor del select */
+    [data-testid="stSelectbox"] > div > div,
+    [data-baseweb="select"] > div,
+    [data-baseweb="select"] {{
         background-color: {_DARK_SECONDARY} !important;
+        color: {_DARK_TEXT} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+    /* Texto dentro del select (valor seleccionado) */
+    [data-baseweb="select"] span,
+    [data-baseweb="select"] div,
+    [data-baseweb="select"] [data-testid="stMarkdownContainer"] {{
+        color: {_DARK_TEXT} !important;
+        background-color: transparent !important;
+    }}
+    /* Input interno del select */
+    [data-baseweb="select"] input {{
+        color: {_DARK_TEXT} !important;
+        background-color: transparent !important;
+        caret-color: {_DARK_TEXT} !important;
+    }}
+    /* Placeholder */
+    [data-baseweb="select"] [placeholder] {{
+        color: #888aa8 !important;
+    }}
+
+    /* ── MULTISELECT ───────────────────────────────────── */
+    [data-testid="stMultiSelect"] > div > div,
+    [data-baseweb="multi-select"] {{
+        background-color: {_DARK_SECONDARY} !important;
+        color: {_DARK_TEXT} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+    [data-baseweb="tag"] {{
+        background-color: #2a2a40 !important;
         color: {_DARK_TEXT} !important;
     }}
 
-    /* Dataframes y tablas */
-    [data-testid="stDataFrame"] iframe,
-    [data-testid="data-grid-canvas"] {{
-        background-color: {_DARK_SECONDARY} !important;
+    /* ── DROPDOWN / POPOVER (lista de opciones) ────────── */
+    [data-baseweb="popover"],
+    [data-baseweb="popover"] > div,
+    [data-baseweb="menu"],
+    [data-baseweb="list"],
+    ul[role="listbox"],
+    li[role="option"] {{
+        background-color: #1e1e32 !important;
+        color: {_DARK_TEXT} !important;
+    }}
+    li[role="option"]:hover {{
+        background-color: #2a2a44 !important;
+    }}
+    li[role="option"][aria-selected="true"] {{
+        background-color: #2a2a44 !important;
+        color: {_DARK_TEXT} !important;
+    }}
+    /* Texto dentro de opciones del dropdown */
+    [data-baseweb="menu"] span,
+    [data-baseweb="menu"] div,
+    [data-baseweb="list"] span,
+    [data-baseweb="list"] div {{
+        color: {_DARK_TEXT} !important;
+        background-color: transparent !important;
     }}
 
-    /* Containers con borde */
+    /* ── RADIO BUTTONS ─────────────────────────────────── */
+    [data-testid="stRadio"] label,
+    [data-testid="stRadio"] span,
+    [data-testid="stRadio"] p {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── CHECKBOXES ────────────────────────────────────── */
+    [data-testid="stCheckbox"] label,
+    [data-testid="stCheckbox"] span,
+    [data-testid="stCheckbox"] p {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── TOGGLES ───────────────────────────────────────── */
+    [data-testid="stToggle"] label,
+    [data-testid="stToggle"] span,
+    [data-testid="stToggle"] p {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── SLIDER ────────────────────────────────────────── */
+    [data-testid="stSlider"] label,
+    [data-testid="stSlider"] span,
+    [data-testid="stSlider"] p {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── TABS ──────────────────────────────────────────── */
+    .stTabs [data-baseweb="tab-list"] {{
+        background-color: {_DARK_SECONDARY} !important;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        color: #a0a0b8 !important;
+        background-color: transparent !important;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        color: {_DARK_TEXT} !important;
+    }}
+    .stTabs [data-baseweb="tab-panel"] {{
+        background-color: {_DARK_BG} !important;
+    }}
+
+    /* ── EXPANDERS ─────────────────────────────────────── */
+    [data-testid="stExpander"] {{
+        background-color: {_DARK_SECONDARY} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] summary p {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── CONTAINERS CON BORDE ──────────────────────────── */
     [data-testid="stVerticalBlockBorderWrapper"] {{
         background-color: {_DARK_SECONDARY} !important;
         border-color: {_DARK_BORDER} !important;
     }}
 
-    /* Expanders */
-    [data-testid="stExpander"] {{
-        background-color: {_DARK_SECONDARY} !important;
-        border-color: {_DARK_BORDER} !important;
-    }}
-
-    /* Métrica */
+    /* ── MÉTRICA ───────────────────────────────────────── */
     [data-testid="stMetric"] {{
         background-color: {_DARK_SECONDARY} !important;
     }}
     [data-testid="stMetricLabel"] p,
-    [data-testid="stMetricValue"] {{
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricDelta"] {{
         color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── DATAFRAMES / TABLAS ───────────────────────────── */
+    [data-testid="stDataFrame"] iframe,
+    [data-testid="data-grid-canvas"] {{
+        background-color: {_DARK_SECONDARY} !important;
+    }}
+    [data-testid="stTable"] table {{
+        background-color: {_DARK_SECONDARY} !important;
+        color: {_DARK_TEXT} !important;
+    }}
+    [data-testid="stTable"] th,
+    [data-testid="stTable"] td {{
+        color: {_DARK_TEXT} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+
+    /* ── ALERTS / INFO BOXES ───────────────────────────── */
+    [data-testid="stAlert"] {{
+        background-color: {_DARK_SECONDARY} !important;
+    }}
+    [data-testid="stAlert"] p,
+    [data-testid="stAlert"] div {{
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── TOOLTIPS ──────────────────────────────────────── */
+    [data-testid="stTooltipContent"],
+    [class*="tooltip"] > div {{
+        background-color: #2a2a44 !important;
+        color: {_DARK_TEXT} !important;
+    }}
+
+    /* ── FORM / SUBMIT BUTTON ──────────────────────────── */
+    [data-testid="stForm"] {{
+        background-color: {_DARK_SECONDARY} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+
+    /* ── FONDO TABS SECUNDARIOS ────────────────────────── */
+    [data-testid="stVerticalBlock"] > [data-testid="element-container"] > div[class*="stMetric"] {{
+        background-color: {_DARK_SECONDARY} !important;
+    }}
+
+    /* ── DIVIDER ───────────────────────────────────────── */
+    hr {{
+        border-color: {_DARK_BORDER} !important;
     }}
     </style>
     """ if dark_mode else ""

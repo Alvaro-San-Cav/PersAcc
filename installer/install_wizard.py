@@ -900,11 +900,22 @@ exit
 '''
         (target / 'run_persacc.bat').write_text(bat_content, encoding='utf-8')
         
-        # VBS launchers (silent). Keep legacy naming variants for compatibility.
-        vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run Chr(34) & "{target_str}\\run_persacc.bat" & Chr(34), 0
-Set WshShell = Nothing
-'''
+        # VBS launchers (silent). Use relative path so launchers keep working if folder is moved.
+        vbs_content = '''Set FSO = CreateObject("Scripting.FileSystemObject")
+    Set WshShell = CreateObject("WScript.Shell")
+
+    baseDir = FSO.GetParentFolderName(WScript.ScriptFullName)
+    batPath = baseDir & "\\run_persacc.bat"
+
+    If Not FSO.FileExists(batPath) Then
+        MsgBox "Could not find run_persacc.bat in: " & baseDir, 16, "PersAcc"
+        WScript.Quit 1
+    End If
+
+    WshShell.Run Chr(34) & batPath & Chr(34), 0
+    Set WshShell = Nothing
+    Set FSO = Nothing
+    '''
         launcher_names = ('Run_PersAcc.vbs', 'Run_Persacc.vbs', 'PersAcc.vbs')
         for launcher_name in launcher_names:
             (target / launcher_name).write_text(vbs_content, encoding='utf-8')

@@ -24,10 +24,6 @@ logger = logging.getLogger(__name__)
 # Directorio para guardar modelos
 MODELS_DIR = DEFAULT_DB_PATH.parent / "models"
 
-# Suprimir warnings de convergencia de statsmodels
-warnings.filterwarnings('ignore', category=UserWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
-
 
 class SARIMAXProjector:
     """
@@ -56,7 +52,6 @@ class SARIMAXProjector:
         
         self.tipo = tipo
         self.tipo_movimiento = self.TIPO_MAP[tipo]
-        self.model = None
         self.model_fit = None
         self.is_trained = False
         self.train_date: Optional[datetime] = None
@@ -139,10 +134,10 @@ class SARIMAXProjector:
                     'cached': True
                 }
             
-            if len(self.monthly_data) < 4:
+            if len(self.monthly_data) < 5:
                 return {
                     'success': False,
-                    'error': f'Datos insuficientes para {self.tipo} (mínimo 4 meses, tienes {len(self.monthly_data)})'
+                    'error': f'Datos insuficientes para {self.tipo} (mínimo 5 meses, tienes {len(self.monthly_data)})'
                 }
             
             # Ordenar y preparar serie temporal
@@ -155,15 +150,15 @@ class SARIMAXProjector:
             # Determinar orden del modelo según cantidad de datos
             n_obs = len(y)
             
-            if n_obs < 6:
-                # Muy pocos datos: priorizar estabilidad sobre complejidad.
+            if n_obs < 8:
+                # Muy pocos datos: AR(1) puro primero (más estable), luego ARIMA(0,1,1).
                 candidate_orders = [((1, 0, 0), (0, 0, 0, 0)), ((0, 1, 1), (0, 0, 0, 0))]
             elif n_obs < 12:
-                candidate_orders = [((1, 1, 1), (0, 0, 0, 0)), ((1, 0, 1), (0, 0, 0, 0))]
+                candidate_orders = [((1, 1, 1), (0, 0, 0, 0)), ((1, 0, 1), (0, 0, 0, 0)), ((1, 0, 0), (0, 0, 0, 0))]
             elif n_obs < 24:
-                candidate_orders = [((1, 1, 1), (1, 0, 0, 12)), ((1, 1, 0), (1, 0, 0, 12))]
+                candidate_orders = [((1, 1, 1), (1, 0, 0, 12)), ((1, 1, 0), (1, 0, 0, 12)), ((1, 1, 1), (0, 0, 0, 0))]
             else:
-                candidate_orders = [((1, 1, 1), (1, 1, 1, 12)), ((1, 1, 0), (1, 1, 0, 12))]
+                candidate_orders = [((1, 1, 1), (1, 1, 1, 12)), ((1, 1, 0), (1, 1, 0, 12)), ((1, 1, 1), (1, 0, 0, 12))]
 
             last_error: Optional[Exception] = None
             chosen = None
@@ -171,14 +166,14 @@ class SARIMAXProjector:
                 try:
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        self.model = SARIMAX(
+                        model = SARIMAX(
                             y,
                             order=order,
                             seasonal_order=seasonal_order,
                             enforce_stationarity=False,
                             enforce_invertibility=False
                         )
-                        self.model_fit = self.model.fit(disp=False, maxiter=300)
+                        self.model_fit = model.fit(disp=False, maxiter=1000)
                     chosen = (order, seasonal_order)
                     break
                 except Exception as ex:
@@ -190,28 +185,50 @@ class SARIMAXProjector:
             order, seasonal_order = chosen
             
             # Calcular métricas
-            fitted_values = self.model_fit.fittedvalues
+            fitted_values = np.asarray(self.model_fit.fittedvalues)
             residuals = y - fitted_values
-            
-            # MAPE robusto: ignora meses con denominador casi cero.
+
+            # SARIMAX con diferenciación (d≥1) produce NaN en los primeros periodos.
+            # Filtrar posiciones válidas (ni y ni fitted_values son NaN, y |y| > 0).
+            finite_mask = np.isfinite(residuals) & np.isfinite(fitted_values)
             abs_y = np.abs(y)
-            valid_mask = abs_y > 1e-8
+            valid_mask = finite_mask & (abs_y > 1e-8)
+
             if np.any(valid_mask):
                 mape = np.mean(np.abs(residuals[valid_mask] / y[valid_mask])) * 100
             else:
                 mape = 0.0
 
             # sMAPE más estable cerca de cero.
-            smape = np.mean((2.0 * np.abs(residuals)) / (np.abs(y) + np.abs(fitted_values) + 1e-8)) * 100
-            
-            # MAE
-            mae = np.mean(np.abs(residuals))
-            
+            if np.any(finite_mask):
+                smape = np.mean(
+                    (2.0 * np.abs(residuals[finite_mask]))
+                    / (np.abs(y[finite_mask]) + np.abs(fitted_values[finite_mask]) + 1e-8)
+                ) * 100
+            else:
+                smape = 0.0
+
+            # MAE / RMSE solo sobre periodos con residuos válidos.
+            if np.any(finite_mask):
+                mae = float(np.mean(np.abs(residuals[finite_mask])))
+                rmse = float(np.sqrt(np.mean(np.square(residuals[finite_mask]))))
+            else:
+                mae = 0.0
+                rmse = 0.0
+
+            # Pseudo-R²: proporción de varianza explicada por el modelo.
+            # Clamp a [0, 1]: puede ser negativo si el modelo es peor que la media.
+            y_valid = y[finite_mask] if np.any(finite_mask) else y
+            ss_res = float(np.sum(np.square(residuals[finite_mask]))) if np.any(finite_mask) else 0.0
+            ss_tot = float(np.sum(np.square(y_valid - np.mean(y_valid))))
+            r2 = max(0.0, 1.0 - ss_res / ss_tot) if ss_tot > 1e-8 else 0.0
+
             self.metrics = {
                 'mape': min(mape, 100),  # Cap at 100%
                 'smape': min(smape, 100),
                 'mae': mae,
-                'rmse': float(np.sqrt(np.mean(np.square(residuals)))),
+                'rmse': rmse,
+                'r2': round(r2, 4),
                 'n_samples': n_obs,
                 'order': order,
                 'seasonal_order': seasonal_order

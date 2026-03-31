@@ -2,8 +2,8 @@
 Página de Análisis - PersAcc
 Renderiza la vista principal del ledger con KPIs y movimientos del mes.
 """
+import os
 import streamlit as st
-import time
 from datetime import date, timedelta
 from collections import defaultdict
 import pandas as pd
@@ -13,11 +13,65 @@ from src.models import TipoMovimiento, CierreMensual
 from src.database import (
     get_ledger_by_month, get_all_categorias, is_mes_cerrado,
     get_snapshot_by_month, get_cierre_mes, upsert_cierre_mes,
-    delete_ledger_entry, update_ledger_entry, get_latest_snapshot
+    delete_ledger_entry, update_ledger_entry, get_latest_snapshot,
+    DEFAULT_DB_PATH,
 )
 from src.business_logic import calcular_kpis, calcular_kpis_relevancia, calcular_mes_fiscal
 from src.config import get_currency_symbol, format_currency, load_config
 from src.i18n import t, get_language
+from src.disk_cache import disk_cache
+
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_gastos_categoria(sorted_cats: tuple, db_mtime: float) -> go.Figure:
+    """Donut de Gastos por Categoría. sorted_cats: ((label, value), ...)."""
+    fig = go.Figure(data=[go.Pie(
+        labels=[x[0] for x in sorted_cats],
+        values=[x[1] for x in sorted_cats],
+        hole=0.4,
+        textinfo='label+percent',
+        textposition='inside',
+        insidetextorientation='radial',
+        textfont_size=20,
+    )])
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        font_size=10,
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=400,
+        showlegend=False,
+    )
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+@disk_cache()
+def _fig_spending_quality(ne: float, li: float, sup: float, ton: float,
+                           labels: tuple, db_mtime: float) -> go.Figure:
+    """Donut de Calidad del Gasto. labels: (NE_label, LI_label, SUP_label, TON_label)."""
+    fig = go.Figure(data=[go.Pie(
+        labels=list(labels),
+        values=[ne, li, sup, ton],
+        hole=0.4,
+        marker_colors=['#00c853', '#448aff', '#ffab00', '#ff5252'],
+        textinfo='label+percent',
+        textposition='inside',
+        insidetextorientation='radial',
+        textfont_size=16,
+    )])
+    fig.update_layout(
+        showlegend=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        font_size=10,
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=400,
+    )
+    return fig
 
 
 def render_analisis():
@@ -443,41 +497,19 @@ def render_analisis():
         st.markdown(f"### {t('analisis.expenses_by_category.title')}")
         
         chart1_ph = st.empty()
-        chart1_ph.info("⏳ Renderizando gráfico de categorías...")
-        time.sleep(0.05)  # Fuerza flush al frontend
-        
         gastos_por_cat = defaultdict(float)
         for e in entries:
             if e.tipo_movimiento == TipoMovimiento.GASTO:
                 cat_nombre = cats_map.get(e.categoria_id, "Desconocida")
                 gastos_por_cat[cat_nombre] += e.importe
-        
+
         if gastos_por_cat:
-            sorted_cats = sorted(gastos_por_cat.items(), key=lambda x: x[1], reverse=True)
-            cats_labels = [x[0] for x in sorted_cats]
-            cats_values = [x[1] for x in sorted_cats]
-            
-            fig_cat = go.Figure(data=[go.Pie(
-                labels=cats_labels,
-                values=cats_values,
-                hole=0.4,
-                textinfo='label+percent',
-                textposition='inside',
-                insidetextorientation='radial',
-                textfont_size=20
-            )])
-            
-            fig_cat.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font_color='white',
-                font_size=10,
-                margin=dict(t=10, b=10, l=10, r=10),
-                height=400,
-                showlegend=False
+            sorted_cats = tuple(sorted(gastos_por_cat.items(), key=lambda x: x[1], reverse=True))
+            db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+            chart1_ph.plotly_chart(
+                _fig_gastos_categoria(sorted_cats, db_mtime),
+                use_container_width=True,
             )
-            
-            chart1_ph.plotly_chart(fig_cat, use_container_width=True)
         else:
             chart1_ph.info(t('analisis.movements.no_movements'))
 
@@ -485,42 +517,22 @@ def render_analisis():
             st.markdown(f"### {t('analisis.spending_quality.title')}")
             
             chart2_ph = st.empty()
-            chart2_ph.info("⏳ Renderizando gráfico de calidad del gasto...")
-            time.sleep(0.05)  # Fuerza flush al frontend
-            
             total_gastos = sum(kpis_rel.values())
             if total_gastos > 0:
-                labels = [
+                labels = (
                     t('analisis.spending_quality.labels.necessary'),
                     t('analisis.spending_quality.labels.like'),
                     t('analisis.spending_quality.labels.superfluous'),
-                    t('analisis.spending_quality.labels.nonsense')
-                ]
-                values = [kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON']]
-                colors = ['#00c853', '#448aff', '#ffab00', '#ff5252']
-                
-                fig = go.Figure(data=[go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.4,
-                    marker_colors=colors,
-                    textinfo='label+percent',
-                    textposition='inside',
-                    insidetextorientation='radial',
-                    textfont_size=16
-                )])
-                
-                fig.update_layout(
-                    showlegend=False,
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    font_size=10,
-                    margin=dict(t=10, b=10, l=10, r=10),
-                    height=400
+                    t('analisis.spending_quality.labels.nonsense'),
                 )
-                
-                chart2_ph.plotly_chart(fig, use_container_width=True)
+                db_mtime = os.path.getmtime(DEFAULT_DB_PATH)
+                chart2_ph.plotly_chart(
+                    _fig_spending_quality(
+                        kpis_rel['NE'], kpis_rel['LI'], kpis_rel['SUP'], kpis_rel['TON'],
+                        labels, db_mtime,
+                    ),
+                    use_container_width=True,
+                )
             else:
                 chart2_ph.info(t('analisis.spending_quality.no_data'))
 
