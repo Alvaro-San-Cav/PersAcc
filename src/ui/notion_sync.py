@@ -420,46 +420,47 @@ def _notion_sync_content():
     with col_btn1:
         if st.button(t('notion.button_save'), use_container_width=True,
                     type="primary", key="nsync_save"):
-            # Procesar importaciones
-            to_import = [e for e in edited_entries if e['accion'] == ACCION_IMPORTAR]
-            imported, errors = _import_entries_to_db(to_import)
-            
-            # Procesar eliminaciones
-            deleted = 0
-            for entry in edited_entries:
-                if entry['accion'] == ACCION_ELIMINAR and entry.get('notion_id'):
-                    success, _ = _delete_from_notion(entry['notion_id'])
-                    if success:
-                        deleted += 1
-            
-            # Procesar actualizaciones en Notion (para las omitidas con cambios)
-            updated = 0
-            for entry in edited_entries:
-                if entry['accion'] == ACCION_OMITIR and entry.get('notion_id'):
-                    had_changes, _ = _update_in_notion(
-                        entry['notion_id'], 
-                        entry, 
-                        entry.get('original', {})
-                    )
-                    if had_changes:
-                        updated += 1
-            
-            # Mostrar resultado
-            msgs = []
-            if imported > 0:
-                msgs.append(t('notion.success_imported').format(count=imported))
-            if deleted > 0:
-                msgs.append(t('notion.success_deleted').format(count=deleted))
-            if updated > 0:
-                msgs.append(t('notion.success_updated').format(count=updated))
-            if skip_count > 0 and updated == 0:
-                msgs.append(t('notion.success_skipped').format(count=skip_count))
-            elif skip_count > updated:
-                msgs.append(t('notion.success_skipped_no_changes').format(count=skip_count - updated))
-            if errors:
-                st.error(t('notion.errors_title') + "\n" + "\n".join(errors))
-            if msgs:
-                st.success(" | ".join(msgs))
+            with st.spinner(t('notion.saving')):
+                # Procesar importaciones
+                to_import = [e for e in edited_entries if e['accion'] == ACCION_IMPORTAR]
+                imported, errors = _import_entries_to_db(to_import)
+                
+                # Procesar eliminaciones
+                deleted = 0
+                for entry in edited_entries:
+                    if entry['accion'] == ACCION_ELIMINAR and entry.get('notion_id'):
+                        success, _ = _delete_from_notion(entry['notion_id'])
+                        if success:
+                            deleted += 1
+                
+                # Procesar actualizaciones en Notion (para las omitidas con cambios)
+                updated = 0
+                for entry in edited_entries:
+                    if entry['accion'] == ACCION_OMITIR and entry.get('notion_id'):
+                        had_changes, _ = _update_in_notion(
+                            entry['notion_id'], 
+                            entry, 
+                            entry.get('original', {})
+                        )
+                        if had_changes:
+                            updated += 1
+                
+                # Mostrar resultado
+                msgs = []
+                if imported > 0:
+                    msgs.append(t('notion.success_imported').format(count=imported))
+                if deleted > 0:
+                    msgs.append(t('notion.success_deleted').format(count=deleted))
+                if updated > 0:
+                    msgs.append(t('notion.success_updated').format(count=updated))
+                if skip_count > 0 and updated == 0:
+                    msgs.append(t('notion.success_skipped').format(count=skip_count))
+                elif skip_count > updated:
+                    msgs.append(t('notion.success_skipped_no_changes').format(count=skip_count - updated))
+                if errors:
+                    st.error(t('notion.errors_title') + "\n" + "\n".join(errors))
+                if msgs:
+                    st.success(" | ".join(msgs))
             
             # Cerrar diálogo
             st.session_state.notion_dialog_open = False

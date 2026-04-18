@@ -456,15 +456,37 @@ def render_analisis():
         # Lógica lenta de IA al final para no bloquear el renderizado de las notas
         # Generar resumen de IA para cualquier mes que tenga entradas
         if entries:
-            from src.ai.llm_service import is_llm_enabled, generate_quick_summary
+            from src.ai.llm_service import is_llm_enabled, generate_quick_summary, get_llm_config
             
             if is_llm_enabled():
-                # Cache key includes month AND language
+                fallback_summaries = {
+                    "💰 ¡Mes muy tranquilo! Casi sin gastos registrados.",
+                    "✨ Muy pocos gastos este mes. ¡Excelente control!",
+                    "👍 Gastos bajo control. Buen trabajo.",
+                    "📊 Mes activo con varios movimientos.",
+                    "💰 Very quiet month! Almost no expenses recorded.",
+                    "✨ Very few expenses this month. Excellent control!",
+                    "👍 Expenses under control. Good job.",
+                    "📊 Active month with several movements.",
+                }
+
+                llm_cfg = get_llm_config()
                 current_lang = get_language()
-                cache_key = f"ai_summary_{mes_seleccionado}_{current_lang}"
+                current_model = llm_cfg.get('model_summary', llm_cfg.get('model_tier', 'unknown'))
+                cache_key = (
+                    f"ai_summary_{mes_seleccionado}_{current_lang}_{current_model}_"
+                    f"{kpis['total_ingresos']:.2f}_{kpis['total_gastos']:.2f}_{kpis['balance_mes']:.2f}"
+                )
                 cached_summary = st.session_state.get('ai_summary_cache', {})
                 
-                if cached_summary.get('key') == cache_key and cached_summary.get('text'):
+                cached_text = (cached_summary.get('text') or '').strip()
+                can_use_cache = (
+                    cached_summary.get('key') == cache_key
+                    and bool(cached_text)
+                    and cached_text not in fallback_summaries
+                )
+
+                if can_use_cache:
                     summary = cached_summary['text']
                 else:
                     expense_items = []
@@ -486,7 +508,7 @@ def render_analisis():
                                 expense_items=expense_items
                             )
                     
-                    if summary:
+                    if summary and summary.strip() not in fallback_summaries:
                         st.session_state['ai_summary_cache'] = {'key': cache_key, 'text': summary}
                 
                 if summary:

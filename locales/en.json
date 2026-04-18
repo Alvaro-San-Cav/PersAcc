@@ -779,6 +779,7 @@
         "summary": "📊 **Summary**: {import_count} to import | {delete_count} to delete | {skip_count} to skip",
         "button_save": "💾 Save changes",
         "button_close": "Close without saving",
+        "saving": "💾 Saving changes...",
         "no_entries": "✅ No pending entries in Notion",
         "button_close_simple": "Close",
         "error_title": "❌ {error}",

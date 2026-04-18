@@ -383,6 +383,29 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     hr {{
         border-color: {_DARK_BORDER} !important;
     }}
+
+    /* ── BOTONES SECUNDARIOS ───────────────────────────── */
+    div[data-testid="stButton"] > button[kind="secondary"],
+    div[data-testid="stBaseButton-secondary"],
+    button[data-testid="stBaseButton-secondary"] {{
+        background-color: {_DARK_SECONDARY} !important;
+        color: {_DARK_TEXT} !important;
+        border-color: {_DARK_BORDER} !important;
+    }}
+    div[data-testid="stButton"] > button[kind="secondary"] p,
+    div[data-testid="stButton"] > button[kind="secondary"] span,
+    div[data-testid="stButton"] > button[kind="secondary"] div,
+    button[data-testid="stBaseButton-secondary"] p,
+    button[data-testid="stBaseButton-secondary"] span,
+    button[data-testid="stBaseButton-secondary"] div {{
+        color: {_DARK_TEXT} !important;
+    }}
+    div[data-testid="stButton"] > button[kind="secondary"]:hover,
+    button[data-testid="stBaseButton-secondary"]:hover {{
+        background-color: #2a2a44 !important;
+        color: {_DARK_TEXT} !important;
+        border-color: rgba(255,255,255,0.15) !important;
+    }}
     </style>
     """ if dark_mode else ""
 

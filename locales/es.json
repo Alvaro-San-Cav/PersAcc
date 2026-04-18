@@ -781,6 +781,7 @@
         "summary": "📊 **Resumen**: {import_count} a importar | {delete_count} a eliminar | {skip_count} a omitir",
         "button_save": "💾 Guardar cambios",
         "button_close": "Cerrar sin guardar",
+        "saving": "💾 Guardando cambios...",
         "no_entries": "✅ No hay entradas pendientes en Notion",
         "button_close_simple": "Cerrar",
         "error_title": "❌ {error}",

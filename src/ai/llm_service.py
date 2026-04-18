@@ -136,6 +136,92 @@ def get_available_models() -> list:
         return []
 
 
+def _extract_ollama_text(result: Dict[str, Any]) -> str:
+    """Extracts generated text from Ollama responses across generate/chat formats."""
+    message = result.get("message") if isinstance(result, dict) else {}
+    if not isinstance(message, dict):
+        message = {}
+
+    candidates = [
+        result.get("response", ""),
+        message.get("content", ""),
+        result.get("content", ""),
+    ]
+
+    for candidate in candidates:
+        if not isinstance(candidate, str):
+            continue
+        text = candidate.strip()
+        if not text:
+            continue
+
+        # Remove reasoning tags if present.
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        # Remove optional markdown fences.
+        text = re.sub(r'^```(?:[a-zA-Z0-9_+-]+)?\s*', '', text)
+        text = re.sub(r'\s*```$', '', text)
+        if text:
+            return text
+
+    return ""
+
+
+def _request_ollama_with_think_retry(
+    url: str,
+    payload: Dict[str, Any],
+    timeout: int,
+) -> Tuple[requests.Response, Dict[str, Any], str]:
+    """
+    Sends an Ollama request and retries once with think=false when response is empty
+    but contains thinking content.
+    """
+    response = requests.post(url, json=payload, timeout=timeout)
+    if response.status_code != 200:
+        return response, {}, ""
+
+    result = response.json()
+    text = _extract_ollama_text(result)
+    if text:
+        return response, result, text
+
+    has_thinking = bool(result.get("thinking"))
+    done_reason = str(result.get("done_reason", "")).lower()
+    try:
+        eval_count = int(result.get("eval_count", 0) or 0)
+    except (TypeError, ValueError):
+        eval_count = 0
+
+    # Some thinking models (e.g., newer Gemma variants) can return empty output
+    # with done_reason=length and non-zero eval_count unless think=false is set.
+    should_retry_with_think_false = (
+        payload.get("think") is not False
+        and (
+            has_thinking
+            or (done_reason == "length" and eval_count > 0)
+        )
+    )
+
+    if should_retry_with_think_false:
+        retry_payload = dict(payload)
+        retry_payload["think"] = False
+        retry_response = requests.post(url, json=retry_payload, timeout=timeout)
+
+        # If think=false is not supported by this Ollama/model version, keep original response.
+        if retry_response.status_code == 200:
+            retry_result = retry_response.json()
+            retry_text = _extract_ollama_text(retry_result)
+            if retry_text:
+                logger.info("Ollama retry with think=false returned non-empty output.")
+            return retry_response, retry_result, retry_text
+
+        logger.warning(
+            f"Ollama retry with think=false failed ({retry_response.status_code}); "
+            "keeping original response."
+        )
+
+    return response, result, text
+
+
 def _generate_fallback_message(expenses: float, expense_items: list, lang: str = "es") -> str:
     """
     Generate a fallback message when LLM fails or returns empty.
@@ -232,9 +318,6 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
                 expense_text=expense_text_final
             )
         
-        # Check if this is a Qwen model (needs think: false to disable thinking mode)
-        is_qwen = 'qwen' in model_name.lower()
-        
         # Build options
         options = {
             "temperature": 0.9,
@@ -248,21 +331,15 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
             "stream": False,
             "options": options
         }
-        
-        # For Qwen3 models, add think: false at root level (not inside options)
-        if is_qwen:
-            payload["think"] = False
-        
+
         urls = get_ollama_urls()
-        response = requests.post(urls["api"], json=payload, timeout=LLM_TIMEOUT_QUICK)
+        response, result, text = _request_ollama_with_think_retry(
+            urls["api"],
+            payload,
+            LLM_TIMEOUT_QUICK
+        )
         
         if response.status_code == 200:
-            result = response.json()
-            text = result.get("response", "").strip()
-            
-            # Limpiar tags de think si están presentes
-            text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-            
             # Limpiar y limitar longitud
             if text:
                 text = text.split('\n')[0].strip()
@@ -279,7 +356,7 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
                 # Debug: show thinking content if available (v2 - with think:False)
                 if result.get("thinking"):
                     thinking_preview = result.get("thinking", "")[:150]
-                    return f"[v2 think:False={is_qwen}] thinking={thinking_preview}"
+                    return f"[v2] thinking={thinking_preview}"
                 return "[v2] Respuesta vacía"
         else:
             if not DEBUG:
@@ -376,9 +453,6 @@ def analyze_financial_period(
     # Prepend language instruction to prompt
     full_prompt = f"{system_instruction}\n\n{prompt}"
     
-    # Check if this is a Qwen model
-    is_qwen = 'qwen' in model_name.lower()
-    
     # Log prompt size for debugging
     logger.info(f"Prompt size: {len(full_prompt)} chars, movements: {len(movements) if movements else 0}")
     
@@ -400,30 +474,20 @@ def analyze_financial_period(
             "stream": False,
             "options": options
         }
-        
-        # For Qwen3 models, add think: false at root level (not inside options)
-        if is_qwen:
-            payload["think"] = False
-        
+
         # No añadimos stop sequences para evitar cortar respuestas prematuramente
         
         logger.info(f"Generating analysis with {model_name} (max {max_tokens} tokens)...")
         logger.info(f"Prompt length: {len(full_prompt)} characters")
         
         urls = get_ollama_urls()
-        response = requests.post(
+        response, result, text = _request_ollama_with_think_retry(
             urls["api"],
-            json=payload,
-            timeout=LLM_TIMEOUT_LONG  # Timeout configurable desde constants
+            payload,
+            LLM_TIMEOUT_LONG
         )
         
         if response.status_code == 200:
-            result = response.json()
-            text = result.get("response", "").strip()
-            
-            # Limpiar tags de think si están presentes
-            text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-            
             # Log detailed response info
             logger.info(f"Response received: {len(text)} characters")
             logger.debug(f"Full Ollama response: {result}")
@@ -681,8 +745,6 @@ def classify_bank_transactions(
         )
 
     model_name = resolved_model
-    is_qwen = "qwen" in model_name.lower()
-
     # Select the right prompt template
     tipo_key = file_type.upper().replace(" ", "_").replace("/", "_").replace("-", "_")
     if "SEPA" in tipo_key:
@@ -722,14 +784,15 @@ def classify_bank_transactions(
         "options": options,
     }
 
-    if is_qwen:
-        payload["think"] = False
-
     request_timeout = timeout if timeout and timeout > 0 else LLM_TIMEOUT_LONG
 
     try:
         urls = get_ollama_urls()
-        response = requests.post(urls["api"], json=payload, timeout=request_timeout)
+        response, result, raw_text = _request_ollama_with_think_retry(
+            urls["api"],
+            payload,
+            request_timeout
+        )
     except requests.exceptions.Timeout:
         raise Exception(
             f"Timeout esperando respuesta de Ollama. "
@@ -745,12 +808,6 @@ def classify_bank_transactions(
         except ValueError:
             error_msg = response.text.strip() or "Unknown error"
         raise Exception(f"Ollama API error: {error_msg}")
-
-    result = response.json()
-    raw_text = result.get("response", "").strip()
-
-    # Remove think tags if present (Qwen models)
-    raw_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
 
     # Extract JSON array from the response (handle markdown fences)
     json_text = raw_text
