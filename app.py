@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.ui.styles import apply_custom_css
 from src.i18n import t, set_language, get_language
-from src.config import load_config
+from src.config import load_config, save_config
 
 # Cargar idioma desde configuración al inicio (antes de set_page_config)
 config = load_config()
@@ -195,14 +195,32 @@ def main():
     if 'active_section' not in st.session_state:
         st.session_state.active_section = nav_options[0]
 
-    selected_section = st.radio(
-        label="🧭 Navegación",
-        options=nav_options,
-        index=nav_options.index(st.session_state.active_section) if st.session_state.active_section in nav_options else 0,
-        key="nav_radio",
-        horizontal=True,
-        label_visibility="collapsed"
-    )
+    nav_col, theme_col = st.columns([14, 1])
+
+    with nav_col:
+        selected_section = st.radio(
+            label="🧭 Navegación",
+            options=nav_options,
+            index=nav_options.index(st.session_state.active_section) if st.session_state.active_section in nav_options else 0,
+            key="nav_radio",
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+
+    with theme_col:
+        current_dark_mode = bool(config.get("dark_mode", False))
+        theme_icon = "☀️" if current_dark_mode else "🌙"
+        if st.button(
+            theme_icon,
+            key="navbar_theme_toggle",
+            help=t('utilidades.config.dark_mode_help'),
+            use_container_width=True,
+        ):
+            updated_config = load_config()
+            updated_config["dark_mode"] = not bool(updated_config.get("dark_mode", False))
+            save_config(updated_config)
+            st.rerun()
+
     st.session_state.active_section = selected_section
     st.markdown("---")
 
