@@ -3,9 +3,30 @@ Sistema de internacionalización (i18n) para PersAcc.
 Soporta múltiples idiomas mediante archivos JSON de traducción.
 """
 import json
-import streamlit as st
 from pathlib import Path
 from typing import Any
+
+# Streamlit es opcional: la capa de dominio se reutiliza desde el backend FastAPI
+# (sin Streamlit). Si no está disponible, usamos un session_state en memoria de
+# proceso con la misma interfaz mínima (.get / __getitem__ / __setitem__ / __contains__ / __delitem__).
+try:
+    import streamlit as st  # type: ignore
+except ImportError:
+    class _FallbackState(dict):
+        """Emula st.session_state fuera de Streamlit (acceso por atributo y por clave)."""
+        def __getattr__(self, name):
+            try:
+                return self[name]
+            except KeyError as exc:
+                raise AttributeError(name) from exc
+
+        def __setattr__(self, name, value):
+            self[name] = value
+
+    class _StShim:
+        session_state = _FallbackState()
+
+    st = _StShim()  # type: ignore
 
 # Directorio de traducciones
 LOCALES_DIR = Path(__file__).parent.parent / "locales"

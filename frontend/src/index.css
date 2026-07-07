@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+/* PersAcc dark theme. Accent = marca original #e94560 (rojo/rosa). */
+@layer base {
+  :root {
+    --bg: #0d1117;
+    --bg2: #111826;
+    --card: #161d2b;
+    --card2: #1c2434;
+    --card3: #232c40;
+    --border: rgba(148, 163, 184, 0.08);
+    --border2: rgba(148, 163, 184, 0.15);
+    --txt: #e6edf3;
+    --txt2: #8b98ad;
+    --txt3: #4b5768;
+    --accent: #e94560;
+    --accent2: #ff6b81;
+    --accent-glow: rgba(233, 69, 96, 0.2);
+    --green: #10b981;
+    --green-dim: rgba(16, 185, 129, 0.13);
+    --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.13);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251, 191, 36, 0.13);
+    /* Relevancia (calidad del gasto) */
+    --ne: #00c853;
+    --li: #448aff;
+    --sup: #ffab00;
+    --ton: #ff5252;
+    --radius: 9px;
+    --radius-lg: 13px;
+    --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Tema claro (paridad con la paleta clara del legacy: fondo blanco, texto oscuro,
+     mismos acentos de marca). Se activa con <html data-theme="light">. */
+  :root[data-theme='light'] {
+    --bg: #f5f6f8;
+    --bg2: #ffffff;
+    --card: #ffffff;
+    --card2: #f2f4f7;
+    --card3: #e6e9ef;
+    --border: rgba(15, 23, 42, 0.08);
+    --border2: rgba(15, 23, 42, 0.15);
+    --txt: #1f2733;
+    --txt2: #5b6673;
+    --txt3: #9aa4b2;
+    --accent: #e94560;
+    --accent2: #d12a45;
+    --accent-glow: rgba(233, 69, 96, 0.15);
+    --green: #0f9d6e;
+    --green-dim: rgba(15, 157, 110, 0.12);
+    --red: #e0463c;
+    --red-dim: rgba(224, 70, 60, 0.1);
+    --amber: #d9930a;
+    --amber-dim: rgba(217, 147, 10, 0.12);
+    --ne: #00a844;
+    --li: #2f6fe0;
+    --sup: #d98800;
+    --ton: #e0463c;
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+    --shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-card: var(--card);
+  --color-card2: var(--card2);
+  --color-card3: var(--card3);
+  --color-border-subtle: var(--border);
+  --color-border-strong: var(--border2);
+  --color-txt: var(--txt);
+  --color-txt2: var(--txt2);
+  --color-txt3: var(--txt3);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-green: var(--green);
+  --color-green-dim: var(--green-dim);
+  --color-red: var(--red);
+  --color-red-dim: var(--red-dim);
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-ne: var(--ne);
+  --color-li: var(--li);
+  --color-sup: var(--sup);
+  --color-ton: var(--ton);
+  --radius-card: var(--radius);
+  --radius-card-lg: var(--radius-lg);
+  --font-sans: 'Inter Variable', sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Inter Variable', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--card3) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--card3);
+  border-radius: 4px;
+}

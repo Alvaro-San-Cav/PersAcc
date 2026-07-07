@@ -41,6 +41,18 @@ data/*.db-shm
 data/*.db-wal
 data/.chart_cache/
 data/.disk_cache/
+data/backups/
+data/models/*.joblib
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Temporary Files
 temp_import.csv

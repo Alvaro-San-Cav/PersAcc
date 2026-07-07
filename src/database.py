@@ -405,6 +405,15 @@ def get_ledger_by_year(anio: int, db_path: Path = DEFAULT_DB_PATH) -> List[Ledge
         return [_row_to_ledger_entry(row) for row in rows]
 
 
+def get_ledger_entry(entry_id: int, db_path: Path = DEFAULT_DB_PATH) -> Optional[LedgerEntry]:
+    """Obtiene una entrada del libro diario por id, o None si no existe."""
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM LEDGER WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return _row_to_ledger_entry(row) if row is not None else None
+
+
 @cache_data(show_spinner=False)
 @disk_cache()
 def get_all_ledger_entries(db_path: Path = DEFAULT_DB_PATH) -> List[LedgerEntry]:

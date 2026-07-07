@@ -247,17 +247,34 @@ Classify each expense as:
 
 Add personal notes to any month or year to remember context, decisions, or reflections. Notes are shown in read-only mode when reviewing closed periods.
 
-## Tech Stack
+## Tech Stack (v4)
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | Streamlit |
-| Backend | Python 3.9+ |
-| Database | SQLite |
+| Frontend | React 19 + TypeScript + Vite + Tailwind 4 + shadcn/ui |
+| Data/estado | TanStack Query |
+| Charts | Recharts |
+| Backend | FastAPI (Python 3.12) |
+| Database | SQLite (`data/finanzas.db`) |
 | AI/LLM | Ollama (local) |
-| ML | scikit-learn, NumPy |
-| Charts | Plotly |
-| Container | Docker |
+| ML | scikit-learn, statsmodels (SARIMAX) |
+| Container | Docker (multi-stage) |
+
+> **v4** migró de Streamlit a FastAPI + React. La app Streamlit original se conserva en
+> `legacy/`. Arranque en desarrollo y producción documentado en
+> [backend/README.md](backend/README.md); plan de migración en
+> [MIGRATION_PLAN.md](MIGRATION_PLAN.md).
+
+### Arranque rápido (v4)
+
+```powershell
+# Producción (un solo proceso: sirve API + web compilada)
+.\run.ps1                     # http://localhost:8001
+
+# Desarrollo (dos procesos, hot-reload)
+python -m uvicorn server:app --app-dir backend --port 8001
+pnpm --dir frontend dev       # http://localhost:5174
+```
 
 ## Configuration Options
 

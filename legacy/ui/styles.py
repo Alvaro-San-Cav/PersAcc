@@ -10,13 +10,6 @@ _DARK_SECONDARY = "#1a1a2e"
 _DARK_TEXT      = "#e0e0e0"
 _DARK_BORDER    = "rgba(255,255,255,0.08)"
 
-# Colores del tema claro (base)
-_LIGHT_BG        = "#f5f7fb"
-_LIGHT_SECONDARY = "#ffffff"
-_LIGHT_TEXT      = "#1f2937"
-_LIGHT_MUTED     = "#5b6475"
-_LIGHT_BORDER    = "rgba(15,23,42,0.10)"
-
 
 def apply_custom_css(st_instance, dark_mode: bool = False):
     """
@@ -35,44 +28,14 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
         font-family: 'Inter', sans-serif !important;
     }}
 
-    /* ── Base clara global ──────────────────────────────────────────── */
-    .stApp,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stMain"] {{
-        background: linear-gradient(180deg, {_LIGHT_BG} 0%, #eef2f8 100%) !important;
-        color: {_LIGHT_TEXT} !important;
-    }}
-
-    [data-testid="stHeader"] {{
-        background: rgba(255,255,255,0.70) !important;
-        backdrop-filter: blur(8px);
-    }}
-
-    section[data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div {{
-        background: linear-gradient(180deg, #f8faff 0%, #edf2fb 100%) !important;
-    }}
-
-    .stApp p, .stApp span, .stApp label,
-    .stApp div, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-    .stApp li, .stApp td, .stApp th,
-    [data-testid="stText"],
-    [data-testid="stMarkdownContainer"],
-    [data-testid="stMarkdownContainer"] p,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span {{
-        color: {_LIGHT_TEXT} !important;
-    }}
-
     /* ── Header principal ────────────────────────────────────────────── */
     .main-header {{
-        background: linear-gradient(135deg, {PRIMARY_COLOR} 0%, #6d82ff 100%);
+        background: linear-gradient(135deg, {PRIMARY_COLOR} 0%, #16162a 100%);
         padding: 1.5rem 2rem;
         border-radius: 12px;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 24px rgba(37, 78, 186, 0.18);
-        border: 1px solid rgba(255,255,255,0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255,255,255,0.07);
     }}
 
     .main-header h1 {{
@@ -85,11 +48,11 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
 
     /* ── Tarjetas KPI ────────────────────────────────────────────────── */
     .kpi-card {{
-        background: linear-gradient(165deg, {_LIGHT_SECONDARY} 0%, #f2f6ff 100%);
+        background: linear-gradient(145deg, #24243e 0%, #1a1a2e 100%);
         padding: 1.2rem 1rem;
         border-radius: 10px;
         text-align: center;
-        border: 1px solid {_LIGHT_BORDER};
+        border: 1px solid rgba(255,255,255,0.08);
         border-left: 3px solid {PRIMARY_COLOR};
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         height: 100%;
@@ -102,12 +65,12 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
 
     .kpi-card:hover {{
         transform: translateY(-3px);
-        box-shadow: 0 10px 22px rgba(37, 78, 186, 0.14);
+        box-shadow: 0 8px 20px rgba(233, 69, 96, 0.18);
     }}
 
     .kpi-label {{
         font-size: 0.78rem;
-        color: {_LIGHT_MUTED};
+        color: #a0a0b8;
         margin-bottom: 0.45rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -117,7 +80,7 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     .kpi-value {{
         font-size: 1.5rem;
         font-weight: 700;
-        color: {_LIGHT_TEXT};
+        color: white;
         letter-spacing: -0.5px;
     }}
 
@@ -143,7 +106,6 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
         font-size: 0.875rem !important;
         padding: 0.5rem 1rem !important;
         transition: color 0.15s ease;
-        color: {_LIGHT_MUTED} !important;
     }}
 
     button[data-baseweb="tab"][aria-selected="true"] {{
@@ -166,7 +128,7 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
 
     /* ── Sidebar ─────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] {{
-        border-right: 1px solid {_LIGHT_BORDER};
+        border-right: 1px solid rgba(255,255,255,0.06);
     }}
 
     section[data-testid="stSidebar"] .streamlit-expanderContent button {{
@@ -181,14 +143,6 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     section[data-testid="stSidebar"] .streamlit-expanderContent button p {{
         margin: 0 !important;
         font-size: 16px !important;
-    }}
-
-    /* ── Plotly readable en modo claro ──────────────────────────────── */
-    .js-plotly-plot .plotly .main-svg text {{
-        fill: {_LIGHT_TEXT} !important;
-    }}
-    .js-plotly-plot .plotly .gridlayer path {{
-        stroke: rgba(15,23,42,0.12) !important;
     }}
 
     /* ── Colores de relevancia ───────────────────────────────────────── */
@@ -222,24 +176,6 @@ def apply_custom_css(st_instance, dark_mode: bool = False):
     section[data-testid="stSidebar"] > div {{
         background-color: {_DARK_SECONDARY} !important;
         color: {_DARK_TEXT} !important;
-    }}
-
-    .main-header {{
-        background: linear-gradient(135deg, {PRIMARY_COLOR} 0%, #1b1f3f 100%) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
-    }}
-
-    .kpi-card {{
-        background: linear-gradient(145deg, #24243e 0%, #1a1a2e 100%) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-left: 3px solid {PRIMARY_COLOR} !important;
-    }}
-    .kpi-label {{
-        color: #a0a0b8 !important;
-    }}
-    .kpi-value {{
-        color: white !important;
     }}
 
     /* Texto general — todos los nodos de texto */
