@@ -495,7 +495,8 @@ function LifeDeckCard({ lifedeck, dirty, onChange }: { lifedeck: Cfg; dirty: boo
   async function test() {
     if (dirty) return toast.error('Guarda los cambios antes de probar la conexión')
     const res = await refetch()
-    if (res.data?.ok) toast.success('LifeDeck conectado')
+    if (res.data?.ok && !enabled) toast.warning('Conexión correcta, pero la bandeja está desactivada: activa el interruptor y guarda')
+    else if (res.data?.ok) toast.success('LifeDeck conectado')
     else toast.error(res.data?.detail ?? 'No se pudo conectar con LifeDeck')
   }
 
@@ -563,6 +564,11 @@ function LifeDeckCard({ lifedeck, dirty, onChange }: { lifedeck: Cfg; dirty: boo
           </span>
         )}
       </div>
+      {!enabled && status?.ok && (
+        <p className="text-xs text-amber">
+          Conectado, pero la bandeja está desactivada: PersAcc sigue leyendo de Notion. Activa el interruptor y pulsa «Guardar cambios».
+        </p>
+      )}
       {enabled && <NotionReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} />}
     </Card>
   )
