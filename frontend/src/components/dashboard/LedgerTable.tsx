@@ -34,6 +34,15 @@ const SIGN: Record<string, number> = {
   TRASPASO_ENTRADA: 1,
 }
 
+// Color del importe por tipo de movimiento (fallback por signo si desconocido).
+const AMOUNT_COLOR: Record<string, string> = {
+  GASTO: 'text-red',
+  INGRESO: 'text-green',
+  INVERSION_AHORRO: 'text-purple',
+  TRASPASO_ENTRADA: 'text-cyan',
+  TRASPASO_SALIDA: 'text-indigo',
+}
+
 const TIPO_FILTERS: { value: TipoMovimiento | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
   { value: 'GASTO', label: 'Gastos' },
@@ -162,7 +171,16 @@ export function LedgerTable({ entries, locked }: { entries: LedgerEntry[]; locke
           Ningún movimiento coincide con el filtro
         </div>
       ) : (
-        <Table>
+        <Table className="table-fixed">
+          <colgroup>
+            <col className="w-[104px]" />
+            <col className="w-[132px]" />
+            <col className="w-[15%]" />
+            <col />
+            <col className="w-[120px]" />
+            <col className="w-[120px]" />
+            <col className="w-[76px]" />
+          </colgroup>
           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('fecha')}>
@@ -195,8 +213,12 @@ export function LedgerTable({ entries, locked }: { entries: LedgerEntry[]; locke
                   <TableCell className="whitespace-nowrap text-txt2">
                     {TIPO_LABEL[e.tipo_movimiento]}
                   </TableCell>
-                  <TableCell className="text-txt">{e.categoria_nombre ?? '—'}</TableCell>
-                  <TableCell className="max-w-[240px] truncate text-txt2">{e.concepto ?? '—'}</TableCell>
+                  <TableCell className="truncate text-txt" title={e.categoria_nombre ?? undefined}>
+                    {e.categoria_nombre ?? '—'}
+                  </TableCell>
+                  <TableCell className="truncate text-txt2" title={e.concepto ?? undefined}>
+                    {e.concepto ?? '—'}
+                  </TableCell>
                   <TableCell>
                     {e.relevancia_code ? (
                       <Badge
@@ -213,7 +235,7 @@ export function LedgerTable({ entries, locked }: { entries: LedgerEntry[]; locke
                     )}
                   </TableCell>
                   <TableCell
-                    className={`text-right tabular-nums ${sign < 0 ? 'text-red' : 'text-green'}`}
+                    className={`text-right tabular-nums ${AMOUNT_COLOR[e.tipo_movimiento] ?? (sign < 0 ? 'text-red' : 'text-green')}`}
                   >
                     {sign < 0 ? '−' : '+'}
                     {fmtMoney(e.importe)}

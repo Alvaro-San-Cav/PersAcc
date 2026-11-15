@@ -427,8 +427,10 @@ def ejecutar_cierre_mes(
     )
     
     # PASO 12: Calcular desviación y crear snapshot (para auditoría)
-    balance_esperado = kpis["balance_mes"] + kpis["total_traspasos_entrada"] - kpis["total_inversion"]
-    desviacion = balance_esperado - saldo_banco_real if saldo_banco_real else None
+    # Desviación = saldo esperado del banco vs. saldo real ajustado (sin la nómina nueva,
+    # que pertenece al mes siguiente). balance_mes ya incluye los traspasos de entrada.
+    balance_esperado = saldo_inicio + kpis["balance_mes"] - kpis["total_inversion"]
+    desviacion = balance_esperado - saldo_base_remanente if saldo_banco_real else None
     
     # Snapshot: registro histórico del cierre para consultas futuras
     snapshot = SnapshotMensual(

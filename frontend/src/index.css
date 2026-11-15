@@ -23,6 +23,13 @@
     --red-dim: rgba(248, 113, 113, 0.13);
     --amber: #fbbf24;
     --amber-dim: rgba(251, 191, 36, 0.13);
+    /* Importes por tipo de movimiento */
+    --purple: #a855f7;
+    --purple-dim: rgba(168, 85, 247, 0.13);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34, 211, 238, 0.13);
+    --indigo: #818cf8;
+    --indigo-dim: rgba(129, 140, 248, 0.13);
     /* Relevancia (calidad del gasto) */
     --ne: #00c853;
     --li: #448aff;
@@ -56,6 +63,12 @@
     --red-dim: rgba(224, 70, 60, 0.1);
     --amber: #d9930a;
     --amber-dim: rgba(217, 147, 10, 0.12);
+    --purple: #9333ea;
+    --purple-dim: rgba(147, 51, 234, 0.1);
+    --cyan: #0891b2;
+    --cyan-dim: rgba(8, 145, 178, 0.1);
+    --indigo: #4f46e5;
+    --indigo-dim: rgba(79, 70, 229, 0.1);
     --ne: #00a844;
     --li: #2f6fe0;
     --sup: #d98800;
@@ -84,6 +97,12 @@
   --color-red-dim: var(--red-dim);
   --color-amber: var(--amber);
   --color-amber-dim: var(--amber-dim);
+  --color-purple: var(--purple);
+  --color-purple-dim: var(--purple-dim);
+  --color-cyan: var(--cyan);
+  --color-cyan-dim: var(--cyan-dim);
+  --color-indigo: var(--indigo);
+  --color-indigo-dim: var(--indigo-dim);
   --color-ne: var(--ne);
   --color-li: var(--li);
   --color-sup: var(--sup);
@@ -120,4 +139,101 @@ body {
 *::-webkit-scrollbar-thumb {
   background: var(--card3);
   border-radius: 4px;
+}
+
+/* Notas renderizadas desde Markdown (react-markdown + remark-gfm) */
+.prose-notes > :first-child {
+  margin-top: 0;
+}
+.prose-notes > :last-child {
+  margin-bottom: 0;
+}
+.prose-notes p {
+  margin: 0.5em 0;
+}
+.prose-notes ul,
+.prose-notes ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+.prose-notes ul {
+  list-style: disc;
+}
+.prose-notes ol {
+  list-style: decimal;
+}
+.prose-notes li {
+  margin: 0.15em 0;
+}
+.prose-notes h1,
+.prose-notes h2,
+.prose-notes h3,
+.prose-notes h4 {
+  margin: 0.7em 0 0.3em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.prose-notes h1 {
+  font-size: 1.3em;
+}
+.prose-notes h2 {
+  font-size: 1.15em;
+}
+.prose-notes h3 {
+  font-size: 1.05em;
+}
+.prose-notes a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose-notes code {
+  background: var(--bg2);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.prose-notes pre {
+  background: var(--bg2);
+  border-radius: var(--radius-card);
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.prose-notes pre code {
+  background: none;
+  padding: 0;
+}
+.prose-notes blockquote {
+  border-left: 3px solid var(--border-subtle);
+  padding-left: 0.8em;
+  margin: 0.5em 0;
+  color: var(--txt3);
+}
+.prose-notes table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.prose-notes th,
+.prose-notes td {
+  border: 1px solid var(--border-subtle);
+  padding: 0.3em 0.6em;
+  text-align: left;
+}
+.prose-notes hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 0.8em 0;
+}
+
+/* Indicador nativo del date-picker: blanco en dark (default), normal en claro. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.55;
+  cursor: pointer;
+}
+input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+:root[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: none;
 }

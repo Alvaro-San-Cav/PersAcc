@@ -79,7 +79,10 @@ export function Importar() {
     setBusy(true)
     try {
       const res = await apiPost<ImportCommitResponse>('/api/import/commit', { entries })
-      toast.success(`${res.inserted} añadidos · ${res.skipped} omitidos`)
+      toast.success(
+        `${res.inserted} añadidos · ${res.skipped} omitidos` +
+          (res.duplicates ? ` · ${res.duplicates} duplicados saltados` : ''),
+      )
       setRows([])
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Error al guardar')

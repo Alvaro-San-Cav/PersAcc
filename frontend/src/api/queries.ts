@@ -44,6 +44,16 @@ export function useDashboard(month?: string) {
   })
 }
 
+/** Fija el saldo inicial de un mes abierto. */
+export function useSetSaldoInicio() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ month, saldo_inicio }: { month: string; saldo_inicio: number }) =>
+      apiPut<{ ok: boolean }>(`/api/dashboard/saldo-inicio?month=${month}`, { saldo_inicio }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
+  })
+}
+
 export function useCategories(tipo?: string) {
   return useQuery({
     queryKey: keys.categories(tipo),
@@ -251,10 +261,11 @@ export function useChatRun() {
   })
 }
 
+// Bandeja de apuntes rápidos (LifeDeck si está activado, si no Notion). Claves 'notion' por compatibilidad.
 export function useNotionPendingCount(enabled: boolean) {
   return useQuery({
     queryKey: ['notion', 'pending-count'],
-    queryFn: () => apiGet<{ count: number; configured: boolean }>('/api/notion/pending-count'),
+    queryFn: () => apiGet<{ count: number; configured: boolean; source?: string }>('/api/inbox/pending-count'),
     enabled,
     retry: false,
     staleTime: 60 * 1000,
@@ -264,8 +275,25 @@ export function useNotionPendingCount(enabled: boolean) {
 export function useNotionStatus() {
   return useQuery({
     queryKey: ['notion', 'status'],
-    queryFn: () => apiGet<import('./types').NotionStatus>('/api/notion/status'),
+    queryFn: () => apiGet<import('./types').NotionStatus>('/api/inbox/status'),
     retry: false,
+  })
+}
+
+/** Prueba de conexión con LifeDeck (aunque no esté activado como bandeja). Solo bajo demanda. */
+export function useLifeDeckStatus() {
+  return useQuery({
+    queryKey: ['lifedeck', 'status'],
+    queryFn: () => apiGet<import('./types').NotionStatus>('/api/lifedeck/status'),
+    enabled: false,
+    retry: false,
+  })
+}
+
+/** Sube ahora categorías + resumen del mes a LifeDeck. */
+export function useLifeDeckSync() {
+  return useMutation({
+    mutationFn: () => apiPost<import('./types').LifeDeckSyncResponse>('/api/lifedeck/sync', {}),
   })
 }
 

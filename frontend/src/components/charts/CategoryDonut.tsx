@@ -46,7 +46,7 @@ export function CategoryDonut({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       <ResponsiveContainer width={180} height={height}>
         <PieChart>
           <Pie data={shown} dataKey="importe" nameKey="categoria" innerRadius={52} outerRadius={80} paddingAngle={2}>
@@ -65,7 +65,7 @@ export function CategoryDonut({
           />
         </PieChart>
       </ResponsiveContainer>
-      <ul className="flex min-w-[180px] flex-1 flex-col gap-1.5 text-sm">
+      <ul className="flex w-full flex-col gap-1.5 text-sm">
         {shown.map((r, i) => (
           <li key={r.categoria} className="flex items-center gap-2">
             <span className="size-2.5 shrink-0 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />

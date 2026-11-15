@@ -50,6 +50,8 @@ export interface Kpis {
 export interface DashboardResponse {
   mes_fiscal: string
   is_cerrado: boolean
+  saldo_inicio: number
+  saldo_cuenta: number
   kpis: Kpis
   relevancia: Record<Relevancia, number>
   entries: LedgerEntry[]
@@ -215,6 +217,8 @@ export interface ProjectionYear {
   annual_total: number
   annualized_total: number
   interval_80: { lower: number[]; upper: number[] }
+  /** Meses del año ya reales (histórico) incluidos en annual_total; presente en el año en curso. */
+  historical_months?: number
 }
 
 export interface ProjectionSeries {
@@ -242,6 +246,7 @@ export interface ImportEntry {
   relevancia?: Relevancia | null
   confianza: number
   is_duplicate: boolean
+  notion_id?: string | null
 }
 
 export interface ImportPreviewResponse {
@@ -252,6 +257,9 @@ export interface ImportPreviewResponse {
 export interface ImportCommitResponse {
   inserted: number
   skipped: number
+  duplicates?: number
+  notion_archived?: number
+  source?: string | null
 }
 
 // ── Chat ─────────────────────────────────────────────────────────────────
@@ -279,4 +287,13 @@ export interface NotionStatus {
   configured: boolean
   ok: boolean
   detail: string
+  /** Origen de la bandeja: "LifeDeck" o "Notion". */
+  source?: string
+}
+
+export interface LifeDeckSyncResponse {
+  ok: boolean
+  detail: string
+  categories: number
+  month?: string | null
 }

@@ -10,7 +10,7 @@ export type Lang = 'es' | 'en'
 type Dict = Record<string, string>
 
 const ES: Dict = {
-  'nav.dashboard': 'Dashboard',
+  'nav.dashboard': 'Panel',
   'nav.cierre': 'Cierre de mes',
   'nav.historico': 'Histórico',
   'nav.proyecciones': 'Proyecciones',
@@ -25,7 +25,7 @@ const ES: Dict = {
 }
 
 const EN: Dict = {
-  'nav.dashboard': 'Dashboard',
+  'nav.dashboard': 'Panel',
   'nav.cierre': 'Month close',
   'nav.historico': 'History',
   'nav.proyecciones': 'Projections',

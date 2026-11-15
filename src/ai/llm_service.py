@@ -174,9 +174,18 @@ def _request_ollama_with_think_retry(
     """
     Sends an Ollama request and retries once with think=false when response is empty
     but contains thinking content.
+
+    Si la petición ya lleva think=false y el modelo/versión de Ollama no lo soporta
+    (respuesta != 200), reintenta una vez sin ese campo.
     """
     response = requests.post(url, json=payload, timeout=timeout)
     if response.status_code != 200:
+        if payload.get("think") is False:
+            no_think_payload = {k: v for k, v in payload.items() if k != "think"}
+            logger.warning(
+                f"Ollama rechazó think=false ({response.status_code}); reintentando sin el campo."
+            )
+            return _request_ollama_with_think_retry(url, no_think_payload, timeout)
         return response, {}, ""
 
     result = response.json()
@@ -329,6 +338,9 @@ def generate_quick_summary(income: float, expenses: float, balance: float, lang:
             "model": model_name,
             "prompt": prompt,
             "stream": False,
+            # Los modelos con razonamiento (gemma4, qwen3...) gastan todo num_predict
+            # pensando y devuelven response vacío. Aquí no hace falta razonar.
+            "think": False,
             "options": options
         }
 

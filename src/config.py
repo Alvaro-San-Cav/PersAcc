@@ -54,6 +54,12 @@ DEFAULT_CONFIG = {
         "api_token": "",
         "database_id": "",
         "check_on_startup": True
+    },
+    "lifedeck": {  # Bandeja de apuntes rápidos desde LifeDeck (sustituye a Notion si está activa)
+        "enabled": False,
+        "url": "https://life-deck-one.vercel.app",
+        "token": "",
+        "check_on_startup": True
     }
 }
 

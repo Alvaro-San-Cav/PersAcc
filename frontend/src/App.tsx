@@ -6,7 +6,6 @@ import { Toaster } from '@/components/ui/sonner'
 import { useConfig } from '@/api/queries'
 import { I18nProvider, type Lang } from '@/lib/i18n'
 import { Dashboard } from '@/pages/Dashboard'
-import { Cierre } from '@/pages/Cierre'
 import { Historico } from '@/pages/Historico'
 import { HistoricoMes } from '@/pages/HistoricoMes'
 import { Utilidades } from '@/pages/Utilidades'
@@ -27,7 +26,6 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <Dashboard /> },
-      { path: 'cierre', element: <Cierre /> },
       { path: 'historico', element: <Historico /> },
       { path: 'historico/:anio/:mes', element: <HistoricoMes /> },
       { path: 'proyecciones', element: <Proyecciones /> },

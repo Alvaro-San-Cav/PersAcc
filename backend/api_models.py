@@ -90,10 +90,16 @@ class Kpis(BaseModel):
 class DashboardResponse(BaseModel):
     mes_fiscal: str
     is_cerrado: bool
+    saldo_inicio: float       # Saldo con el que arrancó el mes (último cierre)
+    saldo_cuenta: float       # Estimación del dinero en cuenta hoy
     kpis: Kpis
     relevancia: Dict[str, float]  # {NE, LI, SUP, TON}: importe
     entries: List[LedgerEntryOut]
     available_months: List[str]
+
+
+class SaldoInicioRequest(BaseModel):
+    saldo_inicio: float
 
 
 # ── Cierre ──────────────────────────────────────────────────────────────────
@@ -271,6 +277,7 @@ class ImportEntry(BaseModel):
     relevancia: Optional[str] = None
     confianza: float = 0.5
     is_duplicate: bool = False
+    notion_id: Optional[str] = None  # page_id de Notion; se archiva al importar
 
 
 class ImportPreviewResponse(BaseModel):
@@ -285,6 +292,9 @@ class ImportCommitRequest(BaseModel):
 class ImportCommitResponse(BaseModel):
     inserted: int
     skipped: int
+    duplicates: int = 0  # ya existían en el ledger (mismo importe y fecha)
+    notion_archived: int = 0  # entradas de la bandeja (Notion/LifeDeck) marcadas tras importar
+    source: Optional[str] = None  # origen de la bandeja si el lote venía de ella
 
 
 # ── Chat / búsqueda NL ──────────────────────────────────────────────────────
@@ -338,3 +348,19 @@ class NotionStatus(BaseModel):
     configured: bool
     ok: bool
     detail: str
+    source: str = "Notion"  # origen de la bandeja: "LifeDeck" o "Notion"
+
+
+class NotionArchiveRequest(BaseModel):
+    page_ids: List[str]
+
+
+class NotionArchiveResponse(BaseModel):
+    archived: int
+
+
+class LifeDeckSyncResponse(BaseModel):
+    ok: bool
+    detail: str
+    categories: int = 0
+    month: Optional[str] = None

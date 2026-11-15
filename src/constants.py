@@ -62,7 +62,7 @@ DATAFRAME_HEIGHT_MEDIUM = 400
 # Timeouts para llamadas a Ollama (en segundos)
 # - QUICK: Para resúmenes de una línea y verificaciones de estado
 # - LONG: Para análisis financieros profundos que requieren más procesamiento
-LLM_TIMEOUT_QUICK = 15     # Resúmenes rápidos: max 15s
+LLM_TIMEOUT_QUICK = 45     # Resúmenes rápidos: 45s (cubre la carga en frío del modelo)
 LLM_TIMEOUT_LONG = 180     # Análisis completos: max 3 minutos
 
 # Límites de texto para LLM

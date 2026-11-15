@@ -128,7 +128,7 @@ export function HistoricoMes() {
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <Card className="gap-1 p-4">
+    <Card className="flex flex-col gap-1 p-4">
       <span className="text-[11px] font-medium uppercase tracking-wide text-txt2">{label}</span>
       <span className={`text-xl font-semibold tabular-nums ${tone ?? 'text-txt'}`}>{value}</span>
     </Card>

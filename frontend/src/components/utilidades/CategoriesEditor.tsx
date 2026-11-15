@@ -79,7 +79,14 @@ export function CategoriesEditor() {
     )
   }
 
-  const byTipo = (cats ?? []).slice().sort((a, b) => a.tipo_movimiento.localeCompare(b.tipo_movimiento) || a.nombre.localeCompare(b.nombre))
+  const groups = TIPOS.map((tipo) => ({
+    tipo,
+    items: (cats ?? [])
+      .filter((c) => c.tipo_movimiento === tipo)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+  })).filter((g) => g.items.length > 0)
+
+  const total = (cats ?? []).length
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,51 +118,62 @@ export function CategoriesEditor() {
         </div>
       </Card>
 
-      <Card className="p-4">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {byTipo.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-2 rounded-[var(--radius-card)] border border-border-subtle px-3 py-2 text-sm"
-            >
-              {editId === c.id ? (
-                <>
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="h-7 flex-1"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveEdit(c)
-                      if (e.key === 'Escape') setEditId(null)
-                    }}
-                  />
-                  <Button variant="ghost" size="icon" className="size-7 text-green" onClick={() => saveEdit(c)}>
-                    <Check className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-7 text-txt3" onClick={() => setEditId(null)}>
-                    <X className="size-4" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="flex-1 truncate text-txt">{c.nombre}</span>
-                  <Badge variant="outline" className="text-txt3">
-                    {TIPO_LABEL[c.tipo_movimiento]}
-                  </Badge>
-                  <span className="w-8 text-right tabular-nums text-txt3">{c.count}</span>
-                  <Button variant="ghost" size="icon" className="size-7 text-txt3 hover:text-accent2" onClick={() => startEdit(c)}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-7 text-txt3 hover:text-red" onClick={() => setToDelete(c)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </>
-              )}
+      {total === 0 ? (
+        <Card className="p-8 text-center text-sm text-txt2">
+          Aún no hay categorías. Crea la primera arriba.
+        </Card>
+      ) : (
+        groups.map((g) => (
+          <Card key={g.tipo} className="flex flex-col gap-2 p-4">
+            <div className="flex items-center justify-between px-1">
+              <h4 className="text-sm font-semibold text-txt">{TIPO_LABEL[g.tipo]}</h4>
+              <span className="text-xs text-txt3">{g.items.length} categoría(s)</span>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {g.items.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-2 rounded-[var(--radius-card)] border border-border-subtle px-3 py-2 text-sm"
+                >
+                  {editId === c.id ? (
+                    <>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-7 flex-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit(c)
+                          if (e.key === 'Escape') setEditId(null)
+                        }}
+                      />
+                      <Button variant="ghost" size="icon" className="size-7 text-green" onClick={() => saveEdit(c)}>
+                        <Check className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-7 text-txt3" onClick={() => setEditId(null)}>
+                        <X className="size-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 truncate text-txt">{c.nombre}</span>
+                      <Badge variant="outline" className="text-txt3" title="Movimientos usando esta categoría">
+                        {c.count}
+                      </Badge>
+                      <Button variant="ghost" size="icon" className="size-7 text-txt3 hover:text-accent2" onClick={() => startEdit(c)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-7 text-txt3 hover:text-red" onClick={() => setToDelete(c)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))
+      )}
 
       <ConfirmDialog
         open={!!toDelete}

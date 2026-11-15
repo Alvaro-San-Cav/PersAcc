@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 type Num = number | null | undefined
 
@@ -11,6 +12,9 @@ export function setCurrencySymbol(sym: string): void {
 
 export function fmtMoney(v: Num, dec = 2): string {
   if (v == null || Number.isNaN(v)) return '—'
+  // Redondear antes de formatear: evita "-0,00" con residuos float (-7e-14).
+  const factor = 10 ** dec
+  v = Math.round(v * factor) / factor || 0
   const n = v.toLocaleString('es-ES', {
     minimumFractionDigits: dec,
     maximumFractionDigits: dec,
@@ -45,7 +49,7 @@ export function fmtDate(iso: string | null | undefined): string {
 export function fmtMonth(mes: string | null | undefined): string {
   if (!mes) return '—'
   try {
-    return format(parseISO(`${mes}-01`), 'LLLL yyyy')
+    return format(parseISO(`${mes}-01`), 'LLLL yyyy', { locale: es })
   } catch {
     return mes
   }
@@ -53,7 +57,8 @@ export function fmtMonth(mes: string | null | undefined): string {
 
 export function signColor(v: Num): string {
   if (v == null) return 'text-txt2'
-  return v >= 0 ? 'text-green' : 'text-red'
+  // Redondear a céntimos: residuos float negativos (-7e-14) no deben pintar rojo.
+  return Math.round(v * 100) / 100 >= 0 ? 'text-green' : 'text-red'
 }
 
 export const TIPO_LABEL: Record<string, string> = {

@@ -4,19 +4,19 @@ import type { Kpis } from '@/api/types'
 
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <Card className="gap-1 p-4">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-txt2">{label}</span>
-      <span className={`text-xl font-semibold tabular-nums ${tone ?? 'text-txt'}`}>{value}</span>
+    <Card className="flex flex-col gap-0 px-2.5 py-1.5">
+      <span className="truncate text-[9px] font-medium uppercase tracking-wide text-txt3">{label}</span>
+      <span className={`text-sm font-semibold leading-tight tabular-nums ${tone ?? 'text-txt'}`}>{value}</span>
     </Card>
   )
 }
 
 export function KpiGrid({ kpis }: { kpis: Kpis }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-8">
       <KpiCard label="Ingresos" value={fmtMoney(kpis.total_ingresos)} tone="text-green" />
       <KpiCard label="Gastos" value={fmtMoney(kpis.total_gastos)} tone="text-red" />
-      <KpiCard label="Inversión / Ahorro" value={fmtMoney(kpis.total_inversion)} tone="text-accent2" />
+      <KpiCard label="Inversión / Ahorro" value={fmtMoney(kpis.total_inversion)} tone="text-cyan" />
       <KpiCard
         label="Balance del mes"
         value={fmtMoney(kpis.balance_mes)}

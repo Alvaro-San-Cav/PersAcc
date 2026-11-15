@@ -1,4 +1,6 @@
 import { toast } from 'sonner'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,7 +58,9 @@ export function AnalysisPanel({
           IA desactivada. Actívala en Utilidades y arranca Ollama para obtener análisis.
         </p>
       ) : text ? (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-txt2">{text}</p>
+        <div className="prose-notes text-sm leading-relaxed text-txt2">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+        </div>
       ) : (
         <p className="text-sm text-txt3">Sin análisis todavía. Pulsa «Generar».</p>
       )}

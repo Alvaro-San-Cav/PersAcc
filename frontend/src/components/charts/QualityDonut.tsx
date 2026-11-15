@@ -18,7 +18,7 @@ export function QualityDonut({ data }: { data: Record<Relevancia, number> }) {
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       <ResponsiveContainer width={180} height={180}>
         <PieChart>
           <Pie data={rows} dataKey="value" nameKey="label" innerRadius={52} outerRadius={80} paddingAngle={2}>
@@ -37,7 +37,7 @@ export function QualityDonut({ data }: { data: Record<Relevancia, number> }) {
           />
         </PieChart>
       </ResponsiveContainer>
-      <ul className="flex flex-col gap-1.5 text-sm">
+      <ul className="flex w-full flex-col gap-1.5 text-sm">
         {rows.map((r) => (
           <li key={r.code} className="flex items-center gap-2">
             <span className="size-2.5 rounded-full" style={{ background: RELEVANCIA_COLOR[r.code] }} />
@@ -48,6 +48,12 @@ export function QualityDonut({ data }: { data: Record<Relevancia, number> }) {
             </span>
           </li>
         ))}
+        <li className="mt-1 flex items-center gap-2 border-t border-border-subtle pt-1.5 font-semibold">
+          <span className="size-2.5" />
+          <span className="text-txt2">Total</span>
+          <span className="ml-auto tabular-nums text-txt">{fmtMoney(total)}</span>
+          <span className="w-12" />
+        </li>
       </ul>
     </div>
   )

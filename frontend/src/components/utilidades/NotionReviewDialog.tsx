@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -39,15 +40,23 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  // Origen de la bandeja ("LifeDeck" o "Notion"), según lo que devuelve la vista previa.
+  const [source, setSource] = useState<string | null>(null)
+  const label = source ?? 'la bandeja'
+  const isLifeDeck = source === 'LifeDeck'
   const { data: cats } = useCategories()
   const qc = useQueryClient()
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    apiPost<ImportPreviewResponse>('/api/notion/preview', {})
-      .then((res) => setRows(res.entries.map((e, i) => ({ ...e, _sel: !e.is_duplicate, _idx: i }))))
-      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Error consultando Notion'))
+    apiPost<ImportPreviewResponse>('/api/inbox/preview', {})
+      .then((res) => {
+        setSource(res.file_type || null)
+        setRows(res.entries.map((e, i) => ({ ...e, _sel: !e.is_duplicate, _idx: i })))
+      })
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Error consultando la bandeja'))
       .finally(() => setLoading(false))
   }, [open])
 
@@ -55,15 +64,41 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
     setRows((rs) => rs.map((r) => (r._idx === idx ? { ...r, ...patch } : r)))
   }
 
+  // Al cambiar el tipo, la categoría anterior pertenece a otro tipo: se limpia
+  // para forzar una válida (si no, el backend descarta la fila en silencio).
+  function changeTipo(idx: number, tipo: TipoMovimiento) {
+    setRows((rs) =>
+      rs.map((r) =>
+        r._idx === idx
+          ? {
+              ...r,
+              tipo_movimiento: tipo,
+              categoria_sugerida: r.tipo_movimiento === tipo ? r.categoria_sugerida : null,
+              relevancia: tipo === 'GASTO' ? r.relevancia : null,
+            }
+          : r,
+      ),
+    )
+  }
+
   const selected = rows.filter((r) => r._sel)
 
   async function importSelected() {
     const entries = selected.map(({ _sel, _idx, ...e }) => e)
     if (!entries.length) return toast.error('Nada seleccionado')
+    const sinCat = selected.filter((r) => !r.categoria_sugerida).length
+    if (sinCat) return toast.error(`${sinCat} fila(s) sin categoría. Elige una para cada tipo.`)
     setBusy(true)
     try {
       const res = await apiPost<ImportCommitResponse>('/api/import/commit', { entries })
-      toast.success(`${res.inserted} importados desde Notion · ${res.skipped} omitidos`)
+      const archived = res.notion_archived ?? 0
+      const dups = res.duplicates ?? 0
+      const src = res.source || source || 'la bandeja'
+      toast.success(
+        `${res.inserted} importados desde ${src} · ${res.skipped} omitidos` +
+          (dups ? ` · ${dups} duplicados saltados` : '') +
+          (archived ? ` · ${archived} ${src === 'LifeDeck' ? 'marcados como importados en' : 'archivados en'} ${src}` : ''),
+      )
       qc.invalidateQueries()
       onOpenChange(false)
     } catch (e) {
@@ -73,11 +108,32 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
     }
   }
 
+  const deletableCount = selected.filter((r) => r.notion_id).length
+
+  async function deleteSelected() {
+    const page_ids = selected.map((r) => r.notion_id).filter((id): id is string => !!id)
+    if (!page_ids.length) return toast.error('Nada seleccionado')
+    setBusy(true)
+    try {
+      const res = await apiPost<{ archived: number }>('/api/inbox/archive', { page_ids })
+      toast.success(isLifeDeck ? `${res.archived} descartadas en LifeDeck` : `${res.archived} borradas de ${label}`)
+      // Quitar de la lista las que se han borrado.
+      setRows((rs) => rs.filter((r) => !(r._sel && r.notion_id)))
+      qc.invalidateQueries({ queryKey: ['notion'] })
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : `Error al borrar en ${label}`)
+    } finally {
+      setBusy(false)
+      setConfirmDelete(false)
+    }
+  }
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Revisar entradas de Notion</DialogTitle>
+          <DialogTitle>{source ? `Revisar entradas de ${source}` : 'Revisar bandeja'}</DialogTitle>
           <DialogDescription>
             Edita tipo, categoría o relevancia y elige qué importar. Los duplicados llegan sin marcar.
           </DialogDescription>
@@ -86,7 +142,7 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
         {loading ? (
           <Skeleton className="h-56" />
         ) : rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-txt2">No hay entradas pendientes en Notion.</p>
+          <p className="py-6 text-center text-sm text-txt2">No hay entradas pendientes en {label}.</p>
         ) : (
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
             {rows.map((r) => {
@@ -95,7 +151,7 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
                 <div key={r._idx} className="flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-border-subtle p-2 text-sm">
                   <input type="checkbox" checked={r._sel} onChange={(e) => update(r._idx, { _sel: e.target.checked })} />
                   <span className="w-24 text-txt2">{r.fecha}</span>
-                  <Select value={r.tipo_movimiento} onValueChange={(v) => update(r._idx, { tipo_movimiento: v as TipoMovimiento })}>
+                  <Select value={r.tipo_movimiento} onValueChange={(v) => changeTipo(r._idx, v as TipoMovimiento)}>
                     <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {TIPOS.map((t) => (
@@ -104,7 +160,9 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
                     </SelectContent>
                   </Select>
                   <Select value={r.categoria_sugerida ?? ''} onValueChange={(v) => update(r._idx, { categoria_sugerida: v })}>
-                    <SelectTrigger className="h-8 w-36"><SelectValue placeholder="Categoría" /></SelectTrigger>
+                    <SelectTrigger className={`h-8 w-36${r.categoria_sugerida ? '' : ' border-red'}`}>
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
                     <SelectContent>
                       {catsForTipo.map((c) => (
                         <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
@@ -135,11 +193,35 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cerrar
           </Button>
+          <Button
+            variant="danger"
+            onClick={() => setConfirmDelete(true)}
+            disabled={busy || deletableCount === 0}
+          >
+            {isLifeDeck ? 'Descartar' : 'Borrar'} {deletableCount}
+          </Button>
           <Button onClick={importSelected} disabled={busy || selected.length === 0}>
             {busy ? 'Importando…' : `Importar ${selected.length}`}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`${isLifeDeck ? 'Descartar' : 'Borrar'} ${deletableCount} entrada${deletableCount === 1 ? '' : 's'} de ${label}`}
+        description={
+          isLifeDeck
+            ? 'Se marcarán como descartadas en LifeDeck sin importarlas a la app.'
+            : `Se archivarán en ${label} sin importarlas a la app. Esta acción no se puede deshacer.`
+        }
+        confirmLabel={isLifeDeck ? 'Descartar' : 'Borrar'}
+        cancelLabel="Cancelar"
+        destructive
+        loading={busy}
+        onConfirm={deleteSelected}
+      />
+    </>
   )
 }

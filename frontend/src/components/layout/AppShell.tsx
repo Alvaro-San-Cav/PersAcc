@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
-  Lock,
   History,
   TrendingUp,
   Upload,
@@ -13,7 +12,10 @@ import {
   Sun,
   ExternalLink,
   Menu,
+  Plus,
   X,
+  PanelLeftClose,
+  PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -22,6 +24,7 @@ import { setCurrencySymbol } from '@/lib/format'
 import { applyTheme } from '@/lib/theme'
 import { useT } from '@/lib/i18n'
 import { NotionReviewDialog } from '@/components/utilidades/NotionReviewDialog'
+import { QuickAddForm } from '@/components/dashboard/QuickAddForm'
 
 interface NavItem {
   to: string
@@ -31,7 +34,6 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/', key: 'nav.dashboard', icon: LayoutDashboard },
-  { to: '/cierre', key: 'nav.cierre', icon: Lock },
   { to: '/historico', key: 'nav.historico', icon: History },
   { to: '/proyecciones', key: 'nav.proyecciones', icon: TrendingUp },
   { to: '/asistente', key: 'nav.asistente', icon: MessageSquare },
@@ -42,6 +44,7 @@ const NAV: NavItem[] = [
 
 export function AppShell() {
   const t = useT()
+  const location = useLocation()
   const { data: config } = useConfig()
   const saveConfig = useSaveConfig()
   const [dark, setDark] = useState(true)
@@ -69,10 +72,32 @@ export function AppShell() {
   const bankUrl = (config?.config?.bank_url as string) || ''
 
   const notion = (config?.config?.notion as { enabled?: boolean; check_on_startup?: boolean }) ?? {}
-  const notionWatch = notion.enabled !== false && !!notion.check_on_startup
+  const lifedeck = (config?.config?.lifedeck as { enabled?: boolean; check_on_startup?: boolean }) ?? {}
+  // Bandeja activa: LifeDeck si está activado; si no, Notion.
+  const notionWatch = lifedeck.enabled
+    ? lifedeck.check_on_startup !== false
+    : notion.enabled !== false && !!notion.check_on_startup
   const { data: pending } = useNotionPendingCount(notionWatch)
   const [notionOpen, setNotionOpen] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
+  const [quickOpen, setQuickOpen] = useState(false)
+  // Panel izquierdo de alta rápida: colapsa fuera del dashboard, se puede reabrir a mano.
+  const [asideCollapsed, setAsideCollapsed] = useState(false)
+
+  useEffect(() => {
+    setAsideCollapsed(location.pathname !== '/')
+  }, [location.pathname])
+
+  // Al arrancar, si Notion tiene entradas pendientes se abre la revisión sola
+  // (una vez por sesión; el banner sigue disponible para reabrirla).
+  const notionAutoOpened = useRef(false)
+  useEffect(() => {
+    if (!notionWatch || notionAutoOpened.current) return
+    if (pending && pending.count > 0) {
+      notionAutoOpened.current = true
+      setNotionOpen(true)
+    }
+  }, [notionWatch, pending])
 
   // Atajos globales: `/` enfoca la búsqueda de la tabla, `n` el formulario de alta.
   useEffect(() => {
@@ -87,11 +112,12 @@ export function AppShell() {
           s.focus()
         }
       } else if (e.key === 'n' || e.key === 'N') {
-        const q = document.querySelector<HTMLInputElement>('[data-quickadd-importe]')
-        if (q) {
-          e.preventDefault()
-          q.focus()
-        }
+        setQuickOpen(true)
+        // Esperar a que el panel móvil (si aplica) monte antes de enfocar.
+        requestAnimationFrame(() => {
+          const q = document.querySelector<HTMLInputElement>('[data-quickadd-importe]')
+          if (q) q.focus()
+        })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -99,42 +125,30 @@ export function AppShell() {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Backdrop del drawer en móvil */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      <aside
-        className={cn(
-          'flex w-[220px] flex-shrink-0 flex-col border-r border-border-subtle bg-bg2',
-          'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow',
-          !mobileOpen && 'max-md:hidden',
-        )}
-      >
-        <div className="flex h-14 items-center gap-2 px-5">
+    <div className="flex h-screen flex-col overflow-hidden">
+      {/* ── Navbar superior horizontal ─────────────────────────────── */}
+      <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border-subtle bg-bg2 px-4">
+        <div className="flex items-center gap-2">
           <img src="/logo.ico" alt="PersAcc" className="size-7 shrink-0 rounded-[var(--radius-card)]" />
           <span className="text-sm font-semibold text-txt">PersAcc</span>
-          <button className="ml-auto text-txt3 md:hidden" onClick={() => setMobileOpen(false)}>
-            <X className="size-5" />
-          </button>
         </div>
-        <nav className="flex flex-col gap-0.5 px-3 py-2">
+
+        {/* Burger de navegación en móvil */}
+        <button className="ml-1 text-txt2 md:hidden" onClick={() => setNavOpen((o) => !o)}>
+          <Menu className="size-5" />
+        </button>
+
+        {/* Enlaces horizontales (desktop) */}
+        <nav className="ml-2 hidden items-center gap-0.5 md:flex">
           {NAV.map(({ to, key, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-[var(--radius-card)] px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-accent/15 text-accent2'
-                    : 'text-txt2 hover:bg-card2 hover:text-txt',
+                  'flex items-center gap-2 rounded-[var(--radius-card)] px-3 py-1.5 text-sm font-medium transition-colors',
+                  isActive ? 'bg-accent/15 text-accent2' : 'text-txt2 hover:bg-card2 hover:text-txt',
                 )
               }
             >
@@ -143,52 +157,125 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto flex flex-col gap-1 px-3 py-3">
+
+        <div className="ml-auto flex items-center gap-1">
           {bankUrl && (
             <a
               href={bankUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-[var(--radius-card)] px-3 py-2 text-sm font-medium text-txt2 transition-colors hover:bg-card2 hover:text-txt"
+              className="flex items-center gap-2 rounded-[var(--radius-card)] px-3 py-1.5 text-sm font-medium text-txt2 transition-colors hover:bg-card2 hover:text-txt"
             >
               <ExternalLink className="size-4" />
-              {t('shell.bank')}
+              <span className="hidden lg:inline">{t('shell.bank')}</span>
             </a>
           )}
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-3 rounded-[var(--radius-card)] px-3 py-2 text-sm font-medium text-txt2 transition-colors hover:bg-card2 hover:text-txt"
+            className="flex items-center gap-2 rounded-[var(--radius-card)] px-3 py-1.5 text-sm font-medium text-txt2 transition-colors hover:bg-card2 hover:text-txt"
           >
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            {dark ? t('shell.theme_light') : t('shell.theme_dark')}
+            <span className="hidden lg:inline">{dark ? t('shell.theme_light') : t('shell.theme_dark')}</span>
           </button>
-          <div className="px-3 pt-2 text-[11px] text-txt3">
-            {t('shell.tagline')} · {config?.currency_symbol ?? '€'}
+          {/* Toggle del panel de alta rápida en móvil/tablet */}
+          <button
+            onClick={() => setQuickOpen((o) => !o)}
+            className="flex items-center gap-1 rounded-[var(--radius-card)] bg-accent/15 px-3 py-1.5 text-sm font-medium text-accent2 transition-colors hover:bg-accent/25 lg:hidden"
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Añadir</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Nav desplegable en móvil */}
+      {navOpen && (
+        <nav className="flex flex-col gap-0.5 border-b border-border-subtle bg-bg2 px-3 py-2 md:hidden">
+          {NAV.map(({ to, key, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              onClick={() => setNavOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-[var(--radius-card)] px-3 py-2 text-sm font-medium transition-colors',
+                  isActive ? 'bg-accent/15 text-accent2' : 'text-txt2 hover:bg-card2 hover:text-txt',
+                )
+              }
+            >
+              <Icon className="size-4" />
+              {t(key)}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
+      {/* ── Cuerpo: panel izquierdo de alta rápida + contenido ─────── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Panel izquierdo persistente (desktop ancho). Colapsa fuera del dashboard. */}
+        <aside
+          className={cn(
+            'hidden flex-shrink-0 overflow-hidden border-r border-border-subtle bg-bg2 transition-[width] duration-200 lg:flex lg:flex-col',
+            asideCollapsed ? 'w-12 opacity-60 hover:opacity-100' : 'w-[340px]',
+          )}
+        >
+          {asideCollapsed ? (
+            <button
+              onClick={() => setAsideCollapsed(false)}
+              title="Añadir movimiento"
+              className="flex flex-1 flex-col items-center gap-2 py-6 text-txt2 transition-colors hover:text-accent2"
+            >
+              <PanelLeftOpen className="size-5" />
+              <span className="[writing-mode:vertical-rl] text-xs font-medium">Añadir</span>
+            </button>
+          ) : (
+            <div className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-txt">Alta rápida</span>
+                <button
+                  onClick={() => setAsideCollapsed(true)}
+                  title="Colapsar panel"
+                  className="rounded-[var(--radius-card)] p-1.5 text-txt3 transition-colors hover:bg-card2 hover:text-txt"
+                >
+                  <PanelLeftClose className="size-4" />
+                </button>
+              </div>
+              <QuickAddForm />
+            </div>
+          )}
+        </aside>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-6">
+            {location.pathname === '/' && pending && pending.count > 0 && (
+              <button
+                onClick={() => setNotionOpen(true)}
+                className="mb-4 flex w-full items-center gap-2 rounded-[var(--radius-card)] border border-accent/40 bg-accent/10 px-4 py-2.5 text-left text-sm text-accent2 transition-colors hover:bg-accent/15"
+              >
+                📥 {pending.count} {pending.count === 1 ? 'entrada pendiente' : 'entradas pendientes'} en {pending.source ?? 'la bandeja'} — Revisar
+              </button>
+            )}
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      {/* Panel derecho como slide-over en móvil/tablet */}
+      {quickOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setQuickOpen(false)} />
+          <div className="absolute inset-y-0 right-0 w-[340px] max-w-[90vw] overflow-y-auto border-l border-border-subtle bg-bg2 px-4 py-4 shadow-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold text-txt">Alta rápida</span>
+              <button className="text-txt3" onClick={() => setQuickOpen(false)}>
+                <X className="size-5" />
+              </button>
+            </div>
+            <QuickAddForm />
           </div>
         </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto">
-        {/* Barra superior con burger en móvil */}
-        <div className="flex h-12 items-center gap-2 border-b border-border-subtle px-4 md:hidden">
-          <button onClick={() => setMobileOpen(true)} className="text-txt2">
-            <Menu className="size-5" />
-          </button>
-          <img src="/logo.ico" alt="PersAcc" className="size-6 rounded-[var(--radius-card)]" />
-          <span className="text-sm font-semibold text-txt">PersAcc</span>
-        </div>
-        <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-6">
-          {pending && pending.count > 0 && (
-            <button
-              onClick={() => setNotionOpen(true)}
-              className="mb-4 flex w-full items-center gap-2 rounded-[var(--radius-card)] border border-accent/40 bg-accent/10 px-4 py-2.5 text-left text-sm text-accent2 transition-colors hover:bg-accent/15"
-            >
-              📥 {pending.count} {pending.count === 1 ? 'entrada pendiente' : 'entradas pendientes'} en Notion — Revisar
-            </button>
-          )}
-          <Outlet />
-        </div>
-      </main>
+      )}
 
       <NotionReviewDialog open={notionOpen} onOpenChange={setNotionOpen} />
     </div>

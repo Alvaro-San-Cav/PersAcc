@@ -28,6 +28,7 @@ from api_models import (
     ImportEntry, ImportPreviewResponse, ImportCommitRequest, ImportCommitResponse,
     BackupImportResponse, CleanupRequest, CleanupResponse,
     ChatRequest, ChatRunRequest, ChatResponse, ChatResultEntry, NotionStatus,
+    NotionArchiveRequest, NotionArchiveResponse, LifeDeckSyncResponse,
 )
 
 # Hacer importables los scripts de mantenimiento (migration, setup_db).
@@ -215,18 +216,29 @@ async def import_preview(files: List[UploadFile] = File(...)) -> ImportPreviewRe
 
 @router.post("/import/commit", response_model=ImportCommitResponse)
 def import_commit(req: ImportCommitRequest) -> ImportCommitResponse:
-    cat_by_name = {c.nombre.lower(): c for c in db.get_all_categorias()}
+    all_cats = db.get_all_categorias()
+    # Clave por (tipo, nombre): los nombres se repiten entre tipos (p.ej. "Otros"),
+    # y quedarse con el último provocaba que ingresos/traspasos no encontrasen su
+    # categoría y se descartasen en silencio.
+    cat_by_tipo_name = {
+        (c.tipo_movimiento.value, c.nombre.lower()): c for c in all_cats
+    }
     to_insert: list[LedgerEntry] = []
+    notion_ids: list[str] = []  # ids de la bandeja (Notion/LifeDeck) a marcar tras insertar
+    dup_inbox_ids: list[str] = []  # ids de la bandeja que ya estaban en el ledger
     skipped = 0
+    duplicates = 0
+    keys_cache: dict[str, set] = {}  # mes_fiscal → claves ya en el ledger
+    batch_keys: set = set()          # evita duplicados dentro del propio lote
 
     for item in req.entries:
-        cat = cat_by_name.get((item.categoria_sugerida or "").lower())
-        if not cat:
-            skipped += 1
-            continue
         try:
             tipo = TipoMovimiento(item.tipo_movimiento)
         except ValueError:
+            skipped += 1
+            continue
+        cat = cat_by_tipo_name.get((tipo.value, (item.categoria_sugerida or "").lower()))
+        if not cat:
             skipped += 1
             continue
         try:
@@ -234,9 +246,22 @@ def import_commit(req: ImportCommitRequest) -> ImportCommitResponse:
         except ValueError:
             skipped += 1
             continue
-        if db.is_mes_cerrado(bl.calcular_mes_fiscal(fecha)):
+        mes_fiscal = bl.calcular_mes_fiscal(fecha)
+        if db.is_mes_cerrado(mes_fiscal):
             skipped += 1
             continue
+
+        # Duplicado: mismo importe y misma fecha ya guardados (o repetidos en el lote).
+        key = (round(abs(item.importe), 2), fecha.isoformat())
+        if mes_fiscal not in keys_cache:
+            keys_cache[mes_fiscal] = _existing_keys(mes_fiscal)
+        if key in keys_cache[mes_fiscal] or key in batch_keys:
+            duplicates += 1
+            # LifeDeck: ya está en el ledger → se marca importado para que no vuelva a la bandeja.
+            if item.notion_id:
+                dup_inbox_ids.append(item.notion_id)
+            continue
+        batch_keys.add(key)
 
         rel = None
         if tipo == TipoMovimiento.GASTO and item.relevancia:
@@ -251,9 +276,56 @@ def import_commit(req: ImportCommitRequest) -> ImportCommitResponse:
             categoria_id=cat.id, concepto=item.concepto or item.concepto_original,
             importe=abs(item.importe), relevancia_code=rel, flag_liquidez=False,
         ))
+        if item.notion_id:
+            notion_ids.append(item.notion_id)
 
     inserted = db.batch_insert_ledger_entries(to_insert) if to_insert else 0
-    return ImportCommitResponse(inserted=inserted, skipped=skipped)
+
+    # Marcar en la bandeja solo lo que se insertó con éxito (Notion: archivar; LifeDeck: 'imported').
+    notion_archived = 0
+    source = None
+    if inserted and notion_ids:
+        notion_archived = _archive_notion(notion_ids)
+    if notion_ids or dup_inbox_ids:
+        from src.integrations import inbox
+        client = inbox.get_inbox_client()
+        source = inbox.source_name(client)
+        # Duplicados: solo LifeDeck (en Notion se mantiene el comportamiento de no archivarlos).
+        if dup_inbox_ids and inbox.is_lifedeck(client):
+            notion_archived += inbox.mark_imported(dup_inbox_ids)
+    if inserted:
+        _sync_lifedeck_background()
+
+    return ImportCommitResponse(
+        inserted=inserted, skipped=skipped, duplicates=duplicates,
+        notion_archived=notion_archived, source=source,
+    )
+
+
+def _archive_notion(page_ids: list[str]) -> int:
+    """Marca como importadas las entradas de la bandeja activa (LifeDeck o Notion). Nunca aborta el import."""
+    from src.integrations import inbox
+    return inbox.mark_imported(page_ids)
+
+
+def _sync_lifedeck_background() -> None:
+    """Sube categorías + resumen del mes a LifeDeck en segundo plano (si está activo)."""
+    try:
+        from src.integrations.lifedeck import sync_summary_background
+        sync_summary_background()
+    except Exception:
+        pass
+
+
+@router.post("/notion/archive", response_model=NotionArchiveResponse)
+@router.post("/inbox/archive", response_model=NotionArchiveResponse)
+def notion_archive(req: NotionArchiveRequest) -> NotionArchiveResponse:
+    """Descarta entradas de la bandeja sin importarlas (Notion: archiva; LifeDeck: 'discarded')."""
+    from src.integrations import inbox
+    ids = [pid for pid in req.page_ids if pid]
+    if not ids:
+        raise HTTPException(400, "No hay entradas para borrar.")
+    return NotionArchiveResponse(archived=inbox.mark_discarded(ids))
 
 
 # ── Chat / búsqueda en lenguaje natural ─────────────────────────────────────
@@ -294,35 +366,37 @@ def chat_run(req: ChatRunRequest) -> ChatResponse:
 
 
 # ── Notion ──────────────────────────────────────────────────────────────────
-_NOTION_TIPO_MAP = {
-    "gasto": "GASTO", "ingreso": "INGRESO",
-    "inversión": "INVERSION_AHORRO", "inversion": "INVERSION_AHORRO",
-    "ahorro": "INVERSION_AHORRO",
-}
 
 
+# Rutas /notion/* y /inbox/*: misma lógica sobre la bandeja activa (LifeDeck si está activado, si no Notion).
 @router.get("/notion/status", response_model=NotionStatus)
+@router.get("/inbox/status", response_model=NotionStatus)
 def notion_status() -> NotionStatus:
+    source = "Notion"
     try:
-        from src.integrations.notion import get_notion_client
-        client = get_notion_client()
+        from src.integrations import inbox
+        client = inbox.get_inbox_client()
+        source = inbox.source_name(client)
         if not client.is_configured():
-            return NotionStatus(configured=False, ok=False, detail="Notion no configurado.")
+            return NotionStatus(configured=False, ok=False, detail=f"{source} no configurado.", source=source)
         ok, detail = client.test_connection()
-        return NotionStatus(configured=True, ok=ok, detail=detail)
+        return NotionStatus(configured=True, ok=ok, detail=detail, source=source)
     except Exception as exc:
-        return NotionStatus(configured=False, ok=False, detail=str(exc))
+        return NotionStatus(configured=False, ok=False, detail=str(exc), source=source)
 
 
 @router.get("/notion/pending-count", response_model=dict)
+@router.get("/inbox/pending-count", response_model=dict)
 def notion_pending_count() -> dict:
-    """Nº de entradas nuevas (no duplicadas) pendientes en Notion. 0 si no aplica.
+    """Nº de entradas nuevas (no duplicadas) pendientes en la bandeja. 0 si no aplica.
     Ligero para el banner de arranque; degrada a 0 ante cualquier error."""
+    source = "Notion"
     try:
-        from src.integrations.notion import get_notion_client
-        client = get_notion_client()
+        from src.integrations import inbox
+        client = inbox.get_inbox_client()
+        source = inbox.source_name(client)
         if not client.is_configured():
-            return {"count": 0, "configured": False}
+            return {"count": 0, "configured": False, "source": source}
         raw = client.get_all_entries()
         existing = _existing_keys_all()
         count = 0
@@ -332,37 +406,96 @@ def notion_pending_count() -> dict:
             importe = abs(float(it.get("importe", 0)))
             if (round(importe, 2), fecha_str) not in existing:
                 count += 1
-        return {"count": count, "configured": True}
+        return {"count": count, "configured": True, "source": source}
     except Exception:
-        return {"count": 0, "configured": False}
+        return {"count": 0, "configured": False, "source": source}
 
 
 @router.post("/notion/preview", response_model=ImportPreviewResponse)
+@router.post("/inbox/preview", response_model=ImportPreviewResponse)
 def notion_preview() -> ImportPreviewResponse:
-    from src.integrations.notion import get_notion_client
-    client = get_notion_client()
+    from src.integrations import inbox
+    from src.integrations import notion_parser as np
+    client = inbox.get_inbox_client()
+    source = inbox.source_name(client)
     if not client.is_configured():
-        raise HTTPException(400, "Notion no está configurado.")
+        raise HTTPException(400, f"{source} no está configurado.")
     try:
         raw = client.get_all_entries()
     except Exception as exc:
-        raise HTTPException(502, f"Error consultando Notion: {exc}")
+        raise HTTPException(502, f"Error consultando {source}: {exc}")
+    if inbox.is_lifedeck(client):
+        _sync_lifedeck_background()
 
     existing = _existing_keys_all()
+    # id → nombre para resolver la categoría sugerida a un nombre real de la app,
+    # de modo que coincida con un <SelectItem> en el UI y con la búsqueda en commit.
+    cat_name_by_id = {c.id: c.nombre for c in db.get_all_categorias()}
+    # Mapeo de tipos flexible (emojis, "Traspaso Entrada", inglés, aliases de config).
+    from src.config import load_config
+    tipo_mapping = np._build_tipo_mapping(load_config())
     entries: list[ImportEntry] = []
     for it in raw:
         fecha = it.get("fecha")
         fecha_str = fecha.isoformat() if hasattr(fecha, "isoformat") else str(fecha or "")
-        tipo = _NOTION_TIPO_MAP.get(str(it.get("tipo", "")).strip().lower(), "GASTO")
         importe = abs(float(it.get("importe", 0)))
         dup = (round(importe, 2), fecha_str) in existing
+
+        concepto = str(it.get("concepto", ""))
+        cat_hint = it.get("categoria") or ""
+        tipo_enum = np.map_tipo_movimiento(str(it.get("tipo", "")), tipo_mapping=tipo_mapping)
+        tipo = tipo_enum.value
+
+        # Resolver la categoría de Notion a una categoría real de la app (fuzzy + IA).
+        cat_id = np.find_best_category(concepto, tipo_enum, cat_hint)
+        cat_name = cat_name_by_id.get(cat_id) if cat_id else None
+        confianza = 1.0 if cat_name else 0.0
+
+        # Relevancia sólo para gastos: usar la de Notion o sugerirla.
+        relevancia = None
+        if tipo_enum == TipoMovimiento.GASTO:
+            rel_notion = it.get("relevancia") or ""
+            if rel_notion:
+                relevancia = rel_notion
+            else:
+                relevancia = np.suggest_relevancia(concepto, cat_name or cat_hint).value
+
         entries.append(ImportEntry(
-            fecha=fecha_str, concepto=str(it.get("concepto", "")),
+            fecha=fecha_str, concepto=concepto,
             importe=importe, tipo_movimiento=tipo,
-            categoria_sugerida=it.get("categoria") or None,
-            confianza=1.0, is_duplicate=dup,
+            categoria_sugerida=cat_name, relevancia=relevancia,
+            confianza=confianza, is_duplicate=dup,
+            notion_id=it.get("id"),
         ))
-    return ImportPreviewResponse(file_type="Notion", entries=entries)
+    return ImportPreviewResponse(file_type=source, entries=entries)
+
+
+# ── LifeDeck ────────────────────────────────────────────────────────────────
+@router.get("/lifedeck/status", response_model=NotionStatus)
+def lifedeck_status() -> NotionStatus:
+    """Prueba la conexión con LifeDeck aunque no esté activado como bandeja."""
+    from src.integrations.lifedeck import get_lifedeck_client
+    client = get_lifedeck_client()
+    if not client.is_configured():
+        return NotionStatus(configured=False, ok=False, detail="Falta la URL o el token de LifeDeck.", source="LifeDeck")
+    ok, detail = client.test_connection()
+    return NotionStatus(configured=True, ok=ok, detail=detail, source="LifeDeck")
+
+
+@router.post("/lifedeck/sync", response_model=LifeDeckSyncResponse)
+def lifedeck_sync() -> LifeDeckSyncResponse:
+    """Sube ahora el catálogo de categorías y el resumen del mes actual a LifeDeck."""
+    from src.integrations.lifedeck import LifeDeckError, get_lifedeck_client, sync_summary
+    if not get_lifedeck_client().is_configured():
+        raise HTTPException(400, "Falta la URL o el token de LifeDeck.")
+    try:
+        res = sync_summary()
+    except LifeDeckError as exc:
+        raise HTTPException(502, str(exc))
+    return LifeDeckSyncResponse(
+        ok=True, categories=res["categories"], month=res["month"],
+        detail=f"Resumen de {res['month']} y {res['categories']} categorías subidos a LifeDeck.",
+    )
 
 
 def _existing_keys_all() -> set:

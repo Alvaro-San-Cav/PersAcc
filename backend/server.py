@@ -46,7 +46,7 @@ from src.models import (
 from api_models import (
     CategoriaOut, CategoriaCreate, CategoriaUpdate,
     LedgerEntryOut, LedgerEntryCreate, LedgerEntryUpdate,
-    Kpis, DashboardResponse,
+    Kpis, DashboardResponse, SaldoInicioRequest,
     ClosingStatus, ClosingPreviewRequest, ClosingPreview, ClosingExecuteResponse,
     ConsequenceBreakdown,
     AnnualKpis, MesBalance,
@@ -274,14 +274,31 @@ def dashboard(month: Optional[str] = Query(None, description="YYYY-MM")) -> Dash
     mes = month or _primer_mes_abierto()
     cat_names = _cat_map()
     entries = db.get_ledger_by_month(mes)
+    kpis = _kpis_model(mes)
+    cierre = db.get_cierre_mes(mes)
+    saldo_inicio = cierre.saldo_inicio if cierre else 0.0
+    # Estimación del efectivo disponible: saldo de arranque + flujo neto del mes,
+    # descontando toda la inversión (dinero que ya salió del banco, no está en cuenta).
+    saldo_cuenta = saldo_inicio + kpis.balance_mes - kpis.total_inversion
     return DashboardResponse(
         mes_fiscal=mes,
         is_cerrado=db.is_mes_cerrado(mes),
-        kpis=_kpis_model(mes),
+        saldo_inicio=saldo_inicio,
+        saldo_cuenta=saldo_cuenta,
+        kpis=kpis,
         relevancia=bl.calcular_kpis_relevancia(mes),
         entries=[_entry_to_out(e, cat_names) for e in entries],
         available_months=_available_months(),
     )
+
+
+@app.put("/api/dashboard/saldo-inicio", response_model=OkResponse)
+def set_saldo_inicio(payload: SaldoInicioRequest, month: str = Query(..., description="YYYY-MM")) -> OkResponse:
+    """Fija manualmente el saldo inicial de un mes abierto (onboarding / primer saldo)."""
+    if db.is_mes_cerrado(month):
+        raise HTTPException(409, f"El mes {month} está cerrado; no admite cambiar el saldo inicial.")
+    db.abrir_mes(month, payload.saldo_inicio)
+    return OkResponse(detail="saldo inicial actualizado")
 
 
 # ── Cierre ──────────────────────────────────────────────────────────────────
@@ -320,8 +337,12 @@ def closing_preview(req: ClosingPreviewRequest) -> ClosingPreview:
         consequences_amount=consequences["total"],
     )
     saldo_fin = saldo_base - retencion_remanente
-    balance_esperado = kpis["balance_mes"] + kpis["total_traspasos_entrada"] - kpis["total_inversion"]
-    desviacion = balance_esperado - req.saldo_banco_real if req.saldo_banco_real else None
+    # Desviación = saldo esperado del banco vs. saldo real ajustado (sin la nómina nueva,
+    # que pertenece al mes siguiente). balance_mes ya incluye los traspasos de entrada.
+    cierre_actual = db.get_cierre_mes(req.mes_fiscal)
+    saldo_inicio = cierre_actual.saldo_inicio if cierre_actual else 0.0
+    balance_esperado = saldo_inicio + kpis["balance_mes"] - kpis["total_inversion"]
+    desviacion = balance_esperado - saldo_base if req.saldo_banco_real else None
 
     return ClosingPreview(
         mes_fiscal=req.mes_fiscal,

@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -83,13 +84,19 @@ export function ConsequencesEditor() {
           </Button>
         </div>
 
-        {rules.length === 0 && <p className="text-sm text-txt2">Sin reglas configuradas.</p>}
+        {rules.length === 0 && (
+          <p className="rounded-[var(--radius-card)] border border-dashed border-border-subtle px-4 py-6 text-center text-sm text-txt2">
+            Sin reglas configuradas. Añade una para penalizar ciertos gastos al cierre.
+          </p>
+        )}
 
         {rules.map((r, i) => (
-          <div key={r.id} className="grid grid-cols-1 gap-2 rounded-[var(--radius-card)] border border-border-subtle p-3 md:grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto]">
-            <label className="flex items-center gap-1 text-xs text-txt2">
-              <input type="checkbox" checked={r.active} onChange={(e) => update(i, { active: e.target.checked })} />
-              Activa
+          <div
+            key={r.id}
+            className={`grid grid-cols-1 gap-2 rounded-[var(--radius-card)] border border-border-subtle p-3 md:grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] ${r.active ? '' : 'opacity-60'}`}
+          >
+            <label className="flex items-center gap-2 text-xs text-txt2">
+              <Switch checked={r.active} onCheckedChange={(v) => update(i, { active: v })} aria-label="Regla activa" />
             </label>
             <Input value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="Nombre" className="h-8" />
             <Select value={r.filter_relevance || '__any__'} onValueChange={(v) => update(i, { filter_relevance: v === '__any__' ? '' : v })}>
