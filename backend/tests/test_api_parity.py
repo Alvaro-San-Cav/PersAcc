@@ -109,7 +109,9 @@ def test_projections_shape():
 def test_import_commit_empty():
     r = client.post("/api/import/commit", json={"entries": []})
     assert r.status_code == 200
-    assert r.json() == {"inserted": 0, "skipped": 0}
+    body = r.json()
+    assert body["inserted"] == 0 and body["skipped"] == 0
+    assert body.get("duplicates", 0) == 0 and body.get("notion_archived", 0) == 0
 
 
 def test_closing_preview_does_not_mutate():

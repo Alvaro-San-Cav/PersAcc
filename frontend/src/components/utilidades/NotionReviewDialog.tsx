@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { apiPost, ApiError } from '@/api/client'
-import { useCategories } from '@/api/queries'
+import { useCategories, useNotionPendingCount } from '@/api/queries'
 import { fmtMoney, RELEVANCIA_LABEL, TIPO_LABEL } from '@/lib/format'
 import type {
   ImportEntry,
@@ -47,13 +47,27 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
   const isLifeDeck = source === 'LifeDeck'
   const { data: cats } = useCategories()
   const qc = useQueryClient()
+  // Antes de la vista previa (que puede tardar si hay que preguntar a la IA): cuántos llegan y cuántos van a la IA.
+  const { data: pending } = useNotionPendingCount(open)
+  const [stats, setStats] = useState<{ ai: number; ms: number } | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!loading) return
+    const t0 = Date.now()
+    setElapsed(0)
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 500)
+    return () => clearInterval(id)
+  }, [loading])
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
+    setStats(null)
     apiPost<ImportPreviewResponse>('/api/inbox/preview', {})
       .then((res) => {
         setSource(res.file_type || null)
+        setStats({ ai: res.ai_count ?? 0, ms: res.elapsed_ms ?? 0 })
         setRows(res.entries.map((e, i) => ({ ...e, _sel: !e.is_duplicate, _idx: i })))
       })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Error consultando la bandeja'))
@@ -140,10 +154,34 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
         </DialogHeader>
 
         {loading ? (
-          <Skeleton className="h-56" />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1 rounded-[var(--radius-card)] border border-border-subtle bg-card2 px-3 py-2.5 text-sm">
+              <span className="flex items-center gap-2 text-txt">
+                <span className="size-2 animate-pulse rounded-full bg-accent" aria-hidden />
+                {pending?.total != null
+                  ? `Cargando ${pending.total} ${pending.total === 1 ? 'apunte' : 'apuntes'} de ${pending.source ?? 'la bandeja'}…`
+                  : 'Consultando la bandeja…'}
+                <span className="ml-auto tabular-nums text-txt3">{elapsed} s</span>
+              </span>
+              {!!pending?.needs_ai && (
+                <span className="text-xs text-amber">
+                  {pending.needs_ai} sin categoría o relevancia → clasificando con IA (Ollama) en paralelo. Puede tardar unos segundos por apunte.
+                </span>
+              )}
+            </div>
+            <Skeleton className="h-44" />
+          </div>
         ) : rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-txt2">No hay entradas pendientes en {label}.</p>
         ) : (
+          <>
+          {stats && (
+            <p className={`text-xs ${stats.ai ? 'text-amber' : 'text-txt3'}`}>
+              {stats.ai
+                ? `${stats.ai} ${stats.ai === 1 ? 'apunte clasificado' : 'apuntes clasificados'} con IA en ${(stats.ms / 1000).toFixed(1)} s (marcados «IA»): revisa categoría y relevancia. Si eliges la categoría al apuntar en ${label}, carga al instante.`
+                : `Listo en ${(stats.ms / 1000).toFixed(1)} s · todo llegó ya clasificado, sin IA.`}
+            </p>
+          )}
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
             {rows.map((r) => {
               const catsForTipo = (cats ?? []).filter((c) => c.tipo_movimiento === r.tipo_movimiento)
@@ -182,11 +220,13 @@ export function NotionReviewDialog({ open, onOpenChange }: { open: boolean; onOp
                     </Select>
                   )}
                   <span className="w-20 text-right tabular-nums text-txt">{fmtMoney(r.importe)}</span>
+                  {r.ai_classified && <Badge variant="amber" title="Categoría/relevancia sugeridas por la IA">IA</Badge>}
                   {r.is_duplicate && <Badge variant="amber">dup</Badge>}
                 </div>
               )
             })}
           </div>
+          </>
         )}
 
         <DialogFooter>

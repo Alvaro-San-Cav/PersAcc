@@ -265,7 +265,8 @@ export function useChatRun() {
 export function useNotionPendingCount(enabled: boolean) {
   return useQuery({
     queryKey: ['notion', 'pending-count'],
-    queryFn: () => apiGet<{ count: number; configured: boolean; source?: string }>('/api/inbox/pending-count'),
+    queryFn: () =>
+      apiGet<{ count: number; configured: boolean; source?: string; total?: number; needs_ai?: number }>('/api/inbox/pending-count'),
     enabled,
     retry: false,
     staleTime: 60 * 1000,

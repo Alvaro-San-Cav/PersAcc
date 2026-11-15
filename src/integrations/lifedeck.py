@@ -145,6 +145,12 @@ class LifeDeckClient:
         self._request("POST", "snapshot", {"month": mes, "data": data})
         return mes
 
+    def push_hints(self) -> int:
+        """Sube las pistas concepto → categoría/relevancia aprendidas del ledger. Devuelve cuántas."""
+        hints = build_hints()
+        res = self._request("POST", "hints", {"hints": hints})
+        return int(res.get("count", len(hints)))
+
     # ── HTTP ────────────────────────────────────────────────────────────────
     def _request(self, method: str, op: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not self.is_configured():
@@ -201,6 +207,57 @@ def build_snapshot(mes_fiscal: str) -> Dict[str, Any]:
     }
 
 
+MAX_HINTS = 1500
+
+
+def norm_concept(text: str) -> str:
+    """Igual que normConcept de LifeDeck: minúsculas, sin acentos, solo letras y espacios."""
+    import re
+    import unicodedata
+
+    t = unicodedata.normalize("NFD", (text or "").lower())
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    t = re.sub(r"[^a-z\s]", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def build_hints(entries: Optional[List[Any]] = None, categorias: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    """
+    Del ledger: para cada (tipo, concepto normalizado) la categoría y relevancia más usadas y cuántas
+    veces aparece. Las más usadas (y recientes) primero, hasta MAX_HINTS. Ignora categorías inactivas.
+    """
+    from collections import Counter, defaultdict
+
+    from src import database as db
+
+    entries = db.get_all_ledger_entries() if entries is None else entries
+    categorias = db.get_all_categorias() if categorias is None else categorias
+    cat_name = {c.id: c.nombre.strip() for c in categorias if c.es_activo and c.nombre and c.nombre.strip()}
+
+    groups: Dict[Tuple[str, str], Dict[str, Any]] = defaultdict(lambda: {"cats": Counter(), "rels": Counter(), "n": 0, "last": ""})
+    for e in entries:
+        name = cat_name.get(e.categoria_id)
+        concept = norm_concept(e.concepto)[:80].strip()
+        if not name or not concept:
+            continue
+        kind = e.tipo_movimiento.value if hasattr(e.tipo_movimiento, "value") else str(e.tipo_movimiento)
+        g = groups[(kind, concept)]
+        g["cats"][name] += 1
+        if e.relevancia_code is not None:
+            rel = e.relevancia_code.value if hasattr(e.relevancia_code, "value") else str(e.relevancia_code)
+            g["rels"][rel] += 1
+        g["n"] += 1
+        fecha = e.fecha_real.isoformat() if hasattr(e.fecha_real, "isoformat") else str(e.fecha_real)
+        g["last"] = max(g["last"], fecha)
+
+    ranked = sorted(groups.items(), key=lambda kv: (kv[1]["n"], kv[1]["last"]), reverse=True)[:MAX_HINTS]
+    out: List[Dict[str, Any]] = []
+    for (kind, concept), g in ranked:
+        rel = g["rels"].most_common(1)[0][0] if (kind == "GASTO" and g["rels"]) else None
+        out.append({"c": concept, "k": kind, "cat": g["cats"].most_common(1)[0][0][:100], "r": rel, "n": g["n"]})
+    return out
+
+
 def get_lifedeck_client() -> LifeDeckClient:
     return LifeDeckClient()
 
@@ -210,7 +267,12 @@ def sync_summary(mes_fiscal: Optional[str] = None) -> Dict[str, Any]:
     client = get_lifedeck_client()
     categories = client.push_categories()
     month = client.push_snapshot(mes_fiscal)
-    return {"categories": categories, "month": month}
+    try:
+        hints = client.push_hints()
+    except LifeDeckError as exc:  # LifeDeck antiguo sin op=hints: no rompe el resto
+        logger.info("Pistas de categoría no subidas: %s", exc)
+        hints = 0
+    return {"categories": categories, "month": month, "hints": hints}
 
 
 def sync_summary_background() -> None:

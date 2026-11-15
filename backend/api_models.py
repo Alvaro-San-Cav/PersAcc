@@ -278,11 +278,14 @@ class ImportEntry(BaseModel):
     confianza: float = 0.5
     is_duplicate: bool = False
     notion_id: Optional[str] = None  # page_id de Notion; se archiva al importar
+    ai_classified: bool = False  # categoría/relevancia sugeridas por la IA (revisar)
 
 
 class ImportPreviewResponse(BaseModel):
     file_type: str
     entries: List[ImportEntry]
+    ai_count: int = 0  # apuntes clasificados con IA (Ollama)
+    elapsed_ms: int = 0  # tiempo de clasificación
 
 
 class ImportCommitRequest(BaseModel):
@@ -363,4 +366,5 @@ class LifeDeckSyncResponse(BaseModel):
     ok: bool
     detail: str
     categories: int = 0
+    hints: int = 0
     month: Optional[str] = None

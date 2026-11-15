@@ -247,11 +247,16 @@ export interface ImportEntry {
   confianza: number
   is_duplicate: boolean
   notion_id?: string | null
+  /** Categoría/relevancia sugeridas por la IA (Ollama): conviene revisarlas. */
+  ai_classified?: boolean
 }
 
 export interface ImportPreviewResponse {
   file_type: string
   entries: ImportEntry[]
+  /** Apuntes clasificados con IA y tiempo que tardó la clasificación. */
+  ai_count?: number
+  elapsed_ms?: number
 }
 
 export interface ImportCommitResponse {

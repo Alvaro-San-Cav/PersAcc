@@ -78,3 +78,28 @@ def test_not_configured_is_noop():
     c = lifedeck.LifeDeckClient({"enabled": True, "url": "", "token": ""})
     assert c.is_configured() is False
     assert c.get_all_entries() == []
+
+
+def test_norm_concept_matches_lifedeck():
+    assert lifedeck.norm_concept("Café  Starbucks 2x!") == "cafe starbucks x"
+    assert lifedeck.norm_concept("Año Nuevo") == "ano nuevo"
+
+
+def test_build_hints_most_used_category_and_relevance():
+    from types import SimpleNamespace as NS
+    from src.models import RelevanciaCode
+
+    cats = [NS(id=1, nombre="Cafetería", es_activo=True), NS(id=2, nombre="Otros", es_activo=True),
+            NS(id=3, nombre="Vieja", es_activo=False), NS(id=4, nombre="Salario", es_activo=True)]
+    g = TipoMovimiento.GASTO
+    entries = [
+        NS(concepto="Café", categoria_id=1, tipo_movimiento=g, relevancia_code=RelevanciaCode.LI, fecha_real=date(2026, 1, 1)),
+        NS(concepto="cafe", categoria_id=1, tipo_movimiento=g, relevancia_code=RelevanciaCode.LI, fecha_real=date(2026, 2, 1)),
+        NS(concepto="CAFÉ", categoria_id=2, tipo_movimiento=g, relevancia_code=RelevanciaCode.SUP, fecha_real=date(2026, 3, 1)),
+        NS(concepto="Algo", categoria_id=3, tipo_movimiento=g, relevancia_code=None, fecha_real=date(2026, 3, 1)),
+        NS(concepto="Nómina", categoria_id=4, tipo_movimiento=TipoMovimiento.INGRESO, relevancia_code=None, fecha_real=date(2026, 3, 1)),
+    ]
+    hints = lifedeck.build_hints(entries, cats)
+    assert hints[0] == {"c": "cafe", "k": "GASTO", "cat": "Cafetería", "r": "LI", "n": 3}
+    assert {"c": "nomina", "k": "INGRESO", "cat": "Salario", "r": None, "n": 1} in hints
+    assert all(h["cat"] != "Vieja" for h in hints)

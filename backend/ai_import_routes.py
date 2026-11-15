@@ -400,13 +400,20 @@ def notion_pending_count() -> dict:
         raw = client.get_all_entries()
         existing = _existing_keys_all()
         count = 0
+        needs_ai = 0
+        from src.config import load_config
+        llm_on = bool(load_config().get("llm", {}).get("enabled", False))
         for it in raw:
             fecha = it.get("fecha")
             fecha_str = fecha.isoformat() if hasattr(fecha, "isoformat") else str(fecha or "")
             importe = abs(float(it.get("importe", 0)))
             if (round(importe, 2), fecha_str) not in existing:
                 count += 1
-        return {"count": count, "configured": True, "source": source}
+            # Sin categoría (o gasto sin relevancia) → la vista previa preguntará a la IA.
+            tipo = str(it.get("tipo", "")).upper()
+            if llm_on and (not it.get("categoria") or ("GASTO" in tipo and not it.get("relevancia"))):
+                needs_ai += 1
+        return {"count": count, "configured": True, "source": source, "total": len(raw), "needs_ai": needs_ai}
     except Exception:
         return {"count": 0, "configured": False, "source": source}
 
@@ -432,10 +439,15 @@ def notion_preview() -> ImportPreviewResponse:
     # de modo que coincida con un <SelectItem> en el UI y con la búsqueda en commit.
     cat_name_by_id = {c.id: c.nombre for c in db.get_all_categorias()}
     # Mapeo de tipos flexible (emojis, "Traspaso Entrada", inglés, aliases de config).
+    import time
+    from concurrent.futures import ThreadPoolExecutor
     from src.config import load_config
-    tipo_mapping = np._build_tipo_mapping(load_config())
-    entries: list[ImportEntry] = []
-    for it in raw:
+    config = load_config()
+    tipo_mapping = np._build_tipo_mapping(config)
+    llm_on = bool(config.get("llm", {}).get("enabled", False))
+    t0 = time.monotonic()
+
+    def classify(it: dict) -> ImportEntry:
         fecha = it.get("fecha")
         fecha_str = fecha.isoformat() if hasattr(fecha, "isoformat") else str(fecha or "")
         importe = abs(float(it.get("importe", 0)))
@@ -446,28 +458,42 @@ def notion_preview() -> ImportPreviewResponse:
         tipo_enum = np.map_tipo_movimiento(str(it.get("tipo", "")), tipo_mapping=tipo_mapping)
         tipo = tipo_enum.value
 
-        # Resolver la categoría de Notion a una categoría real de la app (fuzzy + IA).
+        # Resolver la categoría a una categoría real de la app (exacta/fuzzy; IA solo si no casa).
         cat_id = np.find_best_category(concepto, tipo_enum, cat_hint)
         cat_name = cat_name_by_id.get(cat_id) if cat_id else None
         confianza = 1.0 if cat_name else 0.0
+        hint_ok = bool(cat_hint) and cat_name is not None and np.normalize_text(cat_name) == np.normalize_text(cat_hint)
+        ai = llm_on and not hint_ok
 
-        # Relevancia sólo para gastos: usar la de Notion o sugerirla.
+        # Relevancia sólo para gastos: usar la que llega o sugerirla (IA si está activada).
         relevancia = None
         if tipo_enum == TipoMovimiento.GASTO:
-            rel_notion = it.get("relevancia") or ""
-            if rel_notion:
-                relevancia = rel_notion
+            rel_in = it.get("relevancia") or ""
+            if rel_in:
+                relevancia = rel_in
             else:
                 relevancia = np.suggest_relevancia(concepto, cat_name or cat_hint).value
+                ai = ai or llm_on
 
-        entries.append(ImportEntry(
+        return ImportEntry(
             fecha=fecha_str, concepto=concepto,
             importe=importe, tipo_movimiento=tipo,
             categoria_sugerida=cat_name, relevancia=relevancia,
             confianza=confianza, is_duplicate=dup,
-            notion_id=it.get("id"),
-        ))
-    return ImportPreviewResponse(file_type=source, entries=entries)
+            notion_id=it.get("id"), ai_classified=ai,
+        )
+
+    # En paralelo: las consultas a Ollama de cada apunte no se esperan unas a otras.
+    if len(raw) > 1:
+        with ThreadPoolExecutor(max_workers=min(4, len(raw))) as pool:
+            entries = list(pool.map(classify, raw))
+    else:
+        entries = [classify(it) for it in raw]
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    return ImportPreviewResponse(
+        file_type=source, entries=entries,
+        ai_count=sum(1 for e in entries if e.ai_classified), elapsed_ms=elapsed_ms,
+    )
 
 
 # ── LifeDeck ────────────────────────────────────────────────────────────────
@@ -493,8 +519,11 @@ def lifedeck_sync() -> LifeDeckSyncResponse:
     except LifeDeckError as exc:
         raise HTTPException(502, str(exc))
     return LifeDeckSyncResponse(
-        ok=True, categories=res["categories"], month=res["month"],
-        detail=f"Resumen de {res['month']} y {res['categories']} categorías subidos a LifeDeck.",
+        ok=True, categories=res["categories"], month=res["month"], hints=res.get("hints", 0),
+        detail=(
+            f"Resumen de {res['month']}, {res['categories']} categorías y "
+            f"{res.get('hints', 0)} pistas de clasificación subidos a LifeDeck."
+        ),
     )
 
 
