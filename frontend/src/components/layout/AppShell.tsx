@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfig, useNotionPendingCount, useSaveConfig } from '@/api/queries'
+import { apiPost } from '@/api/client'
 import { setCurrencySymbol } from '@/lib/format'
 import { applyTheme } from '@/lib/theme'
 import { useT } from '@/lib/i18n'
@@ -87,6 +88,18 @@ export function AppShell() {
   useEffect(() => {
     setAsideCollapsed(location.pathname !== '/')
   }, [location.pathname])
+
+  // Al entrar en PersAcc (o volver a su pestaña) se sube el resumen del mes a LifeDeck en segundo plano.
+  // El backend no repite si ya subió hace menos de 2 min.
+  useEffect(() => {
+    if (!lifedeck.enabled) return
+    const ping = () => {
+      if (document.visibilityState === 'visible') apiPost('/api/lifedeck/autosync', {}).catch(() => {})
+    }
+    ping()
+    document.addEventListener('visibilitychange', ping)
+    return () => document.removeEventListener('visibilitychange', ping)
+  }, [lifedeck.enabled])
 
   // Al arrancar, si Notion tiene entradas pendientes se abre la revisión sola
   // (una vez por sesión; el banner sigue disponible para reabrirla).

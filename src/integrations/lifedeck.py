@@ -290,8 +290,17 @@ def get_lifedeck_client() -> LifeDeckClient:
     return LifeDeckClient()
 
 
+#: Momento (time.monotonic) de la última subida correcta; 0 = nunca en esta ejecución.
+_last_sync = 0.0
+#: Al abrir PersAcc o volver a su pestaña: no resubir si se subió hace menos de esto.
+AUTOSYNC_MIN_INTERVAL = 120.0
+
+
 def sync_summary(mes_fiscal: Optional[str] = None) -> Dict[str, Any]:
     """Sube categorías + resumen del mes. Lanza LifeDeckError si falla algo."""
+    import time
+
+    global _last_sync
     client = get_lifedeck_client()
     categories = client.push_categories()
     month = client.push_snapshot(mes_fiscal)
@@ -300,7 +309,24 @@ def sync_summary(mes_fiscal: Optional[str] = None) -> Dict[str, Any]:
     except LifeDeckError as exc:  # LifeDeck antiguo sin op=hints: no rompe el resto
         logger.info("Pistas de categoría no subidas: %s", exc)
         hints = 0
+    _last_sync = time.monotonic()
     return {"categories": categories, "month": month, "hints": hints}
+
+
+def autosync_if_stale(now: Optional[float] = None) -> bool:
+    """
+    Al entrar en PersAcc: sube el resumen en segundo plano si LifeDeck está activo y no se subió
+    en los últimos AUTOSYNC_MIN_INTERVAL s. Devuelve si lanzó la subida.
+    """
+    import time
+
+    t = time.monotonic() if now is None else now
+    if _last_sync and t - _last_sync < AUTOSYNC_MIN_INTERVAL:
+        return False
+    if not _lifedeck_active():
+        return False
+    sync_summary_background()
+    return True
 
 
 def sync_summary_background() -> None:

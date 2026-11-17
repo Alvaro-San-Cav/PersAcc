@@ -121,3 +121,18 @@ def test_build_movements_newest_first_compact_and_capped(monkeypatch):
 
     monkeypatch.setattr(lifedeck, "MAX_MOVEMENTS_BYTES", 150)
     assert len(lifedeck.build_movements(entries, {})) == 2
+
+
+def test_autosync_if_stale_throttles(monkeypatch):
+    started = []
+    monkeypatch.setattr(lifedeck, "_lifedeck_active", lambda: True)
+    monkeypatch.setattr(lifedeck, "sync_summary_background", lambda: started.append(1))
+    monkeypatch.setattr(lifedeck, "_last_sync", 0.0)
+    assert lifedeck.autosync_if_stale(now=1000.0) is True
+    monkeypatch.setattr(lifedeck, "_last_sync", 1000.0)
+    assert lifedeck.autosync_if_stale(now=1060.0) is False
+    assert lifedeck.autosync_if_stale(now=1200.0) is True
+    monkeypatch.setattr(lifedeck, "_lifedeck_active", lambda: False)
+    monkeypatch.setattr(lifedeck, "_last_sync", 0.0)
+    assert lifedeck.autosync_if_stale(now=5000.0) is False
+    assert len(started) == 2

@@ -508,6 +508,16 @@ def lifedeck_status() -> NotionStatus:
     return NotionStatus(configured=True, ok=ok, detail=detail, source="LifeDeck")
 
 
+@router.post("/lifedeck/autosync")
+def lifedeck_autosync() -> dict:
+    """Al abrir PersAcc (o volver a la pestaña): subida en segundo plano si toca. Nunca falla."""
+    try:
+        from src.integrations.lifedeck import autosync_if_stale
+        return {"started": autosync_if_stale()}
+    except Exception:
+        return {"started": False}
+
+
 @router.post("/lifedeck/sync", response_model=LifeDeckSyncResponse)
 def lifedeck_sync() -> LifeDeckSyncResponse:
     """Sube ahora el catálogo de categorías y el resumen del mes actual a LifeDeck."""
