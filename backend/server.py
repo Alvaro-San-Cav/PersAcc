@@ -239,6 +239,7 @@ def create_ledger(payload: LedgerEntryCreate) -> IdResponse:
         concepto=payload.concepto, importe=payload.importe, relevancia_code=rel,
         flag_liquidez=payload.flag_liquidez,
     ))
+    _lifedeck_soon()
     return IdResponse(id=new_id)
 
 
@@ -249,6 +250,7 @@ def update_ledger(entry_id: int, payload: LedgerEntryUpdate) -> OkResponse:
         entry_id, payload.categoria_id, payload.concepto or "",
         payload.importe, payload.relevancia_code,
     )
+    _lifedeck_soon()
     return OkResponse()
 
 
@@ -256,7 +258,17 @@ def update_ledger(entry_id: int, payload: LedgerEntryUpdate) -> OkResponse:
 def delete_ledger(entry_id: int) -> OkResponse:
     _assert_entry_editable(entry_id)
     db.delete_ledger_entry(entry_id)
+    _lifedeck_soon()
     return OkResponse()
+
+
+def _lifedeck_soon() -> None:
+    """LifeDeck ve los movimientos confirmados del mes: se resube el resumen poco después (si está activo)."""
+    try:
+        from src.integrations.lifedeck import sync_summary_soon
+        sync_summary_soon()
+    except Exception:
+        pass
 
 
 def _assert_entry_editable(entry_id: int) -> None:

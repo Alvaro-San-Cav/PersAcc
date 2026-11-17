@@ -103,3 +103,21 @@ def test_build_hints_most_used_category_and_relevance():
     assert hints[0] == {"c": "cafe", "k": "GASTO", "cat": "Cafetería", "r": "LI", "n": 3}
     assert {"c": "nomina", "k": "INGRESO", "cat": "Salario", "r": None, "n": 1} in hints
     assert all(h["cat"] != "Vieja" for h in hints)
+
+
+def test_build_movements_newest_first_compact_and_capped(monkeypatch):
+    from types import SimpleNamespace as NS
+
+    g = TipoMovimiento.GASTO
+    entries = [
+        NS(id=1, concepto="Mercadona ", categoria_id=1, tipo_movimiento=g, importe=23.456, fecha_real=date(2026, 11, 3)),
+        NS(id=2, concepto="Nómina", categoria_id=2, tipo_movimiento=TipoMovimiento.INGRESO, importe=1800, fecha_real=date(2026, 11, 1)),
+        NS(id=3, concepto="Bar", categoria_id=9, tipo_movimiento=g, importe=4, fecha_real=date(2026, 11, 3)),
+    ]
+    movs = lifedeck.build_movements(entries, {1: "Súper", 2: "Salario"})
+    assert movs[0] == {"f": "2026-11-03", "t": "GASTO", "c": "Bar", "i": 4.0, "cat": ""}
+    assert movs[1] == {"f": "2026-11-03", "t": "GASTO", "c": "Mercadona", "i": 23.46, "cat": "Súper"}
+    assert movs[2]["t"] == "INGRESO"
+
+    monkeypatch.setattr(lifedeck, "MAX_MOVEMENTS_BYTES", 150)
+    assert len(lifedeck.build_movements(entries, {})) == 2

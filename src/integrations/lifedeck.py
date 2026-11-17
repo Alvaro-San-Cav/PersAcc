@@ -188,7 +188,8 @@ def build_snapshot(mes_fiscal: str) -> Dict[str, Any]:
     relevancia = bl.calcular_kpis_relevancia(mes_fiscal)
     cat_name = {c.id: c.nombre for c in db.get_all_categorias()}
     por_cat: Dict[str, float] = {}
-    for e in db.get_ledger_by_month(mes_fiscal):
+    ledger = db.get_ledger_by_month(mes_fiscal)
+    for e in ledger:
         if e.tipo_movimiento == TipoMovimiento.GASTO:
             nombre = cat_name.get(e.categoria_id, "Otros")
             por_cat[nombre] = por_cat.get(nombre, 0.0) + float(e.importe)
@@ -204,7 +205,34 @@ def build_snapshot(mes_fiscal: str) -> Dict[str, Any]:
         "por_relevancia": {k: round(float(relevancia.get(k, 0.0)), 2) for k in ("NE", "LI", "SUP", "TON")},
         "estado": "CERRADO" if db.is_mes_cerrado(mes_fiscal) else "ABIERTO",
         "generado_en": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "movimientos": build_movements(ledger, cat_name),
     }
+
+
+MAX_MOVEMENTS = 400
+#: Presupuesto para la lista dentro del snapshot (LifeDeck acepta 48 KB en total).
+MAX_MOVEMENTS_BYTES = 40 * 1024
+
+
+def build_movements(entries: List[Any], cat_name: Dict[int, str]) -> List[Dict[str, Any]]:
+    """
+    Movimientos ya confirmados del mes, compactos y del más reciente al más antiguo:
+    {f: fecha real, t: tipo, c: concepto, i: importe, cat: categoría}. Si no caben, se quitan los más antiguos.
+    """
+    import json
+
+    rows = sorted(entries, key=lambda e: (str(e.fecha_real), e.id or 0), reverse=True)[:MAX_MOVEMENTS]
+    out: List[Dict[str, Any]] = []
+    size = 2
+    for e in rows:
+        kind = e.tipo_movimiento.value if hasattr(e.tipo_movimiento, "value") else str(e.tipo_movimiento)
+        fecha = e.fecha_real.isoformat() if hasattr(e.fecha_real, "isoformat") else str(e.fecha_real)
+        m = {"f": fecha[:10], "t": kind, "c": (e.concepto or "").strip()[:60], "i": round(float(e.importe), 2), "cat": cat_name.get(e.categoria_id, "")[:40]}
+        size += len(json.dumps(m, ensure_ascii=False).encode("utf-8")) + 1
+        if size > MAX_MOVEMENTS_BYTES:
+            break
+        out.append(m)
+    return out
 
 
 MAX_HINTS = 1500
@@ -287,6 +315,24 @@ def sync_summary_background() -> None:
             logger.info("Sincronización con LifeDeck omitida: %s", exc)
 
     threading.Thread(target=_run, name="lifedeck-sync", daemon=True).start()
+
+
+_soon_timer: Optional[Any] = None
+
+
+def sync_summary_soon(delay: float = 8.0) -> None:
+    """
+    Tras añadir/editar/borrar en el ledger: sube el resumen pasados `delay` s. Varias ediciones seguidas
+    se agrupan en una sola subida. Best-effort, nunca bloquea la petición.
+    """
+    import threading
+
+    global _soon_timer
+    if _soon_timer is not None:
+        _soon_timer.cancel()
+    _soon_timer = threading.Timer(delay, sync_summary_background)
+    _soon_timer.daemon = True
+    _soon_timer.start()
 
 
 def _lifedeck_active() -> bool:
